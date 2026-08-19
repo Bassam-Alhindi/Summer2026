@@ -1,315 +1,246 @@
-## Overview
+# Design System Inspired by Spotify
 
-Nike's commerce system is built on a single, almost violently simple idea: photography speaks, the chrome doesn't. Every page reads as an athletic editorial — towering uppercase Futura display lockups (`{typography.display-campaign}`) burned into full-bleed campaign imagery, with everything else (nav, filters, buttons, cards, footer) reduced to neutral typography and pill geometry on `{colors.canvas}` and `{colors.soft-cloud}`. There is no decorative gradient, no soft shadow nostalgia, no accent color used for "tone" — the system saves all chromatic energy for product photography and the small handful of moments that actually need to signal (sale price `{colors.sale}`, success `{colors.success}`, swatch dots).
+## 1. Visual Theme & Atmosphere
 
-The result is a layout that feels physical — campaign hero, product grid, sport tile, footer — stacked like a printed catalog rather than animated like a typical SaaS landing page. Density is high but never crowded, because the system relies on three relentless devices: square or near-square 1:1 product imagery on `{colors.soft-cloud}`, pill-shaped black CTAs (`{rounded.full}`) anchoring every actionable surface, and a tight 8px-base spacing scale that keeps cards and filters mathematically aligned across PLP, PDP, and editorial pages.
+Spotify's web interface is a dark, immersive music player that wraps listeners in a near-black cocoon (`#121212`, `#181818`, `#1f1f1f`) where album art and content become the primary source of color. The design philosophy is "content-first darkness" — the UI recedes into shadow so that music, podcasts, and playlists can glow. Every surface is a shade of charcoal, creating a theater-like environment where the only true color comes from the iconic Spotify Green (`#1ed760`) and the album artwork itself.
 
-Across `/men`, the trail-running listing, the Zegama PDP, `/membership`, and Jordan Golf, the same chrome appears in identical proportions — only the photography and copy change. That is the system's signature: maximum editorial expression in the imagery, maximum mechanical restraint everywhere else.
+The typography uses SpotifyMixUI and SpotifyMixUITitle — proprietary fonts from the CircularSp family (Circular by Lineto, customized for Spotify) with an extensive fallback stack that includes Arabic, Hebrew, Cyrillic, Greek, Devanagari, and CJK fonts, reflecting Spotify's global reach. The type system is compact and functional: 700 (bold) for emphasis and navigation, 600 (semibold) for secondary emphasis, and 400 (regular) for body. Buttons use uppercase with positive letter-spacing (1.4px–2px) for a systematic, label-like quality.
+
+What distinguishes Spotify is its pill-and-circle geometry. Primary buttons use 500px–9999px radius (full pill), circular play buttons use 50% radius, and search inputs are 500px pills. Combined with heavy shadows (`rgba(0,0,0,0.5) 0px 8px 24px`) on elevated elements and a unique inset border-shadow combo (`rgb(18,18,18) 0px 1px 0px, rgb(124,124,124) 0px 0px 0px 1px inset`), the result is an interface that feels like a premium audio device — tactile, rounded, and built for touch.
 
 **Key Characteristics:**
-- Editorial campaign hero with `{typography.display-campaign}` (Nike Futura ND, 96px, line-height 0.9, uppercase) burned directly into full-bleed photography
-- Pure black/white/single-gray UI palette: `{colors.ink}`, `{colors.canvas}`, and `{colors.soft-cloud}` carry ~95% of the chrome surface area
-- Pill geometry everywhere: every CTA, search field, filter chip, and badge uses `{rounded.full}` (30px) or `{rounded.md}` (24px) — there are no sharp-cornered buttons in the system
-- Product cards have zero radius, zero shadow, sit directly on `{colors.soft-cloud}` swatch backgrounds — the photograph is the card
-- Two-tone CTA hierarchy: `{component.button-primary}` (black on anything light) versus `{component.button-secondary}` (`{colors.soft-cloud}` on anything bright) — never both at once on the same surface
-- 8px spacing system with section rhythm at `{spacing.section}` (48px) creating consistent vertical breathing across PLP, PDP, and editorial pages
-- Sale signaling is the only place a non-neutral color appears in retail chrome: `{colors.sale}` price + strike-through original price, no badge background
+- Near-black immersive dark theme (`#121212`–`#1f1f1f`) — UI disappears behind content
+- Spotify Green (`#1ed760`) as singular brand accent — never decorative, always functional
+- SpotifyMixUI/CircularSp font family with global script support
+- Pill buttons (500px–9999px) and circular controls (50%) — rounded, touch-optimized
+- Uppercase button labels with wide letter-spacing (1.4px–2px)
+- Heavy shadows on elevated elements (`rgba(0,0,0,0.5) 0px 8px 24px`)
+- Semantic colors: negative red (`#f3727f`), warning orange (`#ffa42b`), announcement blue (`#539df5`)
+- Album art as the primary color source — the UI is achromatic by design
 
-## Colors
+## 2. Color Palette & Roles
 
-> **Source pages:** `/men` (primary), `/w/mens-acg-trail-running-shoes-…`, `/t/acg-zegama-…`, `/membership`, `/w/jordan-golf-…`. The chrome palette is identical across all five — only photography varies.
-
-### Brand & Accent
-- **Nike Black** (`{colors.ink}` — `#111111`): The brand's only "color." It is the primary CTA, the swatch dot, the active filter chip, the campaign overlay, the headline color, and the body text. When Nike wants to assert anything, it goes black.
-- **Pure White** (`{colors.on-primary}`, `{colors.canvas}` — `#ffffff`): Equal partner to black. Carries every page background, the on-image CTA, and the inverse text on `{colors.ink}` surfaces.
-
-### Surface
-- **Soft Cloud** (`{colors.soft-cloud}` — `#f5f5f5`): The most-used non-white surface in the entire system. Product card image backgrounds, search pill, secondary CTA, utility bar, sport-category swatch tiles. It is the "color" of every product photograph's stage.
-- **Hairline** (`{colors.hairline}` — `#cacacb`): 1px dividers between filter rows, footer columns, and PDP disclosure rows.
-- **Hairline Soft** (`{colors.hairline-soft}` — `#e5e5e5`): Inset 1px shadow under sticky bars and tab strips, the only "shadow" the system uses.
+### Primary Brand
+- **Spotify Green** (`#1ed760`): Primary brand accent — play buttons, active states, CTAs
+- **Near Black** (`#121212`): Deepest background surface
+- **Dark Surface** (`#181818`): Cards, containers, elevated surfaces
+- **Mid Dark** (`#1f1f1f`): Button backgrounds, interactive surfaces
 
 ### Text
-- **Ink** (`{colors.ink}` — `#111111`): Primary text on light surfaces — headlines, product names, prices, nav.
-- **Charcoal** (`{colors.charcoal}` — `#39393b`): Slightly softer body where ink is too heavy.
-- **Ash** (`{colors.ash}` — `#4b4b4d`): Disabled secondary border on dark surfaces and very low-emphasis utility text.
-- **Mute** (`{colors.mute}` — `#707072`): Product category subtitles ("Men's Trail Running Shoes"), footer link text, secondary metadata.
-- **Stone** (`{colors.stone}` — `#9e9ea0`): Inverse secondary text on dark surfaces and lowest-emphasis utility text.
+- **White** (`#ffffff`): `--text-base`, primary text
+- **Silver** (`#b3b3b3`): Secondary text, muted labels, inactive nav
+- **Near White** (`#cbcbcb`): Slightly brighter secondary text
+- **Light** (`#fdfdfd`): Near-pure white for maximum emphasis
 
 ### Semantic
-- **Sale** (`{colors.sale}` — `#d30005`): Discounted price color and "% off" copy — the only red in the entire retail chrome.
-- **Sale Deep** (`{colors.sale-deep}` — `#780700`): Sale price hover/pressed and dark-mode sale anchor.
-- **Success** (`{colors.success}` — `#007d48`): Confirmation messages, in-stock indicators, eligibility ticks.
-- **Success Bright** (`{colors.success-bright}` — `#1eaa52`): Inverse success on dark surfaces.
-- **Info** (`{colors.info}` — `#1151ff`): Informational link/badge accent in member-experience callouts.
-- **Info Deep** (`{colors.info-deep}` — `#0034e3`): Pressed state for info accent.
+- **Negative Red** (`#f3727f`): `--text-negative`, error states
+- **Warning Orange** (`#ffa42b`): `--text-warning`, warning states
+- **Announcement Blue** (`#539df5`): `--text-announcement`, info states
 
-### Category Accents (sport / collection chips)
-These appear sparingly — almost exclusively as small chip backgrounds, swatch dots, or category illustrations in editorial tiles. They are never used as text or primary CTA color.
-- **Accent Pink** (`{colors.accent-pink}` — `#ed1aa0`): SKIMS / women's collection moments.
-- **Accent Pink Soft** (`{colors.accent-pink-soft}` — `#ffb0dd`): Soft tinting on member-experience tiles.
-- **Accent Purple Soft** (`{colors.accent-purple-soft}` — `#beaffd`): Editorial swatch dot, soft category chip.
-- **Accent Purple Pale** (`{colors.accent-purple-pale}` — `#d6d1ff`): Lightest soft-tile fill.
-- **Accent Teal** (`{colors.accent-teal}` — `#0a7281`): Trail / outdoor / ACG editorial accent in lockups.
-- **Accent Pink Deep** (`{colors.accent-pink-deep}` — `#4c012d`): Deepest editorial overlay tint, used as wash on heritage / Jordan tiles.
+### Surface & Border
+- **Dark Card** (`#252525`): Elevated card surface
+- **Mid Card** (`#272727`): Alternate card surface
+- **Border Gray** (`#4d4d4d`): Button borders on dark
+- **Light Border** (`#7c7c7c`): Outlined button borders, muted links
+- **Separator** (`#b3b3b3`): Divider lines
+- **Light Surface** (`#eeeeee`): Light-mode buttons (rare)
+- **Spotify Green Border** (`#1db954`): Green accent border variant
 
-## Typography
+### Shadows
+- **Heavy** (`rgba(0,0,0,0.5) 0px 8px 24px`): Dialogs, menus, elevated panels
+- **Medium** (`rgba(0,0,0,0.3) 0px 8px 8px`): Cards, dropdowns
+- **Inset Border** (`rgb(18,18,18) 0px 1px 0px, rgb(124,124,124) 0px 0px 0px 1px inset`): Input border-shadow combo
 
-### Font Family
-- **Nike Futura ND** (display campaign only) — proprietary geometric sans for the towering uppercase headlines burned into campaign hero photography. Falls back to Helvetica Now Text Medium → Helvetica → Arial.
-- **Helvetica Now Display Medium** (headings 16–32px) — modern Helvetica cut tuned for display sizes; carries every section title, PDP product name, and dialog headline.
-- **Helvetica Now Text Medium** (UI 12–16px) — buttons, captions, swatch labels, badge text. The system's UI workhorse.
-- **Helvetica Now Text** (body and links) — long-form body and underlined inline links.
-- **Neue Frutiger Arabic** — RTL pairing for Arabic locales at `{typography.heading-lg}` and caption sizes.
-- **Helvetica Neue 9px** — legal-fine-print utility row only (`{typography.utility-xs}`).
+## 3. Typography Rules
 
-When substituting on systems without proprietary Nike fonts: pair **Inter** (Display 700 for body chrome, Display 500 for buttons) with **Bebas Neue** or **Anton** at 96px/0.9 line-height for the campaign headline tier. Tighten letter-spacing slightly (-0.5%) on the substitute to approximate Futura ND's optical weight.
+### Font Families
+- **Title**: `SpotifyMixUITitle`, fallbacks: `CircularSp-Arab, CircularSp-Hebr, CircularSp-Cyrl, CircularSp-Grek, CircularSp-Deva, Helvetica Neue, helvetica, arial, Hiragino Sans, Hiragino Kaku Gothic ProN, Meiryo, MS Gothic`
+- **UI / Body**: `SpotifyMixUI`, same fallback stack
 
 ### Hierarchy
 
-| Token | Size | Weight | Line Height | Letter Spacing | Use |
-|---|---|---|---|---|---|
-| `{typography.display-campaign}` | 96px | 500 | 0.9 | 0 | Editorial campaign headline burned into hero photography (uppercase) |
-| `{typography.heading-xl}` | 32px | 500 | 1.2 | 0 | Section headers — "FEATURED FOOTWEAR", "LATEST IN CLOTHING", PDP product title block |
-| `{typography.heading-lg}` | 24px | 500 | 1.2 | 0 | Subsection / member-benefit card title, large CTA label, PDP price |
-| `{typography.heading-md}` | 16px | 500 | 1.75 | 0 | Card title, FAQ row label, filter group header |
-| `{typography.body-md}` | 16px | 400 | 1.5 | 0 | Body copy, search-pill placeholder, product description |
-| `{typography.body-strong}` | 16px | 500 | 1.5 | 0 | Product card name, filter row label, primary nav link |
-| `{typography.button-lg}` | 24px | 500 | 1.2 | 0 | Pressed-letter campaign CTA inside hero blocks |
-| `{typography.button-md}` | 16px | 500 | 1.5 | 0 | Standard pill CTAs across the system |
-| `{typography.button-sm}` | 14px | 500 | 1.5 | 0 | Compact pill CTA, badge label, geo-selector button |
-| `{typography.link-md}` | 16px | 500 | 1.75 | 0 | Underlined inline link, "View Product Details" |
-| `{typography.caption-md}` | 14px | 500 | 1.5 | 0 | Product subtitle ("Men's Trail Running Shoes"), filter count, footer link |
-| `{typography.caption-sm}` | 12px | 500 | 1.5 | 0 | Filter chip label, badge text, color count |
-| `{typography.utility-xs}` | 9px | 500 | 1.75 | 0 | Legal copyright / fine-print row at the very bottom |
+| Role | Font | Size | Weight | Line Height | Letter Spacing | Notes |
+|------|------|------|--------|-------------|----------------|-------|
+| Section Title | SpotifyMixUITitle | 24px (1.50rem) | 700 | normal | normal | Bold title weight |
+| Feature Heading | SpotifyMixUI | 18px (1.13rem) | 600 | 1.30 (tight) | normal | Semibold section heads |
+| Body Bold | SpotifyMixUI | 16px (1.00rem) | 700 | normal | normal | Emphasized text |
+| Body | SpotifyMixUI | 16px (1.00rem) | 400 | normal | normal | Standard body |
+| Button Uppercase | SpotifyMixUI | 14px (0.88rem) | 600–700 | 1.00 (tight) | 1.4px–2px | `text-transform: uppercase` |
+| Button | SpotifyMixUI | 14px (0.88rem) | 700 | normal | 0.14px | Standard button |
+| Nav Link Bold | SpotifyMixUI | 14px (0.88rem) | 700 | normal | normal | Navigation |
+| Nav Link | SpotifyMixUI | 14px (0.88rem) | 400 | normal | normal | Inactive nav |
+| Caption Bold | SpotifyMixUI | 14px (0.88rem) | 700 | 1.50–1.54 | normal | Bold metadata |
+| Caption | SpotifyMixUI | 14px (0.88rem) | 400 | normal | normal | Metadata |
+| Small Bold | SpotifyMixUI | 12px (0.75rem) | 700 | 1.50 | normal | Tags, counts |
+| Small | SpotifyMixUI | 12px (0.75rem) | 400 | normal | normal | Fine print |
+| Badge | SpotifyMixUI | 10.5px (0.66rem) | 600 | 1.33 | normal | `text-transform: capitalize` |
+| Micro | SpotifyMixUI | 10px (0.63rem) | 400 | normal | normal | Smallest text |
 
 ### Principles
-The system runs on extreme typographic contrast: a single 96px uppercase display tier reserved for editorial campaign moments, and a quiet 12–16px Helvetica Now Text/Medium tier carrying everything else. There is almost no middle ground — the jump from `{typography.heading-xl}` (32px) directly to `{typography.body-strong}` (16px) is intentional and creates the "billboard above, catalog below" effect across every page. Letter-spacing is left at 0 (Futura ND and Helvetica Now are both cut for tight optical fit at scale).
+- **Bold/regular binary**: Most text is either 700 (bold) or 400 (regular), with 600 used sparingly. This creates a clear visual hierarchy through weight contrast rather than size variation.
+- **Uppercase buttons as system**: Button labels use uppercase + wide letter-spacing (1.4px–2px), creating a systematic "label" voice distinct from content text.
+- **Compact sizing**: The range is 10px–24px — narrower than most systems. Spotify's type is compact and functional, designed for scanning playlists, not reading articles.
+- **Global script support**: The extensive fallback stack (Arabic, Hebrew, Cyrillic, Greek, Devanagari, CJK) reflects Spotify's 180+ market reach.
 
-### Note on Font Substitutes
-The closest open-source path to Nike's display tier is **Bebas Neue** (free, geometric condensed) at 96px / 0.9 / uppercase / 500. For UI text, **Inter** is the safest substitute — match weights 400/500 and the system reads almost identically at button and caption sizes.
-
-## Layout
-
-### Spacing System
-- **Base unit:** 8px
-- **Tokens (front matter):** `{spacing.xxs}` (2px) · `{spacing.xs}` (4px) · `{spacing.sm}` (8px) · `{spacing.md}` (12px) · `{spacing.lg}` (18px) · `{spacing.xl}` (24px) · `{spacing.xxl}` (30px) · `{spacing.section}` (48px+)
-- **Universal rhythm:** every page in the set uses `{spacing.section}` (48px) as the vertical gap between major content blocks (campaign hero → trending row → featured row → shop-by-sport → latest-in-clothing → footer). PLP card grids use `{spacing.sm}` (8px) gutters. PDP disclosure rows are stacked at `{spacing.xl}` (24px) vertical padding.
-- **Card internal padding:** product cards use 0px internal padding — image is full-bleed; metadata rows sit directly below with `{spacing.sm}` (8px) gap between name, subtitle, and price.
-
-### Grid & Container
-- **Max width:** ~1440px content area with edge gutters that grow to ~80px at 1920px (the system lets very wide viewports breathe rather than stretch).
-- **Column patterns:** PLP listing uses 3-up at desktop, collapsing to 2-up at 1023px and 1-up at 599px. The men's home `/men` mixes a 2-up campaign hero row, a 3- or 4-up "Trending Now" row, a horizontal-scroll "Shop by Sport" rail, and a 4-up "Latest in Clothing" thumbnail grid.
-- **Filter sidebar:** ~220px fixed-width left rail on PLP at desktop, collapsing into a `Hide Filters` toggle button at narrow widths.
-
-### Whitespace Philosophy
-Whitespace is a tool for separation, not for breath. Sections butt directly against each other vertically with `{spacing.section}` rhythm, and product photos tile edge-to-edge inside their grid — there is no padding wrapped around the product image itself. The "air" comes from the `{colors.soft-cloud}` background of the photograph, not from layout margin. Headlines do not have decorative whitespace above them; they sit immediately under the section divider line.
-
-## Elevation & Depth
-
-| Level | Treatment | Use |
-|---|---|---|
-| 0 — Flat | No shadow, no border | Default for cards, buttons, sections — the dominant treatment |
-| 1 — Hairline divider | 1px solid `{colors.hairline}` | Filter row separators, footer column borders, PDP disclosure-row separators |
-| 2 — Inset bottom-line | `box-shadow: inset 0 -1px 0 {colors.hairline-soft}` | Sticky utility/sub-nav bar bottom edge, tab strip underline |
-
-The system has no drop-shadow elevation in its retail chrome at all. Cards do not lift on the page. The only depth cue is the 1px inset hairline on sticky strips and the contrast between full-bleed photography and `{colors.soft-cloud}` product backdrops.
-
-### Decorative Depth
-Depth in Nike's system comes entirely from photography, not from CSS effects:
-- **Editorial campaign tiles** create depth via cinematic perspective — a runner on a trail, a model in a courtyard — with the Futura display headline overlaid in white or `{colors.ink}` directly on the image.
-- **Product card photography** is shot on flat `{colors.soft-cloud}` to remove any background depth, so the product itself is the only thing with form on the page.
-- **Sport-category tiles** on the home page are full-bleed cinematic photography with a small `{component.button-outline-on-image}` pill anchored at the bottom-left, giving a moment of crisp white pill against atmospheric image.
-
-## Shapes
-
-### Border Radius Scale
-
-| Token | Value | Use |
-|---|---|---|
-| `{rounded.none}` | 0px | Cards, campaign tiles, product imagery, navigation, footer — every container in the system |
-| `{rounded.sm}` | 18px | Avatar / icon container in member-benefit lockups |
-| `{rounded.md}` | 24px | Search pill, search submit, filter input |
-| `{rounded.lg}` | 30px | Every CTA pill — primary, secondary, on-image, filter chip, geo-selector, "Notify Me" |
-| `{rounded.full}` | 9999px | Color swatch dots and circular icon buttons (back, share, favorite, carousel paddle) |
-
-### Photography Geometry
-- **Product cards:** consistent 1:1 square or near-square (~4:5 portrait on tall product crops), full-bleed within the card with no padding, sitting on `{colors.soft-cloud}` backdrop.
-- **Editorial campaign hero:** ~16:9 or wider cinematic crop, full-bleed across the content max-width, with the Futura display headline burned into the lower-left or upper-left third.
-- **Sport-category rail:** 4:5 portrait full-bleed thumbnails with a small CTA pill anchored bottom-left.
-- **PDP main image:** square primary image with vertical thumbnail rail to its left (~5–7 thumbnails stacked at small size), enabling rapid color/angle browsing without leaving the page.
-- **Avatar / category icon cards:** centered illustrated icon at ~80–96px on `{colors.canvas}` with `{typography.caption-md}` label below.
-
-## Components
-
-> **No hover states documented** per system policy. Each spec covers Default and Active/Pressed only; variants live as separate `components:` entries in the front matter.
+## 4. Component Stylings
 
 ### Buttons
 
-**`button-primary`** — the universal Nike CTA
-- Background `{colors.ink}`, text `{colors.on-primary}`, type `{typography.button-md}`, padding `16px 32px`, height `{spacing.section}` (48px), rounded `{rounded.lg}` (30px pill).
-- Used on every primary action in the system: "Sign Up", "Notify Me", "Buy", "Türkiye" geo-confirm, "Shop" overlay on sport tiles, "Continue".
-- Pressed state lives in `button-primary-active` — the bg stays `{colors.ink}` while the surface shrinks to `scale(0.5)` with `opacity: 0.5` (Nike's signature "tap collapse" feedback that's extracted across all five pages).
+**Dark Pill**
+- Background: `#1f1f1f`
+- Text: `#ffffff` or `#b3b3b3`
+- Padding: 8px 16px
+- Radius: 9999px (full pill)
+- Use: Navigation pills, secondary actions
 
-**`button-secondary`** — soft alternative on light surfaces
-- Background `{colors.soft-cloud}`, text `{colors.ink}`, type `{typography.button-md}`, padding `16px 32px`, rounded `{rounded.lg}`.
-- Used as the lower-emphasis alternate when a primary CTA already exists, e.g., "United States" geo-decline next to the black "Türkiye" confirm; "Cancel" or "Discover More" on light cards.
+**Dark Large Pill**
+- Background: `#181818`
+- Text: `#ffffff`
+- Padding: 0px 43px
+- Radius: 500px
+- Use: Primary app navigation buttons
 
-**`button-outline-on-image`** — overlay CTA on photography
-- Background `{colors.canvas}`, text `{colors.ink}`, type `{typography.button-md}`, padding `12px 24px`, rounded `{rounded.lg}`.
-- The crisp white pill that anchors the bottom-left of every full-bleed sport-category and editorial campaign tile.
+**Light Pill**
+- Background: `#eeeeee`
+- Text: `#181818`
+- Radius: 500px
+- Use: Light-mode CTAs (cookie consent, marketing)
 
-**`button-icon-circular`** — chrome icon controls
-- Background `{colors.soft-cloud}` or transparent, icon `{colors.ink}`, rounded `{rounded.full}`, size 40px.
-- Used for back-arrow, carousel paddle (left/right), wishlist heart, share, and "Hide Filters" toggle.
+**Outlined Pill**
+- Background: transparent
+- Text: `#ffffff`
+- Border: `1px solid #7c7c7c`
+- Padding: 4px 16px 4px 36px (asymmetric for icon)
+- Radius: 9999px
+- Use: Follow buttons, secondary actions
 
-**`filter-chip`** + **`filter-chip-active`**
-- Default: background `{colors.canvas}`, text `{colors.ink}`, 1px hairline `{colors.hairline}`, type `{typography.button-md}`, rounded `{rounded.lg}`, padding `8px 16px`.
-- Active: background `{colors.ink}`, text `{colors.on-primary}` — the chip flips fully inverted when selected. No middle state.
-
-### Inputs & Forms
-
-**`search-pill`** + **`search-pill-focused`**
-- Default: background `{colors.soft-cloud}`, text `{colors.ink}`, type `{typography.body-md}`, rounded `{rounded.md}` (24px), padding `8px 16px`, height `40px`. Anchored to the right of the primary nav with a small magnifier icon.
-- Focused: background `{colors.canvas}`, 2px solid border `{colors.ink}`, with a 12px outer halo of `{colors.soft-cloud}` (the system's only "focus ring" effect). The pill shape stays `{rounded.md}` so the halo reads as a soft glove, not a hard outline.
+**Circular Play**
+- Background: `#1f1f1f`
+- Text: `#ffffff`
+- Padding: 12px
+- Radius: 50% (circle)
+- Use: Play/pause controls
 
 ### Cards & Containers
+- Background: `#181818` or `#1f1f1f`
+- Radius: 6px–8px
+- No visible borders on most cards
+- Hover: slight background lightening
+- Shadow: `rgba(0,0,0,0.3) 0px 8px 8px` on elevated
 
-**`product-card`**
-- Container: background `{colors.canvas}`, rounded `{rounded.none}`, padding 0, no shadow.
-- Image area: `{component.product-card-image}` — full-bleed product photo on `{colors.soft-cloud}` square.
-- Below image (in this order with `{spacing.sm}` between): swatch dot row (3–6 dots at 12px circular), promo badge if applicable (`{component.badge-promo}` "Just In", "Coming Soon", "Recycled Materials"), product name `{typography.body-strong}` `{colors.ink}`, category subtitle `{typography.caption-md}` `{colors.mute}`, price row.
-- Price row: regular price `{typography.body-strong}` `{colors.ink}`. If on sale: discounted price `{colors.sale}` followed by strike-through original `{colors.mute}` followed by "% off" in `{colors.sale}`.
-
-**`campaign-tile`** — the brand's signature editorial unit
-- Full-bleed photography with `{typography.display-campaign}` headline burned in (uppercase, 96px, line-height 0.9).
-- Headline color is whichever of `{colors.canvas}` or `{colors.ink}` reads against the underlying image — not parameterized; chosen per-asset.
-- A single `{component.button-outline-on-image}` pill anchored bottom-left of the tile carries the call-to-action.
-
-**`category-icon-card`**
-- Container: background `{colors.canvas}`, rounded `{rounded.none}`.
-- Centered category illustration (~80px) + label `{typography.caption-md}` `{colors.ink}` directly below. Used in the "Latest in Clothing" 4–8-up icon strip on `/men`.
-
-**`member-benefit-card`**
-- Full-bleed photographic card on a dark image background; copy slot at the bottom-left with `{typography.heading-lg}` headline `{colors.on-primary}` and a `{component.button-outline-on-image}` "Explore" pill below.
-- Used in the `/membership` "Member Benefits" 3-up grid.
-
-**`swatch-dot`** + **`swatch-dot-active`**
-- 12px circle, rounded `{rounded.full}`, no border in default state. Renders the colorway options on every product card and PDP color picker.
-- Default: filled with the colorway's actual product color (extracted at runtime from the product image), 1px subtle outer ring in `{colors.hairline}` for white/light colorways so they remain visible on `{colors.canvas}`.
-- Active: identical fill with a 2px `{colors.ink}` outer ring and 2px white interior gap, creating Nike's signature concentric-ring "selected" state. No size change between default and active.
-
-**`badge-promo`**
-- Background `{colors.canvas}` with 1px hairline `{colors.hairline}`, text `{colors.ink}`, type `{typography.caption-sm}`, rounded `{rounded.lg}`, padding `4px 12px`.
-- Sits on top of product imagery (top-left of card) with copy like "Just In", "Coming Soon", "Recycled Materials", "Member Exclusive".
-
-**`badge-sale-text`**
-- Inline price-row text in `{colors.sale}` with no background — the only "badge" in the system that has no container.
+### Inputs
+- Search input: `#1f1f1f` background, `#ffffff` text
+- Radius: 500px (pill)
+- Padding: 12px 96px 12px 48px (icon-aware)
+- Focus: border becomes `#000000`, outline `1px solid`
 
 ### Navigation
+- Dark sidebar with SpotifyMixUI 14px weight 700 for active, 400 for inactive
+- `#b3b3b3` muted color for inactive items, `#ffffff` for active
+- Circular icon buttons (50% radius)
+- Spotify logo top-left in green
 
-**`utility-bar`** — top utility strip
-- Background `{colors.soft-cloud}`, text `{colors.ink}`, type `{typography.caption-sm}`, height ~36px, rounded `{rounded.none}`.
-- Right-aligned cluster: "Find a Store · Help · Join Us · Sign In". Always present; never collapses.
+## 5. Layout Principles
 
-**`primary-nav`** — main navigation
-- Background `{colors.canvas}`, text `{colors.ink}`, type `{typography.body-strong}` for nav links, height 56–64px, rounded `{rounded.none}`.
-- Layout: Nike swoosh logo at left (32×32), centered nav row ("New & Featured · Men · Women · Kids · Jordan · Nike SKIMS · Sport"), right cluster (search pill, wishlist heart icon, bag icon).
-- The active section gets a 2px-bottom underline in `{colors.ink}` — no background fill.
+### Spacing System
+- Base unit: 8px
+- Scale: 1px, 2px, 3px, 4px, 5px, 6px, 8px, 10px, 12px, 14px, 15px, 16px, 20px
 
-**Sub-nav strip** (PLP) — appears under primary nav with breadcrumb + sort + hide-filters controls.
-- Same `{colors.canvas}` background with a 1px inset hairline-soft bottom edge.
-- Left: breadcrumb in `{typography.caption-md}` `{colors.mute}` separated by " / ".
-- Right: "Hide Filters" toggle + "Sort By: …" dropdown — both in `{typography.button-md}` with chevron icons.
+### Grid & Container
+- Sidebar (fixed) + main content area
+- Grid-based album/playlist cards
+- Full-width now-playing bar at bottom
+- Responsive content area fills remaining space
 
-**Top Nav (Mobile)**
-- Hamburger menu icon (left), Nike swoosh (center), search + bag icons (right).
-- Search pill collapses into an icon-only button at narrow widths; tapping expands a full-width overlay search pill with `{rounded.md}`.
-- Primary nav collapses into a full-height drawer that slides in from the left, listing nav rows top-down with `{spacing.xl}` vertical padding.
+### Whitespace Philosophy
+- **Dark compression**: Spotify packs content densely — playlist grids, track lists, and navigation are all tightly spaced. The dark background provides visual rest between elements without needing large gaps.
+- **Content density over breathing room**: This is an app, not a marketing site. Every pixel serves the listening experience.
 
-### Signature Components
+### Border Radius Scale
+- Minimal (2px): Badges, explicit tags
+- Subtle (4px): Inputs, small elements
+- Standard (6px): Album art containers, cards
+- Comfortable (8px): Sections, dialogs
+- Medium (10px–20px): Panels, overlay elements
+- Large (100px): Large pill buttons
+- Pill (500px): Primary buttons, search input
+- Full Pill (9999px): Navigation pills, search
+- Circle (50%): Play buttons, avatars, icons
 
-**`pdp-disclosure-row`** — PDP information accordion rows
-- Stacked rows for "View Product Details", "Shipping & Returns", "Reviews (n)" with `{spacing.xl}` vertical padding and a 1px `{colors.hairline}` divider below each.
-- Label `{typography.body-strong}` `{colors.ink}` left-aligned; chevron `{colors.ink}` right-aligned.
+## 6. Depth & Elevation
 
-**`faq-row`** — `/membership` FAQ accordion
-- Identical pattern to `pdp-disclosure-row` but with `{typography.heading-md}` label weight; 1px `{colors.hairline}` divider below each.
+| Level | Treatment | Use |
+|-------|-----------|-----|
+| Base (Level 0) | `#121212` background | Deepest layer, page background |
+| Surface (Level 1) | `#181818` or `#1f1f1f` | Cards, sidebar, containers |
+| Elevated (Level 2) | `rgba(0,0,0,0.3) 0px 8px 8px` | Dropdown menus, hover cards |
+| Dialog (Level 3) | `rgba(0,0,0,0.5) 0px 8px 24px` | Modals, overlays, menus |
+| Inset (Border) | `rgb(18,18,18) 0px 1px 0px, rgb(124,124,124) 0px 0px 0px 1px inset` | Input borders |
 
-**`filter-sidebar`** — PLP left rail
-- Container `{colors.canvas}`, rounded `{rounded.none}`.
-- Section headers `{typography.body-strong}` `{colors.ink}` with `{spacing.lg}` (18px) vertical gap between groups.
-- Active filters get a 1px ink underline; counts in parentheses use `{colors.mute}`.
+**Shadow Philosophy**: Spotify uses notably heavy shadows for a dark-themed app. The 0.5 opacity shadow at 24px blur creates a dramatic "floating in darkness" effect for dialogs and menus, while the 0.3 opacity at 8px blur provides a more subtle card lift. The unique inset border-shadow combination on inputs creates a recessed, tactile quality.
 
-**`footer`**
-- Background `{colors.canvas}` with a single 1px `{colors.hairline}` top divider.
-- Four columns: Resources / Help / Company / Promotions & Discounts, each with column header `{typography.body-strong}` `{colors.ink}` and link list `{typography.caption-md}` `{colors.mute}`.
-- Below the columns: a horizontal rule, then a fine-print row with `{typography.utility-xs}` `{colors.mute}` (copyright, locale switcher, terms, privacy, supply-chain act).
-
-## Do's and Don'ts
+## 7. Do's and Don'ts
 
 ### Do
-- Reserve `{typography.display-campaign}` exclusively for editorial campaign hero lockups — never use 96px Futura for section headers or product titles.
-- Use `{component.button-primary}` (`{colors.ink}` pill) as the single primary action per viewport. Pair it at most with `{component.button-secondary}` (`{colors.soft-cloud}` pill) for a soft alternative.
-- Stage every product photograph on `{colors.soft-cloud}` — the gray is the system's "studio."
-- Keep all CTAs pill-shaped at `{rounded.lg}` (30px). Never introduce a square or `{rounded.sm}` button.
-- Use `{colors.sale}` only on price rows — never on backgrounds, badges, or chrome.
-- Stack content sections at `{spacing.section}` (48px) rhythm with no decorative dividers between them; the photography's bleed-edge is the divider.
-- Anchor on-image CTAs with `{component.button-outline-on-image}` (white pill) at bottom-left — the system's universal "shop this image" position.
+- Use near-black backgrounds (`#121212`–`#1f1f1f`) — depth through shade variation
+- Apply Spotify Green (`#1ed760`) only for play controls, active states, and primary CTAs
+- Use pill shape (500px–9999px) for all buttons — circular (50%) for play controls
+- Apply uppercase + wide letter-spacing (1.4px–2px) on button labels
+- Keep typography compact (10px–24px range) — this is an app, not a magazine
+- Use heavy shadows (`0.3–0.5 opacity`) for elevated elements on dark backgrounds
+- Let album art provide color — the UI itself is achromatic
 
 ### Don't
-- Don't introduce drop shadows or card elevation. Cards sit flat on the page; the only depth cue is the 1px inset hairline on sticky bars.
-- Don't use any of the category accent colors (`{colors.accent-pink}`, `{colors.accent-purple-soft}`, `{colors.accent-teal}`) for primary chrome — they belong to swatch dots, soft tile fills, and editorial moments only.
-- Don't replace `{colors.ink}` with a near-black gray like `{colors.charcoal}` for a CTA — Nike's primary pill is true `#111111`.
-- Don't pad inside product cards. The image is full-bleed; metadata sits directly below with `{spacing.sm}` (8px) between rows.
-- Don't put two campaign-tile lockups in the same row at the same scale — Nike alternates a single full-bleed editorial tile with a 2-up or 4-up product/category grid.
-- Don't underline anything other than `{typography.link-md}` inline links and the active primary-nav indicator. Buttons, headings, and prices stay un-underlined.
-- Don't introduce a third button shape. Pill or icon-circular — that's the entire button shape vocabulary.
+- Don't use Spotify Green decoratively or on backgrounds — it's functional only
+- Don't use light backgrounds for primary surfaces — the dark immersion is core
+- Don't skip the pill/circle geometry on buttons — square buttons break the identity
+- Don't use thin/subtle shadows — on dark backgrounds, shadows need to be heavy to be visible
+- Don't add additional brand colors — green + achromatic grays is the complete palette
+- Don't use relaxed line-heights — Spotify's typography is compact and dense
+- Don't expose raw gray borders — use shadow-based or inset borders instead
 
-## Responsive Behavior
+## 8. Responsive Behavior
 
 ### Breakpoints
-
 | Name | Width | Key Changes |
-|---|---|---|
-| ultrawide | 1920px+ | Content max-width holds at ~1440px; outer gutters grow to ~80px on each side |
-| desktop-large | 1440px | Default desktop layout — 3-up product grid, 4-up clothing strip, full primary nav |
-| desktop | 1200px | Same as large with slightly narrower outer gutters |
-| desktop-small | 1024px | Filter sidebar starts compressing; sport rail shows ~3 visible tiles |
-| tablet | 1023–961px | 3-up PLP collapses to 2-up; "Hide Filters" becomes a default toggle |
-| tablet-narrow | 960–640px | Primary nav center cluster collapses to a hamburger drawer; search pill becomes icon-only |
-| mobile-landscape | 639–600px | 2-up PLP collapses to 1-up; product cards become full-width with image and metadata stacking |
-| mobile | 599–320px | Single-column everything; campaign tiles render at full screen width with shorter Futura sizes (~64px) |
-
-### Touch Targets
-All interactive elements meet WCAG AAA (44×44px minimum). Pills (`{component.button-primary}`, `{component.button-secondary}`) sit at 48px height with 32px horizontal padding. Icon-circular buttons (`{component.button-icon-circular}`) sit at 40px — Nike's PDP carousel paddle and wishlist heart sit just under AAA but above AA at 40×40, with hit-target padding extending the tappable area to 48px+. Filter-chip pills are 40px height with 16px padding.
+|------|-------|-------------|
+| Mobile Small | <425px | Compact mobile layout |
+| Mobile | 425–576px | Standard mobile |
+| Tablet | 576–768px | 2-column grid |
+| Tablet Large | 768–896px | Expanded layout |
+| Desktop Small | 896–1024px | Sidebar visible |
+| Desktop | 1024–1280px | Full desktop layout |
+| Large Desktop | >1280px | Expanded grid |
 
 ### Collapsing Strategy
-- **Primary nav:** desktop center cluster → mobile drawer triggered by hamburger at left of the swoosh.
-- **PLP grid:** 3-up → 2-up → 1-up at 1023, 599, and below; gutters drop from `{spacing.sm}` to `{spacing.xs}` on mobile.
-- **Filter sidebar:** 220px fixed → "Hide Filters" toggle → off-canvas full-screen filter drawer at mobile.
-- **Sport rail:** desktop horizontal scroll with ~5 visible → mobile horizontal scroll with ~1.5 visible (peek-next-card pattern).
-- **Section spacing:** `{spacing.section}` 48px desktop → 32px tablet → 24px mobile to keep editorial rhythm tight on small screens.
-- **Editorial campaign headline:** desktop 96px → tablet 64px → mobile 48px, line-height stays at 0.9 across all sizes.
+- Sidebar: full → collapsed → hidden
+- Album grid: 5 columns → 3 → 2 → 1
+- Now-playing bar: maintained at all sizes
+- Search: pill input maintained, width adjusts
+- Navigation: sidebar → bottom bar on mobile
 
-### Image Behavior
-- Product imagery is responsive at the same 1:1 ratio across all breakpoints — the image scales, the ratio doesn't.
-- Editorial campaign tiles use art-direction crops: a 16:9 wide hero on desktop swaps to a 4:5 portrait on mobile so the figure stays centered and the headline still has burn-in space.
-- All non-critical product imagery is lazy-loaded as the user scrolls into the next grid row.
+## 9. Agent Prompt Guide
 
-## Iteration Guide
+### Quick Color Reference
+- Background: Near Black (`#121212`)
+- Surface: Dark Card (`#181818`)
+- Text: White (`#ffffff`)
+- Secondary text: Silver (`#b3b3b3`)
+- Accent: Spotify Green (`#1ed760`)
+- Border: `#4d4d4d`
+- Error: Negative Red (`#f3727f`)
 
-1. Focus on ONE component at a time. Pull its YAML entry from the front matter and verify every property resolves.
-2. Reference component names and tokens directly (`{colors.ink}`, `{component.button-primary-active}`, `{rounded.lg}`) — do not paraphrase color names or radii in prose.
-3. Run `npx @google/design.md lint DESIGN.md` after edits — `broken-ref`, `contrast-ratio`, and `orphaned-tokens` warnings flag issues automatically.
-4. Add new variants as separate component entries (`-active`, `-disabled`, `-focused`) — do not bury them inside prose. Nike's pressed state (`scale(0.5) opacity 0.5`) is intentional and must be its own entry, not a hover stand-in.
-5. Default body to `{typography.body-md}`; reach for `{typography.body-strong}` for product names and primary nav links; reserve `{typography.display-campaign}` strictly for hero campaign lockups.
-6. Keep `{colors.ink}` scarce per viewport — if more than one solid-black pill or block appears in the same fold, neutralize one to `{component.button-secondary}` or `{component.button-outline-on-image}`.
-7. When introducing a new component, ask whether it can be expressed with the existing pill + flat-card + photography-on-`{colors.soft-cloud}` vocabulary before adding new tokens. The system's strength is that it almost never needs new ones.
+### Example Component Prompts
+- "Create a dark card: #181818 background, 8px radius. Title at 16px SpotifyMixUI weight 700, white text. Subtitle at 14px weight 400, #b3b3b3. Shadow rgba(0,0,0,0.3) 0px 8px 8px on hover."
+- "Design a pill button: #1f1f1f background, white text, 9999px radius, 8px 16px padding. 14px SpotifyMixUI weight 700, uppercase, letter-spacing 1.4px."
+- "Build a circular play button: Spotify Green (#1ed760) background, #000000 icon, 50% radius, 12px padding."
+- "Create search input: #1f1f1f background, white text, 500px radius, 12px 48px padding. Inset border: rgb(124,124,124) 0px 0px 0px 1px inset."
+- "Design navigation sidebar: #121212 background. Active items: 14px weight 700, white. Inactive: 14px weight 400, #b3b3b3."
 
-## Known Gaps
-
-- **Mobile screenshots not captured** — responsive behavior described above synthesizes Nike's known mobile pattern (hamburger drawer, 1-up grid, headline downscale) from desktop evidence and the breakpoint list extracted from tokens.
-- **Hover states not documented** by system policy — Nike's CSS uses `--pds-color-element-hover` and `--pds-color-text-hover` tokens but these are not included here.
-- **Dialog / modal styling** beyond the geo-selector and the country-confirmation pill pair could not be confirmed from the captured surfaces; bag, wishlist, and login overlays are not documented.
-- **Form field styling** for checkout, sign-up, and address forms is not present in the captured surfaces — only the search pill is documented.
-- **Bag and wishlist** icon-state variants (filled count badges) not visible in the captured pages.
+### Iteration Guide
+1. Start with #121212 — everything lives in near-black darkness
+2. Spotify Green for functional highlights only (play, active, CTA)
+3. Pill everything — 500px for large, 9999px for small, 50% for circular
+4. Uppercase + wide tracking on buttons — the systematic label voice
+5. Heavy shadows (0.3–0.5 opacity) for elevation — light shadows are invisible on dark
+6. Album art provides all the color — the UI stays achromatic
