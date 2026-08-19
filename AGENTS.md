@@ -60,3 +60,6 @@ framwork:
 - Larvel (lavavel svelte template)
 - Inertia
 - TailwindCSS
+
+# Design system
+read DESIGN.md file 
