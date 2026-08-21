@@ -218,7 +218,7 @@ export const translations = {
         'quickadd.title': 'إضافة معاملة سريعة',
         'quickadd.expense': 'مصروف',
         'quickadd.income': 'دخل',
-        'quickadd.amount': 'المبلغ (ر.س)',
+        'quickadd.amount': 'المبلغ (⃁)',
         'quickadd.category': 'الفئة',
         'quickadd.selectCategory': 'اختر الفئة',
         'quickadd.date': 'التاريخ',
@@ -304,7 +304,7 @@ export const translations = {
         'Grocery': 'مقاضي',
         'groceries': 'مقاضي',
 
-        'common.currency': 'ر.س',
+        'common.currency': '⃁',
         'common.add': 'إضافة',
         'common.transaction': 'معاملة',
         'breadcrumb.dashboard': 'الرئيسية',

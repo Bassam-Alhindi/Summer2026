@@ -4,7 +4,7 @@
     export const layout = {
         breadcrumbs: [
             {
-                title: 'Transactions',
+                title: 'آخر العمليات',
                 href: transactions.index.url(),
             },
         ],
@@ -34,6 +34,7 @@
     import ChevronDown from 'lucide-svelte/icons/chevron-down';
     import Check from 'lucide-svelte/icons/check';
     import Filter from 'lucide-svelte/icons/filter';
+    import MoreHorizontal from 'lucide-svelte/icons/more-horizontal';
     import { router } from '@inertiajs/svelte';
     import { t, getLocale } from '@/lib/i18n.svelte';
     import { cn } from '@/lib/utils';
@@ -86,6 +87,7 @@
         food: UtensilsCrossed,
         utensils: UtensilsCrossed,
         dining: UtensilsCrossed,
+        restaurant: UtensilsCrossed,
         'طعام': UtensilsCrossed,
         'طعام ومشروبات': UtensilsCrossed,
         'أكل': UtensilsCrossed,
@@ -116,6 +118,7 @@
         'ترفيه': Film,
 
         health: Heart,
+        medical: Heart,
         'صحة': Heart,
 
         housing: Home,
@@ -138,6 +141,73 @@
 
         investment: TrendingUp,
         'استثمار': TrendingUp,
+
+        other: MoreHorizontal,
+        'أخرى': MoreHorizontal,
+    };
+
+    // خريطة ألوان الفئات المترجمة من الصورة
+    const imageCategoryColors: Record<string, string> = {
+        // صحة -> بنفسجي
+        health: '#c084fc',
+        medical: '#c084fc',
+        'صحة': '#c084fc',
+
+        // ترفيه -> أزرق
+        entertainment: '#3b82f6',
+        film: '#3b82f6',
+        'ترفيه': '#3b82f6',
+
+        // سكن -> أخضر زمردي
+        housing: '#10b981',
+        home: '#10b981',
+        'سكن': '#10b981',
+
+        // تسوق -> أزرق بنفسجي / نيلي
+        shopping: '#818cf8',
+        grocery: '#818cf8',
+        'تسوق': '#818cf8',
+        'مقاضي': '#818cf8',
+
+        // فواتير -> أحمر
+        bills: '#ef4444',
+        receipt: '#ef4444',
+        utilities: '#ef4444',
+        'فواتير': '#ef4444',
+        'فاتورة': '#ef4444',
+
+        // تعليم -> أصفر عنباري
+        education: '#f59e0b',
+        school: '#f59e0b',
+        university: '#f59e0b',
+        'تعليم': '#f59e0b',
+        'دراسة': '#f59e0b',
+
+        // أخرى -> رمادي
+        other: '#9ca3af',
+        'أخرى': '#9ca3af',
+
+        // طعام ومشروبات -> وردي ماجنتا
+        food: '#ec4899',
+        utensils: '#ec4899',
+        dining: '#ec4899',
+        restaurant: '#ec4899',
+        'طعام': '#ec4899',
+        'طعام ومشروبات': '#ec4899',
+        'أكل': '#ec4899',
+        'مطاعم': '#ec4899',
+
+        // مواصلات -> سماوي
+        transport: '#06b6d4',
+        car: '#06b6d4',
+        'مواصلات': '#06b6d4',
+        'سيارة': '#06b6d4',
+
+        // راتب ودخل
+        salary: '#10b981',
+        income: '#10b981',
+        'راتب': '#10b981',
+        'الراتب': '#10b981',
     };
 
     function getIcon(categoryName: string): any {
@@ -150,6 +220,26 @@
             }
         }
         return CircleDollarSign;
+    }
+
+    function getCategoryColor(category: CategoryItem | undefined | null, type?: string): string {
+        if (!category) return type === 'income' ? '#10b981' : '#f43f5e';
+
+        const lowerName = (category.name || '').toLowerCase().trim();
+
+        // 1. المطابقة المباشرة مع ألوان الصورة
+        for (const [key, color] of Object.entries(imageCategoryColors)) {
+            if (lowerName.includes(key.toLowerCase())) {
+                return color;
+            }
+        }
+
+        // 2. إذا كانت الفئة تحتوي على لون خاص غير معرّف
+        if (category.color && category.color.trim() !== '') {
+            return category.color;
+        }
+
+        return type === 'income' ? '#10b981' : '#f43f5e';
     }
 
     let typeFilter = $state(filters.type || 'all');
@@ -192,13 +282,12 @@
     }
 
     function formatAmount(tx: TransactionItem): string {
-        const sign = tx.type === 'income' ? '+' : '-';
-        const localeCode = getLocale() === 'ar' ? 'ar-SA' : 'en-US';
-        return `${sign}${Math.abs(parseFloat(tx.amount)).toLocaleString(localeCode)} ${t('common.currency')}`;
+        const num = Math.abs(parseFloat(tx.amount)).toLocaleString('en-US');
+        return tx.type === 'income' ? `+${num}` : `-${num}`;
     }
 
     function formatDate(dateStr: string): string {
-        const localeCode = getLocale() === 'ar' ? 'ar-SA' : 'en-US';
+        const localeCode = getLocale() === 'ar' ? 'ar-u-nu-latn' : 'en-US';
         return new Date(dateStr).toLocaleDateString(localeCode, {
             year: 'numeric',
             month: 'short',
@@ -225,7 +314,6 @@
 <AppHead title={t('transactions.pageTitle')} />
 
 <div class="flex flex-1 flex-col gap-4 p-4 pb-24 sm:p-6 lg:pb-6">
-    <!-- عنوان الصفحة فقط بدون الشارة -->
     <div class="flex items-center justify-between gap-4">
         <h1 class="text-xl font-bold tracking-tight sm:text-2xl">آخر العمليات</h1>
     </div>
@@ -261,7 +349,11 @@
             <div class="flex items-center gap-2.5 truncate">
                 {#if currentSelectedCategory}
                     {@const SelectedIcon = getIcon(currentSelectedCategory.name)}
-                    <div class="size-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    {@const selColor = getCategoryColor(currentSelectedCategory, currentSelectedCategory.type)}
+                    <div
+                        class="size-6 rounded-lg flex items-center justify-center shrink-0"
+                        style="background-color: color-mix(in srgb, {selColor} 15%, transparent); color: {selColor};"
+                    >
                         <SelectedIcon class="size-3.5" />
                     </div>
                     <span class="font-semibold text-foreground text-xs sm:text-sm truncate">
@@ -315,6 +407,7 @@
 
                 {#each availableCategories as cat}
                     {@const CatIcon = getIcon(cat.name)}
+                    {@const itemColor = getCategoryColor(cat, cat.type)}
                     {@const isSelected = String(categoryFilter) === String(cat.id)}
                     <button
                         type="button"
@@ -327,7 +420,7 @@
                         )}
                     >
                         <div class="flex items-center gap-2.5 truncate">
-                            <CatIcon class="size-4 text-muted-foreground" />
+                            <CatIcon class="size-4 shrink-0" style="color: {itemColor};" />
                             <span class="truncate">{t(cat.name)}</span>
                         </div>
                         {#if isSelected}
@@ -351,21 +444,20 @@
                 <ul class="divide-y divide-border/60">
                     {#each transactionsProp.data as tx (tx.id)}
                         {@const IconComponent = getIcon(tx.category.name)}
+                        {@const catColor = getCategoryColor(tx.category, tx.type)}
                         {@const translatedCategory = t(tx.category.name)}
                         {@const cleanDesc = tx.description ? tx.description.trim() : ''}
                         {@const hasCustomDesc = cleanDesc !== '' && cleanDesc.toLowerCase() !== tx.category.name.trim().toLowerCase() && cleanDesc !== translatedCategory}
 
                         <li class="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/40">
                             <div
-                                class={cn(
-                                    'flex size-10 shrink-0 items-center justify-center rounded-xl',
-                                    tx.type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
-                                )}
+                                class="flex size-10 shrink-0 items-center justify-center rounded-xl"
+                                style="background-color: color-mix(in srgb, {catColor} 15%, transparent); color: {catColor};"
                             >
                                 <IconComponent class="size-5" />
                             </div>
                             <div class="flex flex-1 flex-col min-w-0">
-                                <span class="text-sm font-semibold text-foreground truncate">
+                                <span class="text-sm font-bold text-foreground truncate">
                                     {hasCustomDesc ? tx.description : translatedCategory}
                                 </span>
                                 <div class="flex items-center gap-1.5 mt-0.5">
@@ -376,16 +468,25 @@
                                     {/if}
                                 </div>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <span
-                                    dir="ltr"
-                                    class={cn(
-                                        'text-sm font-bold tabular-nums',
-                                        tx.type === 'income' ? 'text-emerald-500' : 'text-rose-500'
-                                    )}
-                                >
-                                    {formatAmount(tx)}
-                                </span>
+                            <div class="flex items-center gap-3">
+                                <div dir="ltr" class="flex items-baseline gap-1 shrink-0">
+                                    <span
+                                        class={cn(
+                                            'text-sm font-bold tabular-nums',
+                                            tx.type === 'income' ? 'text-emerald-500' : 'text-rose-500'
+                                        )}
+                                    >
+                                        {formatAmount(tx)}
+                                    </span>
+                                    <span
+                                        class={cn(
+                                            'text-xs font-semibold',
+                                            tx.type === 'income' ? 'text-emerald-500/80' : 'text-rose-500/80'
+                                        )}
+                                    >
+                                        {t('common.currency')}
+                                    </span>
+                                </div>
                                 <Button
                                     variant="ghost"
                                     size="icon"
