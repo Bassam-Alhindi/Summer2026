@@ -91,8 +91,8 @@
                                 variant="ghost"
                                 size="icon"
                                 class="mr-2 h-9 w-9"
-                                onclick={props.onclick}
-                                aria-expanded={props['aria-expanded']}
+                                onclick={props?.onclick}
+                                aria-expanded={props?.['aria-expanded']}
                             >
                                 <Menu class="h-5 w-5" />
                             </Button>

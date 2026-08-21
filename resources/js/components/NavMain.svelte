@@ -26,11 +26,10 @@
         {#each items as item (toUrl(item.href))}
             <SidebarMenuItem>
                 <SidebarMenuButton
-                    asChild
                     isActive={url.isCurrentUrl(item.href, url.currentUrl)}
                     tooltip={item.title}
                 >
-                    {#snippet children(props)}
+                    {#snippet child({ props })}
                         <Link
                             {...props}
                             href={toUrl(item.href)}

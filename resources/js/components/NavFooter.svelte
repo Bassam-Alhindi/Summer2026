@@ -21,19 +21,19 @@
 <SidebarGroup class={`group-data-[collapsible=icon]:p-0 ${className}`}>
     <SidebarGroupContent>
         <SidebarMenu>
-            {#each items as item (toUrl(item.href))}
+            {#each (items || []).filter(Boolean) as item (toUrl(item.href))}
                 <SidebarMenuItem>
                     <SidebarMenuButton
                         class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
                         asChild
                     >
-                        {#snippet children(props)}
+                        {#snippet children(props = { class: '' })}
                             <a
-                                {...props}
+                                {...(props || {})}
                                 href={toUrl(item.href)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                class={props.class}
+                                class={props?.class ?? ''}
                             >
                                 {#if item.icon}
                                     <item.icon class="size-4 shrink-0" />
