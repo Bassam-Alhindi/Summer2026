@@ -44,6 +44,14 @@ class ReportController extends Controller
                 ? round(($amount / $totalExpenses) * 100, 1)
                 : 0;
 
+            // تجميع الأوصاف الخاصة بكل فئة
+            $descriptions = $categoryTransactions
+                ->pluck('description')
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+
             $expenseByCategory[] = [
                 'category' => strtolower($category->name),
                 'amount' => $amount,
@@ -57,6 +65,7 @@ class ReportController extends Controller
                 'color' => $category->color,
                 'amount' => $amount,
                 'percentage' => $percentage,
+                'descriptions' => $descriptions, // تم إضافة الأوصاف هنا
             ];
         }
 
@@ -66,6 +75,7 @@ class ReportController extends Controller
             'expenseByCategory' => $expenseByCategory,
             'categoryBreakdown' => $categoryBreakdown,
             'totalExpenses' => $totalExpenses,
+            'transactions' => $transactions, // تم إرسال المعاملات هنا
             'dateRange' => [
                 'from' => $from->format('Y-m-d'),
                 'to' => $to->format('Y-m-d'),

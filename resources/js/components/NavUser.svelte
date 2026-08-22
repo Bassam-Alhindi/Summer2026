@@ -40,7 +40,7 @@
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                     class="w-full min-w-0 rounded-lg"
-                    side={$sidebarState === 'collapsed' && !$isMobile
+                    side={sidebarState === 'collapsed' && !isMobile
                         ? 'left'
                         : 'top'}
                     align="end"

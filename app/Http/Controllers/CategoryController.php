@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class CategoryController extends Controller
@@ -22,11 +23,23 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('categories')->where(function ($query) use ($request) {
+                    return $query->whereIn('user_id', [$request->user()->id, null])
+                                 ->where('type', $request->input('type'));
+                }),
+            ],
             'type' => 'required|in:income,expense',
             'color' => 'nullable|string',
             'icon' => 'nullable|string',
+        ], [
+            'name.unique' => 'تنبيه: هذه الفئة موجودة بالفعل!',
         ]);
+
+        $validated['icon'] = $validated['icon'] ?? '';
 
         $request->user()->categories()->create($validated);
 
@@ -40,11 +53,23 @@ class CategoryController extends Controller
         }
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('categories')->where(function ($query) use ($request) {
+                    return $query->whereIn('user_id', [$request->user()->id, null])
+                                 ->where('type', $request->input('type'));
+                })->ignore($category->id),
+            ],
             'type' => 'required|in:income,expense',
             'color' => 'nullable|string',
             'icon' => 'nullable|string',
+        ], [
+            'name.unique' => 'تنبيه: هذه الفئة موجودة بالفعل!',
         ]);
+
+        $validated['icon'] = $validated['icon'] ?? '';
 
         $category->update($validated);
 

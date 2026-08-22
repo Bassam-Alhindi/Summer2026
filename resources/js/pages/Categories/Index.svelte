@@ -50,6 +50,7 @@
     import Pencil from 'lucide-svelte/icons/pencil';
     import Trash2 from 'lucide-svelte/icons/trash-2';
     import Plus from 'lucide-svelte/icons/plus';
+    import Ban from 'lucide-svelte/icons/ban';
     import type { Component } from 'svelte';
     import { store as categoriesStore, update as categoriesUpdate, destroy as categoriesDestroy } from '@/routes/categories';
 
@@ -57,7 +58,7 @@
         id: number;
         user_id: number | null;
         name: string;
-        icon: string;
+        icon: string | null;
         color: string;
         type: 'income' | 'expense';
         sort_order: number;
@@ -92,6 +93,37 @@
 
     const iconOptions = Object.keys(iconMap);
 
+    const DISTINCT_PALETTE = [
+        '#eab308', '#3b82f6', '#a855f7', '#ef4444', '#10b981',
+        '#ec4899', '#f97316', '#06b6d4', '#22c55e', '#6366f1',
+        '#14b8a6', '#f43f5e', '#84cc16', '#d946ef', '#0284c7'
+    ];
+
+    function generateUniqueColor(): string {
+        const usedColors = categories.map((c) => c.color?.toLowerCase()).filter(Boolean);
+        const availableColors = DISTINCT_PALETTE.filter(
+            (color) => !usedColors.includes(color.toLowerCase())
+        );
+
+        if (availableColors.length > 0) {
+            return availableColors[Math.floor(Math.random() * availableColors.length)];
+        }
+
+        const randomHue = Math.floor(Math.random() * 360);
+        return hslToHex(randomHue, 70, 50);
+    }
+
+    function hslToHex(h: number, s: number, l: number): string {
+        l /= 100;
+        const a = (s * Math.min(l, 1 - l)) / 100;
+        const f = (n: number) => {
+            const k = (n + h / 30) % 12;
+            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            return Math.round(255 * color).toString(16).padStart(2, '0');
+        };
+        return `#${f(0)}${f(8)}${f(4)}`;
+    }
+
     let activeTab = $state<'expense' | 'income'>('expense');
 
     let filteredCategories = $derived(categories.filter((c) => c.type === activeTab));
@@ -99,13 +131,18 @@
     let isDialogOpen = $state(false);
     let editingCategory = $state<Category | null>(null);
 
+    // حالة الفئة المحددة عند الضغط بالجوال
+    let selectedCategoryId = $state<number | null>(null);
+
     let formName = $state('');
     let formType = $state<'income' | 'expense'>('expense');
     let formColor = $state('#6b7280');
-    let formIcon = $state('circle-dollar-sign');
+    let formIcon = $state<string | null>(null);
+    let errorMessage = $state<string | null>(null);
 
-    function getIconComponent(iconName: string): Component {
-        return iconMap[iconName] ?? CircleDollarSign;
+    function getIconComponent(iconName: string | null): Component | null {
+        if (!iconName) return null;
+        return iconMap[iconName] ?? null;
     }
 
     function isArabicUi(): boolean {
@@ -157,12 +194,19 @@
         return isArabicUi() ? 'افتراضي' : 'Default';
     }
 
+    function handleCardClick(category: Category) {
+        if (category.user_id !== null) {
+            selectedCategoryId = selectedCategoryId === category.id ? null : category.id;
+        }
+    }
+
     function openAddDialog() {
         editingCategory = null;
         formName = '';
         formType = activeTab;
-        formColor = '#6b7280';
-        formIcon = 'circle-dollar-sign';
+        formColor = generateUniqueColor();
+        formIcon = null;
+        errorMessage = null;
         isDialogOpen = true;
     }
 
@@ -170,12 +214,27 @@
         editingCategory = category;
         formName = category.name;
         formType = category.type;
-        formColor = category.color;
-        formIcon = category.icon;
+        formColor = category.color || generateUniqueColor();
+        formIcon = category.icon || null;
+        errorMessage = null;
         isDialogOpen = true;
     }
 
     function handleSubmit() {
+        errorMessage = null;
+
+        const isDuplicate = categories.some(
+            (c) =>
+                c.name.trim().toLowerCase() === formName.trim().toLowerCase() &&
+                c.type === formType &&
+                c.id !== editingCategory?.id
+        );
+
+        if (isDuplicate) {
+            errorMessage = isArabicUi() ? 'تنبيه: هذه الفئة موجودة بالفعل!' : 'Category already exists!';
+            return;
+        }
+
         const data = {
             name: formName,
             type: formType,
@@ -183,20 +242,22 @@
             icon: formIcon,
         };
 
+        const options = {
+            preserveScroll: true,
+            onError: (errors: any) => {
+                if (errors.name) {
+                    errorMessage = errors.name;
+                }
+            },
+            onSuccess: () => {
+                isDialogOpen = false;
+            },
+        };
+
         if (editingCategory) {
-            router.put(categoriesUpdate.url(editingCategory.id), data, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    isDialogOpen = false;
-                },
-            });
+            router.put(categoriesUpdate.url(editingCategory.id), data, options);
         } else {
-            router.post(categoriesStore.url(), data, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    isDialogOpen = false;
-                },
-            });
+            router.post(categoriesStore.url(), data, options);
         }
     }
 
@@ -246,16 +307,20 @@
         </div>
     </div>
 
-    <!-- العرض المباشر للون من قاعدة البيانات (category.color) -->
+    <!-- عرض الفئات بألوانها المباشرة -->
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {#each filteredCategories as category (category.id)}
             {@const IconComp = getIconComponent(category.icon)}
             <div
-                class="group relative flex items-center justify-between rounded-xl border p-3 transition-all"
+                class="group relative flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all"
                 style="
                     background-color: rgba(18, 18, 22, 0.75);
                     border-color: {category.color}40;
                 "
+                onclick={() => handleCardClick(category)}
+                role="button"
+                tabindex="0"
+                onkeydown={(e) => { if (e.key === 'Enter') handleCardClick(category); }}
             >
                 <!-- اسم الفئة وتحتها (افتراضي) -->
                 <div class="min-w-0 flex-1">
@@ -272,33 +337,54 @@
                     {/if}
                 </div>
 
-                <!-- الأيقونة بخلفية مشتقة من لون الفئة الأصلي -->
-                <div
-                    class="flex size-8 shrink-0 items-center justify-center rounded-lg"
-                    style="
-                        background-color: {category.color}20;
-                        color: {category.color};
-                    "
-                >
-                    <IconComp class="size-4" />
-                </div>
+                <!-- الأيقونة بخلفية لون الفئة (أو نقطة ملونة عند عدم وجود أيقونة) -->
+                {#if IconComp}
+                    <div
+                        class="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                        style="
+                            background-color: {category.color}20;
+                            color: {category.color};
+                        "
+                    >
+                        <IconComp class="size-4" />
+                    </div>
+                {:else}
+                    <div
+                        class="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                        style="
+                            background-color: {category.color}20;
+                        "
+                    >
+                        <div class="size-2.5 rounded-full" style="background-color: {category.color};"></div>
+                    </div>
+                {/if}
 
-                <!-- أزرار التعديل والحذف للفئات الخاصة -->
+                <!-- أزرار التعديل والحذف للفئات الخاصة (الكمبيوتر والجوال) -->
                 {#if category.user_id !== null}
-                    <div class="absolute top-2 left-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 rtl:left-auto rtl:right-2">
+                    <div
+                        class="absolute top-2 left-2 flex items-center gap-1.5 transition-opacity rtl:left-auto rtl:right-2 {selectedCategoryId === category.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
+                    >
                         <button
                             type="button"
-                            class="flex size-5 items-center justify-center rounded bg-zinc-800 text-zinc-300 hover:text-white"
-                            onclick={() => openEditDialog(category)}
+                            class="flex size-7 items-center justify-center rounded-md bg-zinc-800 text-zinc-300 shadow hover:bg-zinc-700 hover:text-white active:scale-95 transition-transform"
+                            onclick={(e) => {
+                                e.stopPropagation();
+                                openEditDialog(category);
+                            }}
+                            title="تعديل"
                         >
-                            <Pencil class="size-3" />
+                            <Pencil class="size-3.5" />
                         </button>
                         <button
                             type="button"
-                            class="flex size-5 items-center justify-center rounded bg-zinc-800 text-zinc-300 hover:text-red-400"
-                            onclick={() => deleteCategory(category)}
+                            class="flex size-7 items-center justify-center rounded-md bg-zinc-800 text-zinc-300 shadow hover:bg-red-500/20 hover:text-red-400 active:scale-95 transition-transform"
+                            onclick={(e) => {
+                                e.stopPropagation();
+                                deleteCategory(category);
+                            }}
+                            title="حذف"
                         >
-                            <Trash2 class="size-3" />
+                            <Trash2 class="size-3.5" />
                         </button>
                     </div>
                 {/if}
@@ -315,6 +401,14 @@
                 {editingCategory ? t('categories.editCategory') : t('categories.addCategory')}
             </DialogTitle>
         </DialogHeader>
+
+        <!-- تنبيه الخطأ عند وجود فئة مكررة -->
+        {#if errorMessage}
+            <div class="rounded-lg bg-destructive/15 p-2.5 text-xs font-semibold text-destructive text-center border border-destructive/20">
+                {errorMessage}
+            </div>
+        {/if}
+
         <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
             <div class="flex flex-col gap-1.5">
                 <Label for="cat-name">{t('categories.categoryName')}</Label>
@@ -334,16 +428,18 @@
             </div>
 
             <div class="flex flex-col gap-1.5">
-                <Label for="cat-color">{t('categories.categoryColor')}</Label>
-                <div class="flex items-center gap-2">
-                    <input id="cat-color" type="color" bind:value={formColor} class="size-8 cursor-pointer rounded border border-input" />
-                    <Input type="text" bind:value={formColor} class="flex-1" />
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-1.5">
                 <Label>{t('categories.categoryIcon')}</Label>
                 <div class="grid max-h-32 grid-cols-8 gap-1.5 overflow-y-auto rounded-lg border border-input p-2">
+                    <!-- خيار بدون أيقونة -->
+                    <button
+                        type="button"
+                        class="flex size-8 items-center justify-center rounded-md transition-colors {formIcon === null ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}"
+                        onclick={() => formIcon = null}
+                        title="بدون أيقونة"
+                    >
+                        <Ban class="size-4" />
+                    </button>
+
                     {#each iconOptions as iconName (iconName)}
                         {@const IconComp = iconMap[iconName]}
                         <button

@@ -50,26 +50,34 @@ class DashboardController extends Controller
             ->latestFirst()
             ->limit(10)
             ->get()
-            ->map(fn (Transaction $t) => [
-                'id' => $t->id,
-                'description' => $t->description ?? $t->category->name,
-                'amount' => (float) $t->amount,
-                'type' => $t->type,
-                'category' => $t->category->name,
-                'date' => $t->transaction_date->format('M d'),
-            ]);
+            ->map(function (Transaction $t) {
+                $categoryName = $t->category?->name ?? 'بدون فئة';
+                $dateObj = $t->transaction_date ? Carbon::parse($t->transaction_date) : $t->created_at;
+
+                return [
+                    'id' => $t->id,
+                    'description' => $t->description ?: $categoryName,
+                    'amount' => (float) $t->amount,
+                    'type' => $t->type,
+                    'category' => $categoryName,
+                    'icon' => $t->category?->icon,
+                    'color' => $t->category?->color,
+                    'date' => $dateObj ? $dateObj->format('M d') : '',
+                ];
+            });
 
         $expenseByCategory = Transaction::forUser($userId)
             ->expense()
             ->dateRange($from, $to)
             ->with('category')
             ->get()
-            ->groupBy(fn (Transaction $t) => strtolower($t->category->name))
+            ->groupBy(fn (Transaction $t) => strtolower($t->category?->name ?? 'أخرى'))
             ->map(function ($transactions, string $category) {
+                $firstCat = $transactions->first()?->category;
                 return [
                     'category' => $category,
                     'amount' => (float) $transactions->sum('amount'),
-                    'color' => $transactions->first()->category->color,
+                    'color' => $firstCat?->color ?? '#6b7280',
                 ];
             })
             ->values();
@@ -81,6 +89,8 @@ class DashboardController extends Controller
                 'id' => $c->id,
                 'name' => $c->name,
                 'type' => $c->type,
+                'color' => $c->color,
+                'icon' => $c->icon,
             ]);
 
         return Inertia::render('Dashboard', [

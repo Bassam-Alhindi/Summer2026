@@ -1,10 +1,11 @@
 <script module lang="ts">
     import transactions from '@/routes/transactions';
+    import type { TranslationKey } from '@/lib/translations';
 
     export const layout = {
         breadcrumbs: [
             {
-                title: 'آخر العمليات',
+                title: 'Transactions',
                 href: transactions.index.url(),
             },
         ],
@@ -15,27 +16,30 @@
     import AppHead from '@/components/AppHead.svelte';
     import { Card, CardContent } from '@/components/ui/card';
     import { Button } from '@/components/ui/button';
-    import ShoppingBag from 'lucide-svelte/icons/shopping-bag';
-    import Car from 'lucide-svelte/icons/car';
-    import Receipt from 'lucide-svelte/icons/receipt';
-    import Banknote from 'lucide-svelte/icons/banknote';
-    import Film from 'lucide-svelte/icons/film';
-    import Heart from 'lucide-svelte/icons/heart';
-    import UtensilsCrossed from 'lucide-svelte/icons/utensils-crossed';
-    import CircleDollarSign from 'lucide-svelte/icons/circle-dollar-sign';
-    import Home from 'lucide-svelte/icons/home';
-    import GraduationCap from 'lucide-svelte/icons/graduation-cap';
-    import Gift from 'lucide-svelte/icons/gift';
-    import Briefcase from 'lucide-svelte/icons/briefcase';
-    import TrendingUp from 'lucide-svelte/icons/trending-up';
-    import Trash2 from 'lucide-svelte/icons/trash-2';
-    import ChevronLeft from 'lucide-svelte/icons/chevron-left';
-    import ChevronRight from 'lucide-svelte/icons/chevron-right';
-    import ChevronDown from 'lucide-svelte/icons/chevron-down';
-    import Check from 'lucide-svelte/icons/check';
-    import Filter from 'lucide-svelte/icons/filter';
-    import MoreHorizontal from 'lucide-svelte/icons/more-horizontal';
+    import {
+        ShoppingBag,
+        Car,
+        Receipt,
+        Banknote,
+        Film,
+        Heart,
+        UtensilsCrossed,
+        CircleDollarSign,
+        Home,
+        GraduationCap,
+        Gift,
+        Briefcase,
+        TrendingUp,
+        Trash2,
+        ChevronLeft,
+        ChevronRight,
+        ChevronDown,
+        Check,
+        Filter,
+        MoreHorizontal
+    } from 'lucide-svelte';
     import { router } from '@inertiajs/svelte';
+    import { toast } from 'svelte-sonner';
     import { t, getLocale } from '@/lib/i18n.svelte';
     import { cn } from '@/lib/utils';
 
@@ -83,6 +87,8 @@
         };
     } = $props();
 
+    let selectedTxId = $state<number | null>(null);
+
     const categoryIconMap: Record<string, any> = {
         food: UtensilsCrossed,
         utensils: UtensilsCrossed,
@@ -95,8 +101,12 @@
 
         grocery: ShoppingBag,
         shopping: ShoppingBag,
+        basket: ShoppingBag,
+        cart: ShoppingBag,
         'تسوق': ShoppingBag,
         'مقاضي': ShoppingBag,
+        'سلة': ShoppingBag,
+        'السلة': ShoppingBag,
 
         transport: Car,
         car: Car,
@@ -146,48 +156,43 @@
         'أخرى': MoreHorizontal,
     };
 
-    // خريطة ألوان الفئات المترجمة من الصورة
     const imageCategoryColors: Record<string, string> = {
-        // صحة -> بنفسجي
+        shopping: '#9ca3af',
+        grocery: '#9ca3af',
+        basket: '#9ca3af',
+        cart: '#9ca3af',
+        'تسوق': '#9ca3af',
+        'مقاضي': '#9ca3af',
+        'سلة': '#9ca3af',
+        'السلة': '#9ca3af',
+
         health: '#c084fc',
         medical: '#c084fc',
         'صحة': '#c084fc',
 
-        // ترفيه -> أزرق
         entertainment: '#3b82f6',
         film: '#3b82f6',
         'ترفيه': '#3b82f6',
 
-        // سكن -> أخضر زمردي
         housing: '#10b981',
         home: '#10b981',
         'سكن': '#10b981',
 
-        // تسوق -> أزرق بنفسجي / نيلي
-        shopping: '#818cf8',
-        grocery: '#818cf8',
-        'تسوق': '#818cf8',
-        'مقاضي': '#818cf8',
-
-        // فواتير -> أحمر
         bills: '#ef4444',
         receipt: '#ef4444',
         utilities: '#ef4444',
         'فواتير': '#ef4444',
         'فاتورة': '#ef4444',
 
-        // تعليم -> أصفر عنباري
         education: '#f59e0b',
         school: '#f59e0b',
         university: '#f59e0b',
         'تعليم': '#f59e0b',
         'دراسة': '#f59e0b',
 
-        // أخرى -> رمادي
         other: '#9ca3af',
         'أخرى': '#9ca3af',
 
-        // طعام ومشروبات -> وردي ماجنتا
         food: '#ec4899',
         utensils: '#ec4899',
         dining: '#ec4899',
@@ -197,18 +202,70 @@
         'أكل': '#ec4899',
         'مطاعم': '#ec4899',
 
-        // مواصلات -> سماوي
         transport: '#06b6d4',
         car: '#06b6d4',
         'مواصلات': '#06b6d4',
         'سيارة': '#06b6d4',
 
-        // راتب ودخل
         salary: '#10b981',
         income: '#10b981',
         'راتب': '#10b981',
         'الراتب': '#10b981',
     };
+
+    function translateCategoryName(name: string): string {
+        if (!name) return '';
+        const cleanName = name.toLowerCase().trim();
+
+        const translatedDirect = t(cleanName as TranslationKey);
+        if (translatedDirect !== cleanName) return translatedDirect;
+
+        const categoryKey = `category.${cleanName}` as TranslationKey;
+        const translatedCat = t(categoryKey);
+        if (translatedCat !== categoryKey) return translatedCat;
+
+        if (cleanName.includes('shop') || cleanName.includes('grocer') || cleanName.includes('تسوق') || cleanName.includes('سلة') || cleanName.includes('مقاضي') || cleanName.includes('cart') || cleanName.includes('basket')) {
+            return t('category.shopping' as TranslationKey);
+        }
+        if (cleanName.includes('food') || cleanName.includes('dine') || cleanName.includes('utensil') || cleanName.includes('طعام') || cleanName.includes('مطاعم') || cleanName.includes('أكل')) {
+            return t('category.food' as TranslationKey);
+        }
+        if (cleanName.includes('transp') || cleanName.includes('car') || cleanName.includes('مواصلات') || cleanName.includes('سيارة')) {
+            return t('category.transport' as TranslationKey);
+        }
+        if (cleanName.includes('bill') || cleanName.includes('receipt') || cleanName.includes('فواتير') || cleanName.includes('فاتورة')) {
+            return t('category.bills' as TranslationKey);
+        }
+        if (cleanName.includes('salary') || cleanName.includes('income') || cleanName.includes('راتب')) {
+            return t('category.salary' as TranslationKey);
+        }
+        if (cleanName.includes('entertain') || cleanName.includes('film') || cleanName.includes('ترفيه')) {
+            return t('category.entertainment' as TranslationKey);
+        }
+        if (cleanName.includes('health') || cleanName.includes('medic') || cleanName.includes('صحة')) {
+            return t('category.health' as TranslationKey);
+        }
+        if (cleanName.includes('house') || cleanName.includes('home') || cleanName.includes('سكن')) {
+            return t('category.housing' as TranslationKey);
+        }
+        if (cleanName.includes('educat') || cleanName.includes('school') || cleanName.includes('تعليم') || cleanName.includes('دراسة')) {
+            return t('category.education' as TranslationKey);
+        }
+        if (cleanName.includes('gift') || cleanName.includes('هدية') || cleanName.includes('هدايا')) {
+            return t('category.gift' as TranslationKey);
+        }
+        if (cleanName.includes('freelance') || cleanName.includes('work') || cleanName.includes('عمل')) {
+            return t('category.freelance' as TranslationKey);
+        }
+        if (cleanName.includes('invest') || cleanName.includes('استثمار')) {
+            return t('category.investment' as TranslationKey);
+        }
+        if (cleanName.includes('other') || cleanName.includes('أخرى')) {
+            return t('category.other' as TranslationKey);
+        }
+
+        return name;
+    }
 
     function getIcon(categoryName: string): any {
         if (!categoryName) return CircleDollarSign;
@@ -227,14 +284,12 @@
 
         const lowerName = (category.name || '').toLowerCase().trim();
 
-        // 1. المطابقة المباشرة مع ألوان الصورة
         for (const [key, color] of Object.entries(imageCategoryColors)) {
             if (lowerName.includes(key.toLowerCase())) {
                 return color;
             }
         }
 
-        // 2. إذا كانت الفئة تحتوي على لون خاص غير معرّف
         if (category.color && category.color.trim() !== '') {
             return category.color;
         }
@@ -253,11 +308,11 @@
         })
     );
 
-    const typeTabs = [
-        { id: 'all', label: 'الكل' },
-        { id: 'expense', label: 'المصروفات' },
-        { id: 'income', label: 'الدخل' },
-    ];
+    let typeTabs = $derived([
+        { id: 'all', label: t('transactions.all' as TranslationKey) || 'الكل' },
+        { id: 'expense', label: t('transactions.expense' as TranslationKey) },
+        { id: 'income', label: t('transactions.income' as TranslationKey) },
+    ]);
 
     function applyFilters() {
         router.get(
@@ -281,13 +336,18 @@
         applyFilters();
     }
 
+    function toggleSelectTx(id: number) {
+        selectedTxId = selectedTxId === id ? null : id;
+    }
+
     function formatAmount(tx: TransactionItem): string {
         const num = Math.abs(parseFloat(tx.amount)).toLocaleString('en-US');
         return tx.type === 'income' ? `+${num}` : `-${num}`;
     }
 
     function formatDate(dateStr: string): string {
-        const localeCode = getLocale() === 'ar' ? 'ar-u-nu-latn' : 'en-US';
+        const currentLang = getLocale();
+        const localeCode = currentLang === 'ar' ? 'ar-u-nu-latn' : 'en-US';
         return new Date(dateStr).toLocaleDateString(localeCode, {
             year: 'numeric',
             month: 'short',
@@ -295,10 +355,19 @@
         });
     }
 
-    function deleteTransaction(id: number) {
-        if (!confirm(t('transactions.deleteConfirm'))) return;
+    function deleteTransaction(id: number, event: MouseEvent) {
+        event.stopPropagation();
+        if (!confirm(t('transactions.deleteConfirm' as TranslationKey))) return;
+
         router.delete(transactions.destroy.url(id), {
             preserveScroll: true,
+            onSuccess: () => {
+                selectedTxId = null;
+                toast.success(t('transactions.deletedSuccessfully' as TranslationKey) || 'تم حذف المعاملة بنجاح');
+            },
+            onError: () => {
+                toast.error(t('transactions.deleteError' as TranslationKey) || 'حدث خطأ أثناء حذف المعاملة');
+            },
         });
     }
 
@@ -311,14 +380,14 @@
     );
 </script>
 
-<AppHead title={t('transactions.pageTitle')} />
+<AppHead title={t('transactions.title' as TranslationKey)} />
 
 <div class="flex flex-1 flex-col gap-4 p-4 pb-24 sm:p-6 lg:pb-6">
     <div class="flex items-center justify-between gap-4">
-        <h1 class="text-xl font-bold tracking-tight sm:text-2xl">آخر العمليات</h1>
+        <h1 class="text-xl font-bold tracking-tight sm:text-2xl">{t('transactions.title' as TranslationKey)}</h1>
     </div>
 
-    <!-- تبويبات الفلترة الأفقية -->
+    <!-- تبويبات الفلترة -->
     <div class="inline-flex p-1 bg-muted/60 rounded-2xl gap-1 w-full">
         {#each typeTabs as tab}
             <button
@@ -357,13 +426,13 @@
                         <SelectedIcon class="size-3.5" />
                     </div>
                     <span class="font-semibold text-foreground text-xs sm:text-sm truncate">
-                        {t(currentSelectedCategory.name)}
+                        {translateCategoryName(currentSelectedCategory.name)}
                     </span>
                 {:else}
                     <div class="size-6 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0">
                         <Filter class="size-3.5" />
                     </div>
-                    <span class="text-muted-foreground text-xs sm:text-sm">اختر الفئة</span>
+                    <span class="text-muted-foreground text-xs sm:text-sm">{t('transactions.selectCategory' as TranslationKey)}</span>
                 {/if}
             </div>
 
@@ -378,7 +447,7 @@
         {#if isCategoryDropdownOpen}
             <button
                 type="button"
-                aria-label="إغلاق القائمة"
+                aria-label="Close"
                 onclick={() => (isCategoryDropdownOpen = false)}
                 class="fixed inset-0 z-30 cursor-default bg-transparent"
             ></button>
@@ -396,7 +465,7 @@
                 >
                     <div class="flex items-center gap-2.5">
                         <Filter class="size-4 text-muted-foreground" />
-                        <span>عرض كل الفئات</span>
+                        <span>{t('transactions.allCategories' as TranslationKey)}</span>
                     </div>
                     {#if categoryFilter === 'all'}
                         <Check class="size-4 text-primary" />
@@ -421,7 +490,7 @@
                     >
                         <div class="flex items-center gap-2.5 truncate">
                             <CatIcon class="size-4 shrink-0" style="color: {itemColor};" />
-                            <span class="truncate">{t(cat.name)}</span>
+                            <span class="truncate">{translateCategoryName(cat.name)}</span>
                         </div>
                         {#if isSelected}
                             <Check class="size-4 text-primary" />
@@ -437,36 +506,40 @@
         <CardContent class="p-0">
             {#if transactionsProp.data.length === 0}
                 <div class="flex flex-col items-center justify-center py-12 text-center">
-                    <p class="text-sm font-medium">{t('transactions.noTransactions')}</p>
-                    <p class="mt-1 text-xs text-muted-foreground">{t('transactions.noTransactionsHint')}</p>
+                    <p class="text-sm font-medium">{t('transactions.noTransactions' as TranslationKey)}</p>
+                    <p class="mt-1 text-xs text-muted-foreground">{t('transactions.noTransactionsHint' as TranslationKey)}</p>
                 </div>
             {:else}
                 <ul class="divide-y divide-border/60">
                     {#each transactionsProp.data as tx (tx.id)}
                         {@const IconComponent = getIcon(tx.category.name)}
                         {@const catColor = getCategoryColor(tx.category, tx.type)}
-                        {@const translatedCategory = t(tx.category.name)}
-                        {@const cleanDesc = tx.description ? tx.description.trim() : ''}
-                        {@const hasCustomDesc = cleanDesc !== '' && cleanDesc.toLowerCase() !== tx.category.name.trim().toLowerCase() && cleanDesc !== translatedCategory}
+                        {@const translatedCategory = translateCategoryName(tx.category.name)}
+                        {@const isSelected = selectedTxId === tx.id}
 
-                        <li class="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/40">
+                        <li 
+                            role="button"
+                            tabindex="0"
+                            onclick={() => toggleSelectTx(tx.id)}
+                            onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleSelectTx(tx.id)}
+                            class={cn(
+                                "flex items-center gap-3 px-4 py-3.5 transition-all duration-200 cursor-pointer select-none",
+                                isSelected ? "bg-muted/80" : "hover:bg-muted/40"
+                            )}
+                        >
                             <div
-                                class="flex size-10 shrink-0 items-center justify-center rounded-xl"
+                                class="flex size-10 shrink-0 items-center justify-center rounded-xl transition-transform"
                                 style="background-color: color-mix(in srgb, {catColor} 15%, transparent); color: {catColor};"
                             >
                                 <IconComponent class="size-5" />
                             </div>
                             <div class="flex flex-1 flex-col min-w-0">
                                 <span class="text-sm font-bold text-foreground truncate">
-                                    {hasCustomDesc ? tx.description : translatedCategory}
+                                    {translatedCategory}
                                 </span>
-                                <div class="flex items-center gap-1.5 mt-0.5">
-                                    <span class="text-xs text-muted-foreground">{formatDate(tx.transaction_date)}</span>
-                                    {#if hasCustomDesc}
-                                        <span class="text-xs text-muted-foreground/40">&middot;</span>
-                                        <span class="text-xs text-muted-foreground">{translatedCategory}</span>
-                                    {/if}
-                                </div>
+                                <span class="text-xs text-muted-foreground mt-0.5">
+                                    {formatDate(tx.transaction_date)}
+                                </span>
                             </div>
                             <div class="flex items-center gap-3">
                                 <div dir="ltr" class="flex items-baseline gap-1 shrink-0">
@@ -484,17 +557,21 @@
                                             tx.type === 'income' ? 'text-emerald-500/80' : 'text-rose-500/80'
                                         )}
                                     >
-                                        {t('common.currency')}
+                                        {t('common.currency' as TranslationKey)}
                                     </span>
                                 </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="size-8 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg"
-                                    onclick={() => deleteTransaction(tx.id)}
-                                >
-                                    <Trash2 class="size-4" />
-                                </Button>
+
+                                {#if isSelected}
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        title={t('transactions.deleteConfirm' as TranslationKey)}
+                                        class="size-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl shrink-0 transition-all animate-in fade-in zoom-in-95 duration-150"
+                                        onclick={(e) => deleteTransaction(tx.id, e)}
+                                    >
+                                        <Trash2 class="size-4" />
+                                    </Button>
+                                {/if}
                             </div>
                         </li>
                     {/each}
@@ -503,6 +580,7 @@
         </CardContent>
     </Card>
 
+    <!-- الترقيم (Pagination) -->
     {#if transactionsProp.last_page > 1}
         <div class="flex items-center justify-between">
             <p class="text-xs text-muted-foreground">
@@ -518,7 +596,7 @@
                             disabled={!link.url}
                             onclick={() => link.url && goToPage(link.url)}
                         >
-                            <ChevronLeft class="size-4" />
+                            <ChevronLeft class="size-4 rtl:rotate-180" />
                         </Button>
                     {:else if link.label.includes('Next') || link.label.includes('التالي') || link.label.includes('&raquo;')}
                         <Button
@@ -528,7 +606,7 @@
                             disabled={!link.url}
                             onclick={() => link.url && goToPage(link.url)}
                         >
-                            <ChevronRight class="size-4" />
+                            <ChevronRight class="size-4 rtl:rotate-180" />
                         </Button>
                     {:else}
                         <Button

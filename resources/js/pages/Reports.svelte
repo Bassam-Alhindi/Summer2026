@@ -1,16 +1,3 @@
-<script module lang="ts">
-    import { reports } from '@/routes';
-
-    export const layout = {
-        breadcrumbs: [
-            {
-                title: 'Reports',
-                href: reports(),
-            },
-        ],
-    };
-</script>
-
 <script lang="ts">
     import AppHead from '@/components/AppHead.svelte';
     import { router } from '@inertiajs/svelte';
@@ -32,7 +19,6 @@
     import Filter from 'lucide-svelte/icons/filter';
     import Check from 'lucide-svelte/icons/check';
     import { t } from '@/lib/i18n.svelte';
-    import type { TranslationKey } from '@/lib/translations';
 
     type CategoryData = {
         category: string;
@@ -40,13 +26,32 @@
         color: string;
     };
 
-    type CategoryBreakdown = {
-        id: number;
-        name: string;
-        icon: string;
-        color: string;
+    type TransactionItem = {
+        id: number | string;
+        title?: string;
+        description?: string;
+        note?: string;
+        notes?: string;
+        memo?: string;
+        details?: string;
+        name?: string;
         amount: number;
-        percentage: number;
+        date?: string;
+        created_at?: string;
+        category_id?: number | string;
+        category?: string | { id: number | string; name: string };
+    };
+
+    type CategoryBreakdown = {
+        id: number | string;
+        name: string;
+        icon?: string;
+        color?: string;
+        amount: number;
+        percentage?: number;
+        description?: string;
+        descriptions?: string[];
+        transactions?: TransactionItem[];
     };
 
     type DateRange = {
@@ -59,88 +64,44 @@
         categoryBreakdown = [],
         totalExpenses = 0,
         dateRange = { from: '', to: '' },
+        transactions = [],
     }: {
-        expenseByCategory: CategoryData[];
-        categoryBreakdown: CategoryBreakdown[];
-        totalExpenses: number;
-        dateRange: DateRange;
+        expenseByCategory?: CategoryData[];
+        categoryBreakdown?: CategoryBreakdown[];
+        totalExpenses?: number;
+        dateRange?: DateRange;
+        transactions?: TransactionItem[];
     } = $props();
 
-    // قاموس الألوان الموحد
-    const CATEGORY_COLORS: Record<string, string> = {
-        food: '#EC4899',
-        'food & drinks': '#EC4899',
-        طعام: '#EC4899',
-        'طعام ومشروبات': '#EC4899',
-
-        housing: '#10B981',
-        سكن: '#10B981',
-
-        entertainment: '#3B82F6',
-        ترفيه: '#3B82F6',
-
-        health: '#A855F7',
-        صحة: '#A855F7',
-
-        education: '#F59E0B',
-        تعليم: '#F59E0B',
-
-        bills: '#EF4444',
-        فواتير: '#EF4444',
-
-        shopping: '#6366F1',
-        تسوق: '#6366F1',
-
-        transportation: '#06B6D4',
-        transport: '#06B6D4',
-        مواصلات: '#06B6D4',
-
-        grocery: '#10B981',
-        مقاضي: '#10B981',
-
-        other: '#6B7280',
-        أخرى: '#6B7280',
-
-        salary: '#10B981',
-        الراتب: '#10B981',
-        freelance: '#06B6D4',
-        'عمل حر': '#06B6D4',
-        investment: '#8B5CF6',
-        استثمار: '#8B5CF6',
-        gift: '#EC4899',
-        هدية: '#EC4899',
-    };
-
-    function getCategoryColor(name: string): string {
-        if (!name) return '#3B82F6';
-        const key = name.toLowerCase().trim();
-        return CATEGORY_COLORS[key] ?? '#3B82F6';
+    function generateDistinctColor(index: number): string {
+        const hue = (index * 137.5) % 360;
+        return `hsl(${Math.round(hue)}, 70%, 50%)`;
     }
 
     const formattedCategoryBreakdown = $derived(
-        categoryBreakdown.map((item) => {
+        (categoryBreakdown || []).map((item, idx) => {
             const calculatedPct = totalExpenses > 0 ? Math.round((item.amount / totalExpenses) * 100) : (item.percentage || 0);
+            const assignedColor = item.color && item.color.trim() !== '' ? item.color : generateDistinctColor(idx);
+
             return {
                 ...item,
-                color: getCategoryColor(item.name),
+                color: assignedColor,
                 percentage: calculatedPct,
             };
         })
     );
 
-    // حالة الفئة المحددة أو الممرور عليها بالماوس
-    let selectedCategoryId = $state<number | null>(null);
-    let hoveredCategoryId = $state<number | null>(null);
+    let selectedCategoryId = $state<number | string | null>(null);
+    let hoveredCategoryId = $state<number | string | null>(null);
 
     const activeCategoryId = $derived(hoveredCategoryId ?? selectedCategoryId);
 
     const activeCategory = $derived(
-        formattedCategoryBreakdown.find((c) => c.id === activeCategoryId) ?? null
+        formattedCategoryBreakdown.find((c) => String(c.id) === String(activeCategoryId)) ?? null
     );
 
-    // التبديل والتمرير بين القائمة والدائرة
-    function handleCategoryClick(catId: number, fromDonut = false) {
-        if (selectedCategoryId === catId) {
+    function handleCategoryClick(catId: number | string, fromDonut = false) {
+        if (String(selectedCategoryId) === String(catId)) {
             selectedCategoryId = null;
         } else {
             selectedCategoryId = catId;
@@ -151,25 +112,38 @@
             if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
-        } else if (!fromDonut && selectedCategoryId !== null) {
-            const donutEl = document.getElementById('donut-chart-container');
-            if (donutEl) {
-                donutEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
         }
     }
 
-    // حسابات الرسم البياني الدائري
+    function getCategoryTransactions(cat: CategoryBreakdown): TransactionItem[] {
+        if (cat.transactions && cat.transactions.length > 0) {
+            return cat.transactions;
+        }
+        if (!transactions || transactions.length === 0) return [];
+
+        return transactions.filter((tx) => {
+            if (tx.category_id !== undefined && tx.category_id !== null && String(tx.category_id) === String(cat.id)) {
+                return true;
+            }
+            if (typeof tx.category === 'object' && tx.category !== null && String(tx.category.id) === String(cat.id)) {
+                return true;
+            }
+            if (typeof tx.category === 'string' && tx.category.trim().toLowerCase() === cat.name.trim().toLowerCase()) {
+                return true;
+            }
+            return false;
+        });
+    }
+
     const RADIUS = 40;
     const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-    const donutSegments = $derived(() => {
+    const donutSegments = $derived.by(() => {
         let currentAngle = 0;
 
         return formattedCategoryBreakdown.map((cat) => {
             const fraction = totalExpenses > 0 ? cat.amount / totalExpenses : 0;
             const strokeLength = fraction * CIRCUMFERENCE;
-            
             const strokeDasharray = `${strokeLength} ${CIRCUMFERENCE}`;
             const strokeDashoffset = -currentAngle;
 
@@ -203,12 +177,12 @@
     ];
 
     let isOpen = $state(false);
-    let selectedPeriod = $state('today');
-    let fromDate = $state(dateRange.from || todayStr);
-    let toDate = $state(dateRange.to || todayStr);
+    let selectedPeriod = $state('this_month');
+    let fromDate = $state(dateRange?.from || todayStr);
+    let toDate = $state(dateRange?.to || todayStr);
 
     const currentLabel = $derived(
-        periodOptions.find((p) => p.id === selectedPeriod)?.label ?? 'اليوم'
+        periodOptions.find((p) => p.id === selectedPeriod)?.label ?? 'هذا الشهر'
     );
 
     const iconMap: Record<string, typeof Home> = {
@@ -230,11 +204,7 @@
     function applyFilter(from: string, to: string) {
         fromDate = from;
         toDate = to;
-        router.get(
-            reports.url(),
-            { from: fromDate, to: toDate },
-            { preserveState: true }
-        );
+        router.get('/reports', { from: fromDate, to: toDate }, { preserveState: true });
     }
 
     function selectOption(id: string) {
@@ -272,20 +242,13 @@
         }
     }
 
-    function getIcon(iconName: string) {
-        return iconMap[iconName] ?? MoreHorizontal;
+    function getIcon(iconName?: string) {
+        if (!iconName) return null;
+        return iconMap[iconName] ?? null;
     }
 
     function translateCategoryName(name: string): string {
         if (!name) return '';
-        const key1 = `category.${name.toLowerCase()}` as TranslationKey;
-        const translated1 = t(key1);
-        if (translated1 && translated1 !== key1) return translated1;
-
-        const key2 = `categories.${name.toLowerCase()}` as TranslationKey;
-        const translated2 = t(key2);
-        if (translated2 && translated2 !== key2) return translated2;
-
         const arabicMap: Record<string, string> = {
             food: 'طعام',
             'food & drinks': 'طعام ومشروبات',
@@ -325,7 +288,7 @@
             <button
                 type="button"
                 onclick={() => (isOpen = !isOpen)}
-                class="w-full flex items-center justify-between h-12 bg-muted/30 border border-border/50 rounded-2xl px-4 text-xs font-bold text-foreground hover:bg-muted/50 focus:ring-2 focus:ring-primary/20 transition-all duration-200 active:scale-[0.99]"
+                class="w-full flex items-center justify-between h-12 bg-muted/30 border border-border/50 rounded-2xl px-4 text-xs font-bold text-foreground hover:bg-muted/50 transition-all duration-200 active:scale-[0.99]"
             >
                 <span>{currentLabel}</span>
                 <ChevronDown class="size-4 text-muted-foreground transition-transform duration-300 {isOpen ? 'rotate-180 text-primary' : ''}" />
@@ -391,7 +354,6 @@
         {/if}
     </div>
 
-    <!-- في حال عدم وجود بيانات -->
     {#if formattedCategoryBreakdown.length === 0}
         <div class="flex flex-col items-center justify-center gap-2 py-20 rounded-3xl bg-card/50 border border-border/40 text-center">
             <Calendar class="size-10 text-muted-foreground/30" />
@@ -399,8 +361,8 @@
             <p class="text-xs text-muted-foreground">{t('reports.noDataHint')}</p>
         </div>
     {:else}
-        <!-- الرسم البياني الدائري التفاعلي -->
-        <div id="donut-chart-container" class="p-6 rounded-3xl bg-card border border-border/60 shadow-sm flex flex-col items-center gap-4 scroll-mt-6">
+        <!-- الرسم البياني -->
+        <div id="donut-chart-container" class="p-6 rounded-3xl bg-card border border-border/60 shadow-sm flex flex-col items-center gap-4">
             <div class="flex items-center justify-between w-full">
                 <h2 class="text-xs font-bold text-muted-foreground">توزيع المصاريف</h2>
                 {#if selectedCategoryId !== null}
@@ -416,7 +378,6 @@
 
             <div class="relative size-60 sm:size-64 flex items-center justify-center my-2">
                 <svg class="size-full -rotate-90 transform" viewBox="0 0 100 100">
-                    <!-- الحلقة الخلفية -->
                     <circle
                         cx="50"
                         cy="50"
@@ -426,9 +387,8 @@
                         stroke-width="10"
                         class="text-muted/15"
                     />
-                    <!-- القطاعات -->
-                    {#each donutSegments() as segment}
-                        {@const isActive = activeCategoryId === segment.id}
+                    {#each donutSegments as segment}
+                        {@const isActive = String(activeCategoryId) === String(segment.id)}
                         {@const isAnyActive = activeCategoryId !== null}
                         {#if segment.fraction > 0}
                             <circle
@@ -441,7 +401,7 @@
                                 stroke-dasharray={segment.strokeDasharray}
                                 stroke-dashoffset={segment.strokeDashoffset}
                                 stroke-linecap={isActive ? 'round' : 'butt'}
-                                style="transition: all 0.25s ease-in-out; {isActive ? `filter: drop-shadow(0 0 6px ${segment.color}A0);` : ''}"
+                                style="transition: all 0.25s ease-in-out;"
                                 class="cursor-pointer origin-center {isAnyActive && !isActive ? 'opacity-25' : 'opacity-100'}"
                                 onclick={() => handleCategoryClick(segment.id, true)}
                                 onmouseenter={() => (hoveredCategoryId = segment.id)}
@@ -454,7 +414,6 @@
                     {/each}
                 </svg>
 
-                <!-- النص والبيانات في منتصف الدائرة -->
                 <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-4">
                     {#if activeCategory}
                         <span class="text-xs font-bold truncate max-w-[130px]" style="color: {activeCategory.color}">
@@ -482,44 +441,75 @@
             </div>
         </div>
 
-        <!-- قائمة الفئات في الأسفل -->
+        <!-- قائمة الفئات مع استبعاد الأوصاف المكررة وتنسيق الخط الشفاف -->
         <div class="flex flex-col gap-2.5">
             <h2 class="text-xs font-bold text-muted-foreground px-1">الفئات</h2>
 
             <div class="flex flex-col gap-2">
                 {#each formattedCategoryBreakdown as cat}
                     {@const Icon = getIcon(cat.icon)}
-                    {@const isActive = activeCategoryId === cat.id}
-                    <button
-                        type="button"
-                        id="cat-card-{cat.id}"
-                        onclick={() => handleCategoryClick(cat.id, false)}
-                        onmouseenter={() => (hoveredCategoryId = cat.id)}
-                        onmouseleave={() => (hoveredCategoryId = null)}
-                        style={isActive ? `border-color: ${cat.color}; box-shadow: 0 0 0 2px ${cat.color}33, 0 4px 16px ${cat.color}15; background-color: ${cat.color}0D;` : ''}
-                        class="w-full flex items-center justify-between p-4 rounded-2xl bg-card border border-border/40 hover:border-border/80 transition-all duration-300 text-right cursor-pointer scroll-mt-20 {isActive ? 'scale-[1.01]' : ''}"
-                    >
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="flex size-10 shrink-0 items-center justify-center rounded-2xl shadow-sm transition-transform duration-300 {isActive ? 'scale-110' : ''}"
-                                style="background-color: {cat.color}1D; color: {cat.color}"
-                            >
-                                <Icon class="size-5" />
-                            </div>
-                            <div class="flex flex-col">
-                                <span class="text-sm font-bold text-foreground">{translateCategoryName(cat.name)}</span>
-                                <span class="text-[10px] text-muted-foreground font-semibold">{cat.percentage}% من الإجمالي</span>
-                            </div>
-                        </div>
+                    {@const isActive = String(activeCategoryId) === String(cat.id)}
+                    
+                    {@const rawDescriptions = cat.descriptions && cat.descriptions.length > 0
+                        ? cat.descriptions
+                        : getCategoryTransactions(cat).map(tx => tx.description || tx.note || tx.title || '')}
+                        
+                    {@const uniqueDescriptions = Array.from(
+                        new Set(
+                            rawDescriptions
+                                .map(d => d?.trim())
+                                .filter((d): d is string => Boolean(d && d !== ''))
+                        )
+                    )}
+                    
+                    {@const descriptionText = uniqueDescriptions.join('، ')}
 
-                        <!-- السعر وبجانبه الريال -->
-                        <div class="flex items-center gap-1">
-                            <span class="text-sm font-black text-foreground tabular-nums">
-                                {cat.amount.toLocaleString('en-SA')}
-                            </span>
-                            <span class="text-xs font-semibold text-muted-foreground">{t('common.currency')}</span>
+                    <div 
+                        id="cat-card-{cat.id}"
+                        class="rounded-2xl border transition-all duration-300 overflow-hidden {isActive ? 'border-primary/50' : 'border-border/40 bg-card'}"
+                        style={isActive ? `border-color: ${cat.color}; box-shadow: 0 0 0 1px ${cat.color}40; background-color: ${cat.color}0A;` : ''}
+                    >
+                        <div
+                            class="w-full flex items-center justify-between p-4 text-right cursor-pointer"
+                            onclick={() => handleCategoryClick(cat.id, false)}
+                            onmouseenter={() => (hoveredCategoryId = cat.id)}
+                            onmouseleave={() => (hoveredCategoryId = null)}
+                            role="button"
+                            tabindex="0"
+                        >
+                            <div class="flex items-center gap-3 min-w-0">
+                                {#if Icon}
+                                    <div
+                                        class="flex size-10 shrink-0 items-center justify-center rounded-2xl shadow-sm transition-transform duration-300"
+                                        style="background-color: {cat.color}1D; color: {cat.color}"
+                                    >
+                                        <Icon class="size-5" />
+                                    </div>
+                                {:else}
+                                    <div class="w-2 h-8 rounded-full shrink-0" style="background-color: {cat.color}"></div>
+                                {/if}
+
+                                <div class="flex flex-col min-w-0 truncate">
+                                    <span class="text-sm font-bold text-foreground truncate">{translateCategoryName(cat.name)}</span>
+                                    
+                                    {#if descriptionText}
+                                        <span class="text-[11px] font-normal text-muted-foreground/70 truncate leading-tight mt-0.5">
+                                            {descriptionText}
+                                        </span>
+                                    {/if}
+                                    
+                                    <span class="text-[10px] text-muted-foreground font-semibold mt-0.5">{cat.percentage}% من الإجمالي</span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-1 shrink-0">
+                                <span class="text-sm font-black text-foreground tabular-nums">
+                                    {cat.amount.toLocaleString('en-SA')}
+                                </span>
+                                <span class="text-xs font-semibold text-muted-foreground">{t('common.currency')}</span>
+                            </div>
                         </div>
-                    </button>
+                    </div>
                 {/each}
             </div>
         </div>
