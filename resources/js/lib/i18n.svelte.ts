@@ -61,54 +61,8 @@ export function isRTL(): boolean {
     return locale.value === 'ar';
 }
 
-// دالة ترجمة مرنة للتعامل مع نصوص قاعدة البيانات والتصنيفات تلقائياً
-export function t(key: string | TranslationKey): string {
-    if (!key) return '';
-
-    const currentLang = locale.value;
-    const currentDict = (translations[currentLang] || {}) as Record<string, string>;
-    const enDict = (translations.en || {}) as Record<string, string>;
-
-    // 1. بحث عن المطابقة المباشرة
-    if (currentDict[key]) return currentDict[key];
-
-    // 2. بحث بحالة الأحرف الصغيرة أو بادئة التصنيفات categories.
-    const cleanKey = key.toString().trim();
-    const lowerKey = cleanKey.toLowerCase();
-    const categoryKey = `categories.${lowerKey}`;
-
-    if (currentDict[categoryKey]) return currentDict[categoryKey];
-    if (currentDict[lowerKey]) return currentDict[lowerKey];
-
-    // 3. محاولة البحث في القاموس الإنجليزي كـ Fallback
-    if (enDict[categoryKey]) return enDict[categoryKey];
-    if (enDict[lowerKey]) return enDict[lowerKey];
-
-    // 4. ترجمة الاحتياط المباشرة للتصنيفات في حال عدم وجودها بملف Translations
-    if (currentLang === 'ar') {
-        const arabicCategories: Record<string, string> = {
-            food: 'طعام',
-            grocery: 'مقاضي',
-            groceries: 'مقاضي',
-            shopping: 'تسوق',
-            transport: 'مواصلات',
-            transportation: 'مواصلات',
-            car: 'سيارة',
-            bills: 'فواتير',
-            salary: 'راتب',
-            entertainment: 'ترفيه',
-            health: 'صحة',
-            housing: 'سكن',
-            utilities: 'مرافق',
-            other: 'أخرى',
-        };
-
-        if (arabicCategories[lowerKey]) {
-            return arabicCategories[lowerKey];
-        }
-    }
-
-    return currentDict[key] ?? enDict[key] ?? key;
+export function t(key: TranslationKey): string {
+    return translations[locale.value]?.[key] ?? translations.en[key] ?? key;
 }
 
 export function toggleLocale(): void {

@@ -2,6 +2,7 @@
     import { Link } from '@inertiajs/svelte';
     import LayoutGrid from 'lucide-svelte/icons/layout-grid';
     import Receipt from 'lucide-svelte/icons/receipt';
+    import Shapes from 'lucide-svelte/icons/shapes';
     import BarChart3 from 'lucide-svelte/icons/bar-chart-3';
     import Sparkles from 'lucide-svelte/icons/sparkles';
     import { currentUrlState } from '@/lib/currentUrl.svelte';
@@ -30,6 +31,11 @@
             icon: BarChart3,
         },
         {
+            title: 'الفئات',
+            href: '/categories',
+            icon: Shapes,
+        },
+        {
             title: t('nav.ai'),
             href: aiAssistant(),
             icon: Sparkles,
@@ -38,7 +44,7 @@
 </script>
 
 <nav class="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
-    <div class="grid h-16 grid-cols-4">
+    <div class="grid h-16 grid-cols-5">
         {#each navItems as item (toUrl(item.href))}
             {@const isActive = url.isCurrentUrl(item.href, url.currentUrl)}
             <Link

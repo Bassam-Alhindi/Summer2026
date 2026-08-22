@@ -1,5 +1,5 @@
 <script module lang="ts">
-    import { index as categoriesIndex, store as categoriesStore, update as categoriesUpdate, destroy as categoriesDestroy } from '@/routes/categories';
+    import { index as categoriesIndex } from '@/routes/categories';
 
     export const layout = {
         breadcrumbs: [
@@ -51,6 +51,7 @@
     import Trash2 from 'lucide-svelte/icons/trash-2';
     import Plus from 'lucide-svelte/icons/plus';
     import type { Component } from 'svelte';
+    import { store as categoriesStore, update as categoriesUpdate, destroy as categoriesDestroy } from '@/routes/categories';
 
     type Category = {
         id: number;
@@ -91,8 +92,9 @@
 
     const iconOptions = Object.keys(iconMap);
 
-    let expenseCategories = $derived(categories.filter((c) => c.type === 'expense'));
-    let incomeCategories = $derived(categories.filter((c) => c.type === 'income'));
+    let activeTab = $state<'expense' | 'income'>('expense');
+
+    let filteredCategories = $derived(categories.filter((c) => c.type === activeTab));
 
     let isDialogOpen = $state(false);
     let editingCategory = $state<Category | null>(null);
@@ -106,10 +108,59 @@
         return iconMap[iconName] ?? CircleDollarSign;
     }
 
+    function isArabicUi(): boolean {
+        const titleText = t('categories.title');
+        return /[\u0600-\u06FF]/.test(titleText);
+    }
+
+    function getTranslatedCategoryName(category: Category): string {
+        const raw = category.name ? category.name.trim() : '';
+        if (!raw) return '';
+
+        const isAr = isArabicUi();
+
+        const categoriesMap: Record<string, { ar: string; en: string }> = {
+            'housing': { ar: 'السكن', en: 'Housing' },
+            'home': { ar: 'السكن', en: 'Housing' },
+            'entertainment': { ar: 'الترفيه', en: 'Entertainment' },
+            'health': { ar: 'الصحة', en: 'Health' },
+            'education': { ar: 'التعليم', en: 'Education' },
+            'shopping': { ar: 'التسوق', en: 'Shopping' },
+            'bills': { ar: 'الفواتير', en: 'Bills' },
+            'bills & utilities': { ar: 'الفواتير', en: 'Bills' },
+            'food & drinks': { ar: 'الطعام والمشروبات', en: 'Food & Drinks' },
+            'food & dining': { ar: 'الطعام والمشروبات', en: 'Food & Drinks' },
+            'food_drinks': { ar: 'الطعام والمشروبات', en: 'Food & Drinks' },
+            'transportation': { ar: 'المواصلات', en: 'Transportation' },
+            'other': { ar: 'أخرى', en: 'Other' },
+            'salary': { ar: 'الراتب', en: 'Salary' },
+            'freelance': { ar: 'عمل حر', en: 'Freelance' },
+            'investments': { ar: 'الاستثمار', en: 'Investments' },
+            'gifts': { ar: 'الهدايا', en: 'Gifts' },
+        };
+
+        const key = raw.toLowerCase();
+        if (categoriesMap[key]) {
+            return isAr ? categoriesMap[key].ar : categoriesMap[key].en;
+        }
+
+        for (const item of Object.values(categoriesMap)) {
+            if (item.ar === raw) {
+                return isAr ? item.ar : item.en;
+            }
+        }
+
+        return raw;
+    }
+
+    function getSubtextLabel(): string {
+        return isArabicUi() ? 'افتراضي' : 'Default';
+    }
+
     function openAddDialog() {
         editingCategory = null;
         formName = '';
-        formType = 'expense';
+        formType = activeTab;
         formColor = '#6b7280';
         formIcon = 'circle-dollar-sign';
         isDialogOpen = true;
@@ -163,96 +214,100 @@
 <AppHead title={t('categories.title')} />
 
 <div class="flex h-full flex-1 flex-col gap-4 overflow-y-auto p-4 pb-24 sm:p-6 lg:pb-6">
-    <div class="flex flex-col gap-3 border-b border-border/40 pb-3">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-xl font-bold tracking-tight sm:text-2xl">{t('categories.title')}</h1>
-                <p class="mt-0.5 text-xs text-muted-foreground">{t('categories.subtitle')}</p>
-            </div>
-            <Button onclick={openAddDialog} size="sm">
-                <Plus class="size-4" />
-                {t('categories.addCategory')}
-            </Button>
+    <!-- Header -->
+    <div class="flex items-center justify-between border-b border-border/40 pb-3">
+        <div>
+            <h1 class="text-xl font-bold tracking-tight sm:text-2xl">{t('categories.title')}</h1>
+            <p class="mt-0.5 text-xs text-muted-foreground">{t('categories.subtitle')}</p>
+        </div>
+        <Button onclick={openAddDialog} size="sm">
+            <Plus class="size-4" />
+            {t('categories.addCategory')}
+        </Button>
+    </div>
+
+    <!-- التبديل المصغر (مصروف / دخل) -->
+    <div class="flex justify-center">
+        <div class="inline-flex w-[140px] rounded-lg bg-zinc-900/90 p-0.5 border border-zinc-800 text-muted-foreground">
+            <button
+                type="button"
+                class="flex-1 rounded-md py-1 text-xs font-semibold transition-all {activeTab === 'expense' ? 'bg-zinc-800 text-white shadow-xs' : 'hover:text-foreground'}"
+                onclick={() => activeTab = 'expense'}
+            >
+                {t('transactions.expense')}
+            </button>
+            <button
+                type="button"
+                class="flex-1 rounded-md py-1 text-xs font-semibold transition-all {activeTab === 'income' ? 'bg-zinc-800 text-white shadow-xs' : 'hover:text-foreground'}"
+                onclick={() => activeTab = 'income'}
+            >
+                {t('transactions.income')}
+            </button>
         </div>
     </div>
 
-    <div class="flex flex-col gap-6">
-        <section>
-            <h2 class="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                {t('categories.expenseCategories')}
-            </h2>
-            <div class="flex flex-col gap-2">
-                {#each expenseCategories as category (category.id)}
-                    <div class="flex items-center justify-between rounded-xl border border-border/60 bg-card px-4 py-3">
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="flex size-9 items-center justify-center rounded-lg"
-                                style="background-color: {category.color}20; color: {category.color}"
-                            >
-                                {@const IconComp = getIconComponent(category.icon)}
-                                <IconComp class="size-4" />
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium">{category.name}</p>
-                                {#if category.user_id === null}
-                                    <span class="text-[10px] text-muted-foreground">{t('categories.systemDefault')}</span>
-                                {/if}
-                            </div>
-                        </div>
-                        {#if category.user_id !== null}
-                            <div class="flex items-center gap-1">
-                                <Button variant="ghost" size="icon-sm" onclick={() => openEditDialog(category)}>
-                                    <Pencil class="size-3.5" />
-                                </Button>
-                                <Button variant="ghost" size="icon-sm" onclick={() => deleteCategory(category)}>
-                                    <Trash2 class="size-3.5 text-destructive" />
-                                </Button>
-                            </div>
-                        {/if}
-                    </div>
-                {/each}
-            </div>
-        </section>
+    <!-- العرض المباشر للون من قاعدة البيانات (category.color) -->
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {#each filteredCategories as category (category.id)}
+            {@const IconComp = getIconComponent(category.icon)}
+            <div
+                class="group relative flex items-center justify-between rounded-xl border p-3 transition-all"
+                style="
+                    background-color: rgba(18, 18, 22, 0.75);
+                    border-color: {category.color}40;
+                "
+            >
+                <!-- اسم الفئة وتحتها (افتراضي) -->
+                <div class="min-w-0 flex-1">
+                    <p
+                        class="truncate text-base font-extrabold leading-tight sm:text-lg"
+                        style="color: {category.color};"
+                    >
+                        {getTranslatedCategoryName(category)}
+                    </p>
+                    {#if category.user_id === null}
+                        <span class="mt-0.5 block text-xs font-medium text-zinc-400">
+                            {getSubtextLabel()}
+                        </span>
+                    {/if}
+                </div>
 
-        <section>
-            <h2 class="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                {t('categories.incomeCategories')}
-            </h2>
-            <div class="flex flex-col gap-2">
-                {#each incomeCategories as category (category.id)}
-                    <div class="flex items-center justify-between rounded-xl border border-border/60 bg-card px-4 py-3">
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="flex size-9 items-center justify-center rounded-lg"
-                                style="background-color: {category.color}20; color: {category.color}"
-                            >
-                                {@const IconComp = getIconComponent(category.icon)}
-                                <IconComp class="size-4" />
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium">{category.name}</p>
-                                {#if category.user_id === null}
-                                    <span class="text-[10px] text-muted-foreground">{t('categories.systemDefault')}</span>
-                                {/if}
-                            </div>
-                        </div>
-                        {#if category.user_id !== null}
-                            <div class="flex items-center gap-1">
-                                <Button variant="ghost" size="icon-sm" onclick={() => openEditDialog(category)}>
-                                    <Pencil class="size-3.5" />
-                                </Button>
-                                <Button variant="ghost" size="icon-sm" onclick={() => deleteCategory(category)}>
-                                    <Trash2 class="size-3.5 text-destructive" />
-                                </Button>
-                            </div>
-                        {/if}
+                <!-- الأيقونة بخلفية مشتقة من لون الفئة الأصلي -->
+                <div
+                    class="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                    style="
+                        background-color: {category.color}20;
+                        color: {category.color};
+                    "
+                >
+                    <IconComp class="size-4" />
+                </div>
+
+                <!-- أزرار التعديل والحذف للفئات الخاصة -->
+                {#if category.user_id !== null}
+                    <div class="absolute top-2 left-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 rtl:left-auto rtl:right-2">
+                        <button
+                            type="button"
+                            class="flex size-5 items-center justify-center rounded bg-zinc-800 text-zinc-300 hover:text-white"
+                            onclick={() => openEditDialog(category)}
+                        >
+                            <Pencil class="size-3" />
+                        </button>
+                        <button
+                            type="button"
+                            class="flex size-5 items-center justify-center rounded bg-zinc-800 text-zinc-300 hover:text-red-400"
+                            onclick={() => deleteCategory(category)}
+                        >
+                            <Trash2 class="size-3" />
+                        </button>
                     </div>
-                {/each}
+                {/if}
             </div>
-        </section>
+        {/each}
     </div>
 </div>
 
+<!-- Modal Dialog -->
 <Dialog bind:open={isDialogOpen}>
     <DialogContent>
         <DialogHeader>
@@ -288,7 +343,7 @@
 
             <div class="flex flex-col gap-1.5">
                 <Label>{t('categories.categoryIcon')}</Label>
-                <div class="grid grid-cols-8 gap-1.5 overflow-y-auto max-h-32 rounded-lg border border-input p-2">
+                <div class="grid max-h-32 grid-cols-8 gap-1.5 overflow-y-auto rounded-lg border border-input p-2">
                     {#each iconOptions as iconName (iconName)}
                         {@const IconComp = iconMap[iconName]}
                         <button

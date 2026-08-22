@@ -9,10 +9,9 @@
     import Heart from 'lucide-svelte/icons/heart';
     import UtensilsCrossed from 'lucide-svelte/icons/utensils-crossed';
     import CircleDollarSign from 'lucide-svelte/icons/circle-dollar-sign';
-    import ArrowLeft from 'lucide-svelte/icons/arrow-left';
     import ReceiptText from 'lucide-svelte/icons/receipt-text';
     import GraduationalCap from 'lucide-svelte/icons/graduation-cap';
-    import { t, isRTL } from '@/lib/i18n.svelte';
+    import { t } from '@/lib/i18n.svelte';
     import { toUrl } from '@/lib/utils';
     import transactions from '@/routes/transactions';
 
@@ -31,6 +30,7 @@
         Food: UtensilsCrossed,
         'Food & Drinks': UtensilsCrossed,
         طعام: UtensilsCrossed,
+        'طعام ومشروبات': UtensilsCrossed,
         Grocery: ShoppingBag,
         مقاضي: ShoppingBag,
         Shopping: ShoppingBag,
@@ -42,6 +42,7 @@
         فواتير: Receipt,
         Salary: Banknote,
         راتب: Banknote,
+        الراتب: Banknote,
         Entertainment: Film,
         ترفيه: Film,
         Health: Heart,
@@ -109,7 +110,6 @@
         return categoryIconMap[key] ?? categoryIconMap[key.toLowerCase()] ?? CircleDollarSign;
     }
 
-    // دالة ترجمة التصنيفات للقائمة
     function translateCategory(name: string): string {
         if (!name) return '';
         const key = `categories.${name.toLowerCase()}`;
@@ -120,14 +120,14 @@
         if (direct && direct !== name) return direct;
 
         const arabicMap: Record<string, string> = {
-            food: 'طعام',
+            food: 'طعام ومشروبات',
             'food & drinks': 'طعام ومشروبات',
             grocery: 'مقاضي',
             shopping: 'تسوق',
             transport: 'مواصلات',
             transportation: 'مواصلات',
             bills: 'فواتير',
-            salary: 'راتب',
+            salary: 'الراتب',
             entertainment: 'ترفيه',
             health: 'صحة',
             education: 'تعليم',
@@ -137,7 +137,8 @@
         return arabicMap[name.toLowerCase()] ?? name;
     }
 
-    let displayTransactions = $derived(compact ? txList.slice(0, 5) : txList);
+    // اقتصار العرض على آخر 4 عمليات فقط
+    let displayTransactions = $derived(compact ? txList.slice(0, 4) : txList.slice(0, 4));
 </script>
 
 <Card class={className}>
@@ -145,15 +146,28 @@
         <div class="flex items-center justify-between">
             <div>
                 <CardTitle class="text-base">{t('transactions.title')}</CardTitle>
-                <p class="text-xs text-muted-foreground">{t('transactions.subtitle')}</p>
             </div>
             {#if compact}
                 <Link
                     href={toUrl(transactions.index())}
-                    class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                    class="group inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
-                    {t('common.viewAll')}
-                    <ArrowLeft class="size-3 {isRTL() ? 'rotate-180' : ''}" />
+                    <span>{t('common.viewAll')}</span>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 rtl:rotate-180"
+                    >
+                        <path d="M5 12h14" />
+                        <path d="m12 5 7 7-7 7" />
+                    </svg>
                 </Link>
             {/if}
         </div>
@@ -174,7 +188,6 @@
                     {@const catColor = getCategoryColor(tx.category)}
                     
                     <li class="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50 group">
-                        <!-- الخلفية والأيقونة تعتمدان على لون التصنيف الموحد -->
                         <div
                             class="flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors"
                             style="background-color: {catColor}20; color: {catColor};"
