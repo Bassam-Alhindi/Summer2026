@@ -31,7 +31,7 @@
             icon: BarChart3,
         },
         {
-            title: 'الفئات',
+            title: t('nav.categories'),
             href: '/categories',
             icon: Shapes,
         },

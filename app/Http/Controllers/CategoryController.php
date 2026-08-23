@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -28,8 +29,10 @@ class CategoryController extends Controller
                 'string',
                 'max:255',
                 Rule::unique('categories')->where(function ($query) use ($request) {
-                    return $query->whereIn('user_id', [$request->user()->id, null])
-                                 ->where('type', $request->input('type'));
+                    return $query->where(function ($q) use ($request) {
+                        $q->where('user_id', $request->user()->id)
+                          ->orWhereNull('user_id');
+                    })->where('type', $request->input('type'));
                 }),
             ],
             'type' => 'required|in:income,expense',
@@ -58,8 +61,10 @@ class CategoryController extends Controller
                 'string',
                 'max:255',
                 Rule::unique('categories')->where(function ($query) use ($request) {
-                    return $query->whereIn('user_id', [$request->user()->id, null])
-                                 ->where('type', $request->input('type'));
+                    return $query->where(function ($q) use ($request) {
+                        $q->where('user_id', $request->user()->id)
+                          ->orWhereNull('user_id');
+                    })->where('type', $request->input('type'));
                 })->ignore($category->id),
             ],
             'type' => 'required|in:income,expense',
@@ -82,7 +87,13 @@ class CategoryController extends Controller
             abort(403);
         }
 
-        $category->delete();
+        DB::transaction(function () use ($category) {
+            // 1. حذف كافة المعاملات المرتبطة بهذه الفئة مباشرة من جدول المعاملات
+            DB::table('transactions')->where('category_id', $category->id)->delete();
+
+            // 2. حذف الفئة
+            $category->delete();
+        });
 
         return redirect()->back();
     }

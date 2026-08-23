@@ -13,15 +13,14 @@ class ReportController extends Controller
     public function index(Request $request): Response
     {
         $from = $request->filled('from')
-            ? Carbon::parse($request->input('from'))
-            : Carbon::now()->startOfMonth();
+            ? Carbon::parse($request->input('from'))->startOfDay()
+            : Carbon::now()->startOfMonth()->startOfDay();
 
         $to = $request->filled('to')
-            ? Carbon::parse($request->input('to'))
-            : Carbon::now()->endOfMonth();
+            ? Carbon::parse($request->input('to'))->endOfDay()
+            : Carbon::now()->endOfMonth()->endOfDay();
 
         $transactions = Transaction::forUser($request->user()->id)
-            ->expense()
             ->with('category')
             ->dateRange($from, $to)
             ->get();
@@ -30,7 +29,15 @@ class ReportController extends Controller
 
         $expenseByCategory = [];
         $categoryBreakdown = [];
-        $totalExpenses = (float) $transactions->sum('amount');
+
+        // حساب إجمالي المصاريف وإجمالي الدخل بشكل منفصل
+        $totalExpenses = (float) $transactions
+            ->filter(fn ($t) => ($t->type ?? $t->category?->type) === 'expense')
+            ->sum('amount');
+
+        $totalIncome = (float) $transactions
+            ->filter(fn ($t) => ($t->type ?? $t->category?->type) === 'income')
+            ->sum('amount');
 
         foreach ($grouped as $categoryId => $categoryTransactions) {
             $category = $categoryTransactions->first()->category;
@@ -40,11 +47,14 @@ class ReportController extends Controller
             }
 
             $amount = (float) $categoryTransactions->sum('amount');
-            $percentage = $totalExpenses > 0
-                ? round(($amount / $totalExpenses) * 100, 1)
+            $type = $category->type ?? $categoryTransactions->first()->type ?? 'expense';
+
+            // حساب النسبة المئوية الصحيحة بناءً على نوع الفئة
+            $totalForType = ($type === 'income') ? $totalIncome : $totalExpenses;
+            $percentage = $totalForType > 0
+                ? round(($amount / $totalForType) * 100, 1)
                 : 0;
 
-            // تجميع الأوصاف الخاصة بكل فئة
             $descriptions = $categoryTransactions
                 ->pluck('description')
                 ->filter()
@@ -56,6 +66,7 @@ class ReportController extends Controller
                 'category' => strtolower($category->name),
                 'amount' => $amount,
                 'color' => $category->color,
+                'type' => $type,
             ];
 
             $categoryBreakdown[] = [
@@ -65,7 +76,8 @@ class ReportController extends Controller
                 'color' => $category->color,
                 'amount' => $amount,
                 'percentage' => $percentage,
-                'descriptions' => $descriptions, // تم إضافة الأوصاف هنا
+                'descriptions' => $descriptions,
+                'type' => $type,
             ];
         }
 
@@ -75,7 +87,8 @@ class ReportController extends Controller
             'expenseByCategory' => $expenseByCategory,
             'categoryBreakdown' => $categoryBreakdown,
             'totalExpenses' => $totalExpenses,
-            'transactions' => $transactions, // تم إرسال المعاملات هنا
+            'totalIncome' => $totalIncome,
+            'transactions' => $transactions,
             'dateRange' => [
                 'from' => $from->format('Y-m-d'),
                 'to' => $to->format('Y-m-d'),

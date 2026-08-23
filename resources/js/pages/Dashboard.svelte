@@ -14,28 +14,21 @@
 <script lang="ts">
     import AppHead from '@/components/AppHead.svelte';
     import { router, Link } from '@inertiajs/svelte';
-    import Plus from 'lucide-svelte/icons/plus';
-    import ArrowUpRight from 'lucide-svelte/icons/arrow-up-right';
-    import ArrowDownRight from 'lucide-svelte/icons/arrow-down-right';
-    import ChevronLeft from 'lucide-svelte/icons/chevron-left';
-    import Home from 'lucide-svelte/icons/home';
-    import Film from 'lucide-svelte/icons/film';
-    import Heart from 'lucide-svelte/icons/heart';
-    import GraduationCap from 'lucide-svelte/icons/graduation-cap';
-    import Receipt from 'lucide-svelte/icons/receipt';
-    import ShoppingBag from 'lucide-svelte/icons/shopping-bag';
-    import Car from 'lucide-svelte/icons/car';
-    import UtensilsCrossed from 'lucide-svelte/icons/utensils-crossed';
-    import Briefcase from 'lucide-svelte/icons/briefcase';
-    import Banknote from 'lucide-svelte/icons/banknote';
-    import Gift from 'lucide-svelte/icons/gift';
-    import TrendingUp from 'lucide-svelte/icons/trending-up';
-    import MoreHorizontal from 'lucide-svelte/icons/more-horizontal';
-    import Wallet from 'lucide-svelte/icons/wallet';
-    import X from 'lucide-svelte/icons/x';
-    import { t } from '@/lib/i18n.svelte';
-    import * as i18nModule from '@/lib/i18n.svelte';
+    import { fade, scale } from 'svelte/transition';
+    import { 
+        Plus, 
+        ArrowUpRight, 
+        ArrowDownRight, 
+        ChevronLeft, 
+        Wallet, 
+        X, 
+        Receipt,
+        LayoutDashboard
+    } from 'lucide-svelte';
+    import * as LucideIcons from 'lucide-svelte';
+    import { t, getLocale, setLocale } from '@/lib/i18n.svelte';
     import type { TranslationKey } from '@/lib/translations';
+    import { resolveCategoryMeta } from '@/lib/categories';
 
     type CategoryObject = {
         id: number;
@@ -49,6 +42,7 @@
         id: number;
         title?: string;
         category: string | CategoryObject;
+        category_id?: number;
         type: 'income' | 'expense';
         amount: number;
         date: string;
@@ -72,25 +66,23 @@
         period: string;
     } = $props();
 
-    const displayedTransactions = $derived(recentTransactions.slice(0, 4));
-
     let selectedPeriod = $state(period || 'month');
-    
-    // 1. حالة اللغة المتفاعلة في Svelte 5
-    let currentLang = $state(typeof document !== 'undefined' && document.documentElement.lang === 'en' ? 'en' : 'ar');
+    let currentLang = $state(getLocale());
+
+    let showToast = $state(false);
+    let toastMessage = $state('');
+    let toastTimeout: ReturnType<typeof setTimeout>;
+
+    $effect(() => {
+        if (period) {
+            selectedPeriod = period;
+        }
+    });
 
     function toggleLanguage() {
         const nextLang = currentLang === 'ar' ? 'en' : 'ar';
         currentLang = nextLang;
-
-        const mod = i18nModule as any;
-        if (typeof mod.setLocale === 'function') {
-            mod.setLocale(nextLang);
-        } else if (typeof mod.setLanguage === 'function') {
-            mod.setLanguage(nextLang);
-        } else {
-            router.post('/language', { locale: nextLang }, { preserveScroll: true });
-        }
+        setLocale(nextLang);
 
         if (typeof document !== 'undefined') {
             document.documentElement.lang = nextLang;
@@ -98,54 +90,12 @@
         }
     }
 
-    // 2. دالة الترجمة الذكية مع دعم النص البديل للغتين
     function tr(key: string, fallbackAr: string, fallbackEn?: string): string {
         try {
             const translated = t(key as TranslationKey);
             if (translated && translated !== key) return translated;
-        } catch {
-            // fallback
-        }
+        } catch {}
         return currentLang === 'en' ? (fallbackEn || fallbackAr) : fallbackAr;
-    }
-
-    // 3. دالة تحويل أسماء الفئات حسب لغة الصفحة الحالية
-    function translateCategory(name?: string): string {
-        if (!name) return '';
-        const categoriesMap: Record<string, { ar: string; en: string }> = {
-            housing: { ar: 'سكن', en: 'Housing' },
-            entertainment: { ar: 'ترفيه', en: 'Entertainment' },
-            health: { ar: 'صحة', en: 'Health' },
-            education: { ar: 'تعليم', en: 'Education' },
-            bills: { ar: 'فواتير', en: 'Bills' },
-            transportation: { ar: 'مواصلات', en: 'Transportation' },
-            shopping: { ar: 'تسوق', en: 'Shopping' },
-            'food & drinks': { ar: 'طعام ومشروبات', en: 'Food & Drinks' },
-            food: { ar: 'طعام', en: 'Food' },
-            other: { ar: 'أخرى', en: 'Other' },
-            salary: { ar: 'الراتب', en: 'Salary' },
-            freelance: { ar: 'عمل حر', en: 'Freelance' },
-            investment: { ar: 'استثمار', en: 'Investment' },
-            gift: { ar: 'هدية', en: 'Gift' },
-            
-            // المفاتيح بالعربي
-            سكن: { ar: 'سكن', en: 'Housing' },
-            ترفيه: { ar: 'ترفيه', en: 'Entertainment' },
-            صحة: { ar: 'صحة', en: 'Health' },
-            تعليم: { ar: 'تعليم', en: 'Education' },
-            فواتير: { ar: 'فواتير', en: 'Bills' },
-            مواصلات: { ar: 'مواصلات', en: 'Transportation' },
-            تسوق: { ar: 'تسوق', en: 'Shopping' },
-            'طعام ومشروبات': { ar: 'طعام ومشروبات', en: 'Food & Drinks' },
-            طعام: { ar: 'طعام', en: 'Food' },
-            أخرى: { ar: 'أخرى', en: 'Other' },
-            الراتب: { ar: 'الراتب', en: 'Salary' },
-            'عمل حر': { ar: 'عمل حر', en: 'Freelance' },
-            استثمار: { ar: 'استثمار', en: 'Investment' },
-            هدية: { ar: 'هدية', en: 'Gift' },
-        };
-        const key = name.toLowerCase().trim();
-        return categoriesMap[key] ? (currentLang === 'ar' ? categoriesMap[key].ar : categoriesMap[key].en) : name;
     }
 
     let periods = $derived([
@@ -168,25 +118,189 @@
     let errorMessage = $state<string | null>(null);
     let isSubmitting = $state(false);
 
-    let filteredCategories = $derived(
-        categories.filter((c) => !c.type || c.type === formType)
-    );
+    let amountPlaceholder = $derived.by(() => {
+        if (currentLang === 'en') return 'How much?';
+        return formType === 'expense' ? 'كم طيرت؟' : 'كم استلمت؟';
+    });
+
+    function formatNumber(value: number): string {
+        const num = Number(value) || 0;
+        return num.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+    }
+
+    function formatTransactionDate(dateStr: string, lang: string): string {
+        if (!dateStr) return '';
+        const target = new Date(dateStr);
+        if (isNaN(target.getTime())) return dateStr;
+
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const targetDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+
+        const diffTime = today.getTime() - targetDay.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) {
+            return lang === 'en' ? 'Today' : 'اليوم';
+        } else if (diffDays === 1) {
+            return lang === 'en' ? 'Yesterday' : 'أمس';
+        } else {
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${target.getDate()} ${monthNames[target.getMonth()]}`;
+        }
+    }
+
+    function resolveIcon(iconProp?: any, fallbackIcon?: any) {
+        if (!iconProp) return fallbackIcon || Wallet;
+        if (typeof iconProp !== 'string') return iconProp;
+
+        if ((LucideIcons as any)[iconProp]) {
+            return (LucideIcons as any)[iconProp];
+        }
+
+        const pascal = iconProp
+            .replace(/(?:^|-|_)([a-z])/g, (_, c) => c.toUpperCase())
+            .replace(/[^a-zA-Z0-9]/g, '');
+
+        if ((LucideIcons as any)[pascal]) {
+            return (LucideIcons as any)[pascal];
+        }
+
+        return fallbackIcon || Wallet;
+    }
+
+    function cleanArabicText(text: string): string {
+        return text
+            .trim()
+            .toLowerCase()
+            .replace(/[\u064B-\u0652]/g, "")
+            .replace(/[أإآ]/g, "ا")
+            .replace(/ة/g, "ه")
+            .replace(/ى/g, "ي")
+            .replace(/^ال/, "")
+            .replace(/(ات|ين|ون|يا|ية)$/, "");
+    }
+
+    function cleanEnglishText(text: string): string {
+        let str = text.trim().toLowerCase();
+        if (str.endsWith('ies')) str = str.slice(0, -3) + 'y';
+        else if (str.endsWith('es')) str = str.slice(0, -2);
+        else if (str.endsWith('s') && !str.endsWith('ss')) str = str.slice(0, -1);
+        return str;
+    }
+
+    const SYNONYM_MAP: Record<string, string[]> = {
+        transport: ['مواصلات', 'ترانسبورت', 'تنقل', 'نقل', 'مواصلة', 'سيارة', 'تكسي', 'تاكسي', 'بنزين', 'وقود', 'transport', 'transportation', 'transit', 'taxi', 'ride', 'car', 'fuel'],
+        food: ['طعام', 'اكل', 'مطاعم', 'مطعم', 'مشروبات', 'عصير', 'قهوة', 'كافيه', 'وجبات', 'وجبة', 'أغذية', 'الأكل والشرب', 'food', 'drink', 'drinks', 'restaurant', 'dining', 'cafe', 'coffee'],
+        gifts: ['هدية', 'هدايا', 'توزيعات', 'عطية', 'gifts', 'gift', 'present', 'presents'],
+        salary: ['راتب', 'أجر', 'مرتب', 'معاش', 'دخل', 'رواتب', 'salary', 'wage', 'paycheck', 'income'],
+        freelance: ['عمل حر', 'عمل مستقل', 'فطين', 'مستقل', 'freelance', 'freelancing', 'side hustle', 'gig'],
+        investments: ['استثمار', 'استثمارات', 'تداول', 'أسهم', 'مستثمر', 'invest', 'investment', 'investments', 'stocks'],
+        shopping: ['تسوق', 'مشتريات', 'شراء', 'ملابس', 'سوق', 'shopping', 'store', 'clothes'],
+        bills: ['فواتير', 'فاتورة', 'كهرباء', 'ماء', 'نت', 'انترنت', 'الفواتير', 'bill', 'bills', 'utilities', 'internet'],
+        health: ['صحة', 'الصحة', 'علاج', 'دواء', 'صيدلية', 'مستشفى', 'طب', 'health', 'medical', 'pharmacy', 'hospital'],
+        housing: ['سكن', 'سكنى', 'إيجار', 'ايجار', 'بيت', 'منزل', 'housing', 'rent', 'home'],
+        entertainment: ['ترفيه', 'العاب', 'ألعاب', 'سينما', 'رحلات', 'ترفيهي', 'entertainment', 'games', 'fun', 'movies'],
+    };
+
+    function getCanonicalCategoryKey(rawName: string): string {
+        if (!rawName) return 'uncategorized';
+
+        const cleanedAr = cleanArabicText(rawName);
+        const cleanedEn = cleanEnglishText(rawName);
+
+        for (const [key, synonyms] of Object.entries(SYNONYM_MAP)) {
+            for (const syn of synonyms) {
+                const synAr = cleanArabicText(syn);
+                const synEn = cleanEnglishText(syn);
+                if (cleanedAr === synAr || cleanedEn === synEn || cleanedAr.includes(synAr) || synAr.includes(cleanedAr)) {
+                    return `cat_${key}`;
+                }
+            }
+        }
+
+        return `custom_${cleanedAr}_${cleanedEn}`;
+    }
+
+    let filteredCategories = $derived.by(() => {
+        const list = categories.filter((c) => !c.type || c.type === formType);
+        const seenKeys = new Set<string>();
+        const uniqueList: CategoryObject[] = [];
+
+        for (const cat of list) {
+            const canonicalKey = getCanonicalCategoryKey(cat.name);
+
+            if (!seenKeys.has(canonicalKey)) {
+                seenKeys.add(canonicalKey);
+                uniqueList.push(cat);
+            }
+        }
+
+        const targetDefaultKey = formType === 'expense' ? 'cat_food' : 'cat_salary';
+        const defaultIndex = uniqueList.findIndex((c) => getCanonicalCategoryKey(c.name) === targetDefaultKey);
+
+        if (defaultIndex > 0) {
+            const matched = uniqueList[defaultIndex];
+            return [matched, ...uniqueList.filter((_, idx) => idx !== defaultIndex)];
+        }
+
+        return uniqueList;
+    });
+
+    let selectedColor = $derived.by(() => {
+        const cat = filteredCategories.find((c) => c.id === formCategoryId);
+        if (!cat) return formType === 'income' ? '#10b981' : '#f43f5e';
+        const meta = resolveCategoryMeta(cat.name ?? '');
+        return cat.color || meta.color || '#10b981';
+    });
 
     function openAddDialog() {
         formAmount = '';
         formType = 'expense';
-        const firstCat = categories.find((c) => c.type === 'expense') || categories[0];
-        formCategoryId = firstCat?.id ?? null;
         formDescription = '';
         formDate = new Date().toISOString().split('T')[0];
         errorMessage = null;
+
+        const targetDefaultKey = 'cat_food';
+        const found = categories.find((c) => getCanonicalCategoryKey(c.name) === targetDefaultKey);
+        formCategoryId = found ? found.id : (filteredCategories[0]?.id ?? null);
+
         isDialogOpen = true;
     }
 
     function handleTypeChange(newType: 'income' | 'expense') {
+        if (formType === newType) return;
         formType = newType;
-        const firstMatchingCat = categories.find((c) => c.type === newType) || categories[0];
-        formCategoryId = firstMatchingCat?.id ?? null;
+        
+        const targetDefaultKey = newType === 'expense' ? 'cat_food' : 'cat_salary';
+        const list = categories.filter((c) => !c.type || c.type === newType);
+        const found = list.find((c) => getCanonicalCategoryKey(c.name) === targetDefaultKey);
+        
+        if (found) {
+            formCategoryId = found.id;
+        } else if (list.length > 0) {
+            formCategoryId = list[0].id;
+        }
+    }
+
+    function triggerToast(msg: string) {
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastMessage = msg;
+        showToast = true;
+        toastTimeout = setTimeout(() => {
+            showToast = false;
+        }, 3500);
+    }
+
+    function triggerHapticFeedback() {
+        if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
+            try {
+                navigator.vibrate([20, 40, 20]);
+            } catch {}
+        }
     }
 
     function handleSubmit() {
@@ -210,8 +324,10 @@
             {
                 preserveScroll: true,
                 onSuccess: () => {
+                    triggerHapticFeedback();
                     isDialogOpen = false;
                     isSubmitting = false;
+                    triggerToast(tr('transaction.added_success', 'تمت إضافة المعاملة بنجاح! ✨', 'Transaction added successfully! ✨'));
                 },
                 onError: (errors: any) => {
                     isSubmitting = false;
@@ -221,42 +337,37 @@
         );
     }
 
-    const iconMap: Record<string, typeof Home> = {
-        home: Home,
-        film: Film,
-        heart: Heart,
-        'graduation-cap': GraduationCap,
-        receipt: Receipt,
-        'shopping-bag': ShoppingBag,
-        car: Car,
-        'utensils-crossed': UtensilsCrossed,
-        briefcase: Briefcase,
-        banknote: Banknote,
-        gift: Gift,
-        'trending-up': TrendingUp,
-        'more-horizontal': MoreHorizontal,
-    };
-
-    function getIcon(iconName?: string, categoryName?: string) {
-        if (iconName && iconMap[iconName]) {
-            return iconMap[iconName];
+    function handleKeydown(event: KeyboardEvent) {
+        if (event.key === 'Escape' && isDialogOpen) {
+            isDialogOpen = false;
         }
-
-        const lowerCat = (categoryName || '').toLowerCase();
-        if (lowerCat.includes('freelance') || lowerCat.includes('عمل حر')) return Briefcase;
-        if (lowerCat.includes('investment') || lowerCat.includes('استثمار')) return TrendingUp;
-        if (lowerCat.includes('gift') || lowerCat.includes('هدية')) return Gift;
-        if (lowerCat.includes('food') || lowerCat.includes('طعام')) return UtensilsCrossed;
-
-        return MoreHorizontal;
     }
+
+    const displayedTransactions = $derived(recentTransactions.slice(0, 4));
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <AppHead title={tr('dashboard.title', 'محفظتي', 'My Wallet')} />
 
-<div class="flex flex-1 flex-col gap-5 p-4 pb-24 sm:p-6 max-w-lg mx-auto w-full">
+{#if showToast}
+    <div class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-xs px-4 py-3 rounded-2xl bg-emerald-600/95 text-white backdrop-blur-xl shadow-2xl border border-emerald-400/30 font-bold text-xs flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-6 duration-200">
+        <div class="flex items-center gap-2.5">
+            <span class="flex size-2 relative shrink-0">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span class="relative inline-flex rounded-full size-2 bg-white"></span>
+            </span>
+            <span class="truncate">{toastMessage}</span>
+        </div>
+        <button type="button" onclick={() => showToast = false} class="opacity-70 hover:opacity-100 transition-opacity p-0.5 cursor-pointer">
+            <X class="size-3.5" />
+        </button>
+    </div>
+{/if}
+
+<div class="flex flex-1 flex-col gap-5 p-4 pb-28 sm:p-6 max-w-lg mx-auto w-full">
     
-    <!-- 1. الهيدر الرئيسي -->
+    <!-- الهيدر واللغة وإضافة معاملة -->
     <div class="flex items-start justify-between gap-2">
         <div>
             <h1 class="text-2xl font-black tracking-tight text-foreground">{tr('dashboard.title', 'محفظتي', 'My Wallet')}</h1>
@@ -264,7 +375,6 @@
         </div>
 
         <div class="flex flex-col items-end gap-1.5 shrink-0">
-            <!-- زر تغيير اللغة -->
             <button
                 type="button"
                 onclick={toggleLanguage}
@@ -280,7 +390,6 @@
                 </svg>
             </button>
 
-            <!-- زر إضافة معاملة -->
             <button
                 type="button"
                 onclick={openAddDialog}
@@ -292,7 +401,7 @@
         </div>
     </div>
 
-    <!-- 2. محول الفترة الزمنية -->
+    <!-- الفترات الزمنية -->
     <div class="p-1 rounded-2xl bg-muted/50 border border-border/40 grid grid-cols-3 gap-1">
         {#each periods as p}
             {@const isActive = selectedPeriod === p.id}
@@ -306,8 +415,8 @@
         {/each}
     </div>
 
-    <!-- 3. كارت الرصيد والملخص المالي -->
-    <div class="rounded-3xl bg-card border border-border/60 p-5 shadow-sm flex flex-col gap-5">
+    <!-- بطاقة الرصيد الرئيسي -->
+    <div class="rounded-3xl bg-gradient-to-br from-[#18181b] to-[#09090b] border border-white/10 p-5 shadow-xl flex flex-col gap-5">
         <div class="flex flex-col gap-1.5">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -318,16 +427,16 @@
 
             <div class="flex items-baseline gap-1.5 mt-1">
                 <span class="text-3xl font-black text-foreground tabular-nums tracking-tight">
-                    {netBalance.toLocaleString('en-SA')}
+                    {formatNumber(netBalance)}
                 </span>
-                <span class="text-sm font-bold text-muted-foreground/90">{tr('common.currency', 'ر.س', 'SAR')}</span>
+                <span class="text-base font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
             </div>
         </div>
 
-        <div class="h-px bg-border/40 w-full"></div>
+        <div class="h-px bg-white/10 w-full"></div>
 
         <div class="grid grid-cols-2 gap-4">
-            <!-- الدخل -->
+            <!-- إجمالي الدخل -->
             <div class="flex items-center gap-3">
                 <div class="size-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
                     <ArrowUpRight class="size-4 stroke-[2.5]" />
@@ -335,15 +444,15 @@
                 <div class="flex flex-col">
                     <span class="text-[11px] font-semibold text-muted-foreground">{tr('dashboard.total_income', 'إجمالي الدخل', 'Total Income')}</span>
                     <div class="flex items-baseline gap-1 mt-0.5">
-                        <span class="text-lg font-black text-emerald-500 tabular-nums">
-                            +{totalIncome.toLocaleString('en-SA')}
+                        <span class="text-lg font-black tabular-nums {totalIncome === 0 ? 'text-muted-foreground' : 'text-emerald-500'}">
+                            {totalIncome === 0 ? '0.00' : '+' + formatNumber(totalIncome)}
                         </span>
-                        <span class="text-xs font-bold text-muted-foreground/80">{tr('common.currency', 'ر.س', 'SAR')}</span>
+                        <span class="text-sm font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
                     </div>
                 </div>
             </div>
 
-            <!-- المصاريف -->
+            <!-- إجمالي المصاريف -->
             <div class="flex items-center gap-3">
                 <div class="size-9 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
                     <ArrowDownRight class="size-4 stroke-[2.5]" />
@@ -351,17 +460,17 @@
                 <div class="flex flex-col">
                     <span class="text-[11px] font-semibold text-muted-foreground">{tr('dashboard.total_expenses', 'إجمالي المصاريف', 'Total Expenses')}</span>
                     <div class="flex items-baseline gap-1 mt-0.5">
-                        <span class="text-lg font-black text-rose-500 tabular-nums">
-                            -{totalExpenses.toLocaleString('en-SA')}
+                        <span class="text-lg font-black tabular-nums {totalExpenses === 0 ? 'text-muted-foreground' : 'text-rose-500'}">
+                            {totalExpenses === 0 ? '0.00' : '-' + formatNumber(totalExpenses)}
                         </span>
-                        <span class="text-xs font-bold text-muted-foreground/80">{tr('common.currency', 'ر.س', 'SAR')}</span>
+                        <span class="text-sm font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 4. آخر العمليات -->
+    <!-- آخر العمليات -->
     <div class="flex flex-col gap-3">
         <div class="flex items-center justify-between px-1">
             <h2 class="text-lg font-black text-foreground">{tr('dashboard.recent_transactions', 'آخر العمليات', 'Recent Transactions')}</h2>
@@ -371,46 +480,51 @@
                 class="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-0.5"
             >
                 <span>{tr('dashboard.view_all', 'عرض الكل', 'View All')}</span>
-                <ChevronLeft class="size-3.5" />
+                <ChevronLeft class="size-3.5 rtl:rotate-0 ltr:rotate-180" />
             </Link>
         </div>
 
         <div class="flex flex-col gap-2">
             {#if displayedTransactions.length === 0}
-                <div class="p-8 text-center rounded-2xl bg-card border border-border/40">
+                <div class="p-8 text-center rounded-2xl bg-card border border-border/40 flex flex-col items-center justify-center gap-2">
+                    <Receipt class="size-8 text-muted-foreground/50" />
                     <p class="text-xs text-muted-foreground font-semibold">{tr('dashboard.no_recent_transactions', 'لا توجد عمليات مسجلة حديثاً', 'No recent transactions recorded')}</p>
                 </div>
             {:else}
-                {#each displayedTransactions as item}
-                    {@const categoryName = typeof item.category === 'object' ? item.category.name : (item.category || item.title || '')}
-                    {@const categoryIcon = item.icon || (typeof item.category === 'object' ? item.category.icon : undefined)}
-                    {@const Icon = getIcon(categoryIcon, categoryName)}
+                {#each displayedTransactions as item (item.id)}
+                    {@const catObj = typeof item.category === 'object' 
+                        ? item.category 
+                        : categories.find(c => c.id === item.category_id || String(c.id) === String(item.category) || c.name === item.category)}
+                    {@const rawName = catObj ? catObj.name : (typeof item.category === 'string' ? item.category : (item.title || ''))}
+                    {@const meta = resolveCategoryMeta(rawName)}
+                    {@const displayColor = catObj?.color || item.color || meta.color}
+                    {@const displayName = (currentLang === 'ar' ? meta.ar : meta.en) || rawName}
+                    {@const IconComponent = resolveIcon(catObj?.icon || item.icon, meta.icon)}
                     {@const isIncome = item.type === 'income'}
-                    {@const categoryColor = item.color || (typeof item.category === 'object' ? item.category.color : null) || (isIncome ? '#10b981' : '#ef4444')}
                     
                     <div class="p-3.5 px-4 rounded-2xl bg-card border border-border/40 hover:border-border/80 transition-all flex items-center justify-between gap-3">
                         <div class="flex items-center gap-3">
                             <div 
-                                class="size-10 rounded-xl flex items-center justify-center shrink-0"
-                                style="background-color: {categoryColor}20; color: {categoryColor};"
+                                class="size-10 rounded-xl flex items-center justify-center shrink-0 border transition-colors"
+                                style="background-color: {displayColor}20; color: {displayColor}; border-color: {displayColor}35;"
                             >
-                                <Icon class="size-5" />
+                                <IconComponent class="size-5" />
                             </div>
                             <div class="flex flex-col">
                                 <span class="text-sm font-bold text-foreground">
-                                    {translateCategory(categoryName)}
+                                    {displayName}
                                 </span>
                                 <span class="text-[11px] text-muted-foreground font-medium mt-0.5">
-                                    {item.date}
+                                    {formatTransactionDate(item.date, currentLang)}
                                 </span>
                             </div>
                         </div>
 
                         <div class="flex items-center gap-1 dir-ltr">
-                            <span class="text-sm font-bold tabular-nums {isIncome ? 'text-emerald-500' : 'text-rose-500'}">
-                                {isIncome ? '+' : '-'}{Math.abs(item.amount).toLocaleString('en-SA')}
+                            <span class="text-sm font-bold tabular-nums {item.amount === 0 ? 'text-muted-foreground' : (isIncome ? 'text-emerald-500' : 'text-rose-500')}">
+                                {item.amount === 0 ? '0.00' : (isIncome ? '+' : '-') + formatNumber(Math.abs(item.amount))}
                             </span>
-                            <span class="text-xs font-bold text-muted-foreground">{tr('common.currency', 'ر.س', 'SAR')}</span>
+                            <span class="text-sm font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
                         </div>
                     </div>
                 {/each}
@@ -420,12 +534,50 @@
 
 </div>
 
+<!-- القائمة السفلية -->
+<div class="fixed bottom-0 inset-x-0 z-40 bg-[#09090b]/90 backdrop-blur-xl border-t border-white/10 px-6 py-2.5 max-w-lg mx-auto flex items-center justify-around">
+    <Link href={dashboard()} class="relative flex flex-col items-center gap-1 text-primary transition-all">
+        <span class="absolute -top-2 size-1.5 rounded-full bg-primary shadow-[0_0_8px_#3b82f6]"></span>
+        <LayoutDashboard class="size-5" />
+        <span class="text-[10px] font-bold">{tr('nav.home', 'الرئيسية', 'Home')}</span>
+    </Link>
+
+    <Link href="/transactions" class="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-all">
+        <Receipt class="size-5" />
+        <span class="text-[10px] font-medium">{tr('nav.transactions', 'المعاملات', 'Transactions')}</span>
+    </Link>
+</div>
+
 <!-- نافذة إضافة معاملة سريعة -->
 {#if isDialogOpen}
-    <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="w-full max-w-sm rounded-3xl bg-[#141414] border border-white/10 p-5 shadow-2xl space-y-4 text-white animate-in fade-in zoom-in-95 duration-150">
-            
-            <div class="flex items-center justify-between">
+    <div 
+        in:fade={{ duration: 150 }}
+        out:fade={{ duration: 120 }}
+        class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        onclick={(e) => e.target === e.currentTarget && (isDialogOpen = false)}
+    >
+        <div 
+            in:scale={{ duration: 200, start: 0.96 }}
+            out:scale={{ duration: 150, start: 0.96 }}
+            class="relative w-full max-w-sm rounded-3xl bg-[#121212] p-5 space-y-4 text-white border border-white/10 transition-all duration-300 overflow-hidden"
+            style="
+                --accent: {selectedColor};
+                box-shadow: 0 25px 50px -12px rgba(0,0,0,0.85), 0 0 30px -10px color-mix(in srgb, var(--accent) 30%, transparent);
+            "
+        >
+            <div 
+                class="absolute -top-20 left-1/2 -translate-x-1/2 size-56 rounded-full opacity-15 blur-3xl pointer-events-none transition-all duration-300 ease-out"
+                style="background: var(--accent);"
+            ></div>
+
+            <div 
+                class="absolute top-0 inset-x-10 h-[1.5px] transition-all duration-300 ease-out opacity-60"
+                style="background: linear-gradient(90deg, transparent, var(--accent), transparent);"
+            ></div>
+
+            <div class="flex items-center justify-between relative z-10">
                 <h3 class="text-lg font-black tracking-tight">{tr('transaction.add_quick_transaction', 'إضافة معاملة سريعة', 'Add Quick Transaction')}</h3>
                 <button 
                     type="button" 
@@ -437,107 +589,116 @@
             </div>
 
             {#if errorMessage}
-                <div class="rounded-xl bg-rose-500/15 p-2.5 text-xs font-semibold text-rose-400 text-center border border-rose-500/20">
+                <div class="rounded-xl bg-rose-500/15 p-2.5 text-xs font-semibold text-rose-400 text-center border border-rose-500/20 relative z-10">
                     {errorMessage}
                 </div>
             {/if}
 
-            <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+            <form class="flex flex-col gap-4 relative z-10" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
                 
-                <div class="grid grid-cols-2 gap-1 p-1 rounded-xl bg-white/5 border border-white/5">
+                <!-- نوع المعاملة -->
+                <div class="relative grid grid-cols-2 p-1 rounded-xl bg-white/5 border border-white/5 select-none">
+                    <div 
+                        class="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-[#242424] border border-white/10 shadow-md transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none will-change-transform {currentLang === 'ar' ? 'right-1' : 'left-1'}"
+                        style="transform: translateX({formType === 'income' ? (currentLang === 'ar' ? '-100%' : '100%') : '0%'});"
+                    ></div>
+
                     <button
                         type="button"
-                        class="py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer {formType === 'expense' ? 'bg-[#222222] text-white shadow-md border border-white/10' : 'text-white/50 hover:text-white'}"
+                        aria-pressed={formType === 'expense'}
+                        class="relative z-10 py-2 text-xs font-extrabold transition-colors duration-200 cursor-pointer text-center {formType === 'expense' ? 'text-white' : 'text-white/40 hover:text-white/70'}"
                         onclick={() => handleTypeChange('expense')}
                     >
                         {tr('transaction.expense', 'مصروف', 'Expense')}
                     </button>
                     <button
                         type="button"
-                        class="py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer {formType === 'income' ? 'bg-[#222222] text-white shadow-md border border-white/10' : 'text-white/50 hover:text-white'}"
+                        aria-pressed={formType === 'income'}
+                        class="relative z-10 py-2 text-xs font-extrabold transition-colors duration-200 cursor-pointer text-center {formType === 'income' ? 'text-white' : 'text-white/40 hover:text-white/70'}"
                         onclick={() => handleTypeChange('income')}
                     >
                         {tr('transaction.income', 'دخل', 'Income')}
                     </button>
                 </div>
 
+                <!-- إدخال المبلغ -->
                 <div class="flex flex-col gap-1.5">
-                    <label for="tx-amount" class="text-xs font-bold text-white/80">{tr('transaction.amount_sar', 'المبلغ (ر.س)', 'Amount (SAR)')}</label>
+                    <label for="tx-amount" class="text-xs font-bold text-white/80">
+                        {tr('transaction.amount', 'المبلغ', 'Amount')} (<span class="text-sm font-bold text-white">⃁</span>)
+                    </label>
                     <input 
                         id="tx-amount" 
                         type="number" 
                         step="0.01" 
                         min="0.01" 
                         bind:value={formAmount} 
-                        placeholder="0.00" 
+                        placeholder={amountPlaceholder} 
                         required 
-                        class="h-11 w-full rounded-xl border border-white/10 bg-[#1c1c1c] px-3.5 text-left font-mono text-base font-bold text-white placeholder:text-white/20 focus:outline-none focus:border-white/30"
+                        class="h-11 w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-3.5 text-start font-mono text-base font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-all focus:ring-2 focus:ring-white/10"
                     />
                 </div>
 
+                <!-- اختيار الفئة -->
                 <div class="flex flex-col gap-1.5">
                     <label class="text-xs font-bold text-white/80">{tr('transaction.category', 'الفئة', 'Category')}</label>
-                    <div class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-0.5 p-1">
+                    
+                    <div class="grid grid-cols-3 gap-2.5 max-h-52 overflow-y-auto p-1 scrollbar-none">
                         {#each filteredCategories as cat (cat.id)}
+                            {@const meta = resolveCategoryMeta(cat.name ?? '')}
+                            {@const displayColor = cat.color || meta.color}
+                            {@const displayName = (currentLang === 'ar' ? meta.ar : meta.en) || cat.name}
+                            {@const CatIcon = resolveIcon(cat.icon, meta.icon)}
                             {@const isSelected = formCategoryId === cat.id}
-                            {@const catColor = cat.color || '#3b82f6'}
+                            
                             <button
                                 type="button"
+                                aria-pressed={isSelected}
                                 onclick={() => formCategoryId = cat.id}
-                                class="relative py-2.5 px-2 rounded-xl text-xs font-extrabold transition-all duration-200 ease-out text-center truncate cursor-pointer select-none active:scale-90 hover:scale-[1.03] flex items-center justify-center gap-1.5 border"
-                                style={isSelected 
-                                    ? `background-color: ${catColor}25; border-color: ${catColor}; color: ${catColor}; box-shadow: 0 0 18px ${catColor}50, inset 0 0 10px ${catColor}30; transform: scale(1.04);` 
-                                    : `background-color: ${catColor}08; border-color: ${catColor}20; color: ${catColor}cc;`}
+                                class="group relative h-12 px-2.5 text-xs rounded-2xl transition-all duration-200 ease-out text-center truncate cursor-pointer select-none flex items-center justify-center gap-2 border-2 active:scale-95 will-change-transform {isSelected ? 'pulse-border-glow font-black border-2 z-10' : 'font-bold opacity-60 hover:opacity-100'}"
+                                style="
+                                    background-color: {displayColor}18;
+                                    color: {displayColor};
+                                    border-color: {isSelected ? displayColor : displayColor + '30'};
+                                    --glow-color: {displayColor};
+                                "
                             >
-                                {#if isSelected}
-                                    <span 
-                                        class="size-1.5 rounded-full animate-pulse shrink-0" 
-                                        style="background-color: {catColor}; box-shadow: 0 0 6px {catColor};"
-                                    ></span>
-                                {/if}
-                                <span class="truncate">{translateCategory(cat.name)}</span>
+                                <CatIcon 
+                                    class="size-4 shrink-0 transition-transform duration-200 {isSelected ? 'scale-110' : 'group-hover:scale-105'}" 
+                                    style="color: {displayColor};"
+                                />
+                                
+                                <span class="truncate">{displayName}</span>
                             </button>
                         {/each}
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2.5">
-                    <div class="flex flex-col gap-1.5">
-                        <label for="tx-date" class="text-xs font-bold text-white/80">{tr('transaction.date', 'التاريخ', 'Date')}</label>
-                        <input 
-                            id="tx-date" 
-                            type="date" 
-                            bind:value={formDate} 
-                            required 
-                            class="h-10 w-full rounded-xl border border-white/10 bg-[#1c1c1c] px-2.5 text-xs font-semibold text-white focus:outline-none focus:border-white/30"
-                        />
-                    </div>
-
-                    <div class="flex flex-col gap-1.5">
-                        <label for="tx-desc" class="text-xs font-bold text-white/80">{tr('transaction.description_optional', 'الوصف (اختياري)', 'Description (Optional)')}</label>
-                        <input 
-                            id="tx-desc" 
-                            type="text" 
-                            bind:value={formDescription} 
-                            placeholder={tr('transaction.description_placeholder', 'لماذا هذا المبلغ؟', 'What is this for?')} 
-                            class="h-10 w-full rounded-xl border border-white/10 bg-[#1c1c1c] px-2.5 text-xs font-semibold text-white placeholder:text-white/20 focus:outline-none focus:border-white/30"
-                        />
-                    </div>
+                <!-- الوصف -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="tx-desc" class="text-xs font-bold text-white/80">{tr('transaction.description_optional', 'الوصف (اختياري)', 'Description (Optional)')}</label>
+                    <input 
+                        id="tx-desc" 
+                        type="text" 
+                        bind:value={formDescription} 
+                        placeholder={tr('transaction.description_placeholder', 'لإيش المبلغ؟', 'What is this for?')} 
+                        class="h-10 w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-3 text-xs font-semibold text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all"
+                    />
                 </div>
 
+                <!-- الأزرار -->
                 <div class="flex flex-col gap-2 pt-1">
                     <button 
                         type="submit" 
                         disabled={isSubmitting || !formAmount || !formCategoryId}
-                        class="h-11 w-full rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold border border-white/15 disabled:opacity-40 transition-all cursor-pointer active:scale-[0.98]"
+                        class="h-11 w-full rounded-xl bg-white hover:bg-white/90 text-black text-xs font-bold shadow-lg shadow-white/10 border border-white/20 disabled:opacity-40 transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2"
                     >
-                        {isSubmitting ? tr('common.saving', 'جاري الحفظ...', 'Saving...') : tr('common.save', 'حفظ', 'Save')}
+                        <span>{isSubmitting ? tr('common.saving', 'جاري الحفظ...', 'Saving...') : tr('common.save', 'حفظ المعاملة', 'Save Transaction')}</span>
                     </button>
                     
                     <button 
                         type="button" 
                         onclick={() => isDialogOpen = false}
-                        class="h-11 w-full rounded-xl bg-white/5 hover:bg-white/10 text-white/80 text-xs font-bold border border-white/5 transition-all cursor-pointer active:scale-[0.98]"
+                        class="h-10 w-full rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs font-bold border border-white/5 transition-all cursor-pointer active:scale-[0.98]"
                     >
                         {tr('common.cancel', 'إلغاء', 'Cancel')}
                     </button>
@@ -547,3 +708,28 @@
         </div>
     </div>
 {/if}
+
+<style>
+    @keyframes glowPulseBorder {
+        0%, 100% {
+            box-shadow: 0 0 6px var(--glow-color), inset 0 0 3px var(--glow-color);
+            opacity: 0.9;
+        }
+        50% {
+            box-shadow: 0 0 12px var(--glow-color), inset 0 0 5px var(--glow-color);
+            opacity: 1;
+        }
+    }
+
+    .pulse-border-glow {
+        animation: glowPulseBorder 2s infinite ease-in-out;
+    }
+
+    .scrollbar-none::-webkit-scrollbar {
+        display: none;
+    }
+    .scrollbar-none {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+</style>

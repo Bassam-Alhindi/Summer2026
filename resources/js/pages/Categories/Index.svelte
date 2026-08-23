@@ -52,6 +52,8 @@
     import Plus from 'lucide-svelte/icons/plus';
     import Ban from 'lucide-svelte/icons/ban';
     import type { Component } from 'svelte';
+    import { fly, scale, fade } from 'svelte/transition';
+    import { flip } from 'svelte/animate';
     import { store as categoriesStore, update as categoriesUpdate, destroy as categoriesDestroy } from '@/routes/categories';
 
     type Category = {
@@ -99,18 +101,123 @@
         '#14b8a6', '#f43f5e', '#84cc16', '#d946ef', '#0284c7'
     ];
 
-    function generateUniqueColor(): string {
-        const usedColors = categories.map((c) => c.color?.toLowerCase()).filter(Boolean);
-        const availableColors = DISTINCT_PALETTE.filter(
-            (color) => !usedColors.includes(color.toLowerCase())
-        );
+    // قاموس التجميع للترجمة والتوحيد لكافة الفئات الرئيسية
+    const CATEGORY_TRANSLATIONS: Record<string, { key: string; ar: string; en: string; defaultColor: string; defaultIcon: string }> = {
+        // Housing / سكن
+        'housing': { key: 'housing', ar: 'سكن', en: 'Housing', defaultColor: '#3b82f6', defaultIcon: 'home' },
+        'home': { key: 'housing', ar: 'سكن', en: 'Housing', defaultColor: '#3b82f6', defaultIcon: 'home' },
+        'سكن': { key: 'housing', ar: 'سكن', en: 'Housing', defaultColor: '#3b82f6', defaultIcon: 'home' },
+        'سكن': { key: 'housing', ar: 'سكن', en: 'Housing', defaultColor: '#3b82f6', defaultIcon: 'home' },
 
-        if (availableColors.length > 0) {
-            return availableColors[Math.floor(Math.random() * availableColors.length)];
+        // Entertainment / ترفيه
+        'entertainment': { key: 'entertainment', ar: 'ترفيه', en: 'Entertainment', defaultColor: '#a855f7', defaultIcon: 'film' },
+        'ترفيه': { key: 'entertainment', ar: 'ترفيه', en: 'Entertainment', defaultColor: '#a855f7', defaultIcon: 'film' },
+
+        // Health / الصحة
+        'health': { key: 'health', ar: 'الصحة', en: 'Health', defaultColor: '#ef4444', defaultIcon: 'heart' },
+        'الصحة': { key: 'health', ar: 'الصحة', en: 'Health', defaultColor: '#ef4444', defaultIcon: 'heart' },
+
+        // Education / تعليم
+        'education': { key: 'education', ar: 'تعليم', en: 'Education', defaultColor: '#eab308', defaultIcon: 'graduation-cap' },
+        'تعليم': { key: 'education', ar: 'تعليم', en: 'Education', defaultColor: '#eab308', defaultIcon: 'graduation-cap' },
+
+        // Shopping / تسوق
+        'shopping': { key: 'shopping', ar: 'تسوق', en: 'Shopping', defaultColor: '#ec4899', defaultIcon: 'shopping-bag' },
+        'تسوق': { key: 'shopping', ar: 'تسوق', en: 'Shopping', defaultColor: '#ec4899', defaultIcon: 'shopping-bag' },
+
+        // Bills  / الفواتير
+        'bills': { key: 'bills', ar: 'الفواتير', en: 'Bills ', defaultColor: '#10b981', defaultIcon: 'receipt' },
+        'Bills ': { key: 'bills', ar: 'الفواتير', en: 'Bills ', defaultColor: '#10b981', defaultIcon: 'receipt' },
+        'bills_utilities': { key: 'bills', ar: 'الفواتير', en: 'Bills ', defaultColor: '#10b981', defaultIcon: 'receipt' },
+        'الفواتير': { key: 'bills', ar: 'الفواتير', en: 'Bills ', defaultColor: '#10b981', defaultIcon: 'receipt' },
+        'الفواتير': { key: 'bills', ar: 'الفواتير', en: 'Bills ', defaultColor: '#10b981', defaultIcon: 'receipt' },
+
+        // Food & Drinks / اكل وشرب
+        'food': { key: 'food', ar: 'اكل وشرب', en: 'Food & Drinks', defaultColor: '#f97316', defaultIcon: 'utensils-crossed' },
+        'food & drinks': { key: 'food', ar: 'اكل وشرب', en: 'Food & Drinks', defaultColor: '#f97316', defaultIcon: 'utensils-crossed' },
+        'food & dining': { key: 'food', ar: 'اكل وشرب', en: 'Food & Drinks', defaultColor: '#f97316', defaultIcon: 'utensils-crossed' },
+        'food_drinks': { key: 'food', ar: 'اكل وشرب', en: 'Food & Drinks', defaultColor: '#f97316', defaultIcon: 'utensils-crossed' },
+        'الطعام': { key: 'food', ar: 'اكل وشرب', en: 'Food & Drinks', defaultColor: '#f97316', defaultIcon: 'utensils-crossed' },
+        'اكل وشرب': { key: 'food', ar: 'اكل وشرب', en: 'Food & Drinks', defaultColor: '#f97316', defaultIcon: 'utensils-crossed' },
+
+        // Transportation / مواصلات
+        'transportation': { key: 'transportation', ar: 'مواصلات', en: 'Transportation', defaultColor: '#06b6d4', defaultIcon: 'car' },
+        'car': { key: 'transportation', ar: 'مواصلات', en: 'Transportation', defaultColor: '#06b6d4', defaultIcon: 'car' },
+        'مواصلات': { key: 'transportation', ar: 'مواصلات', en: 'Transportation', defaultColor: '#06b6d4', defaultIcon: 'car' },
+
+        // Salary / الراتب
+        'salary': { key: 'salary', ar: 'الراتب', en: 'Salary', defaultColor: '#22c55e', defaultIcon: 'banknote' },
+        'الراتب': { key: 'salary', ar: 'الراتب', en: 'Salary', defaultColor: '#22c55e', defaultIcon: 'banknote' },
+
+        // Freelance / عمل حر
+        'freelance': { key: 'freelance', ar: 'عمل حر', en: 'Freelance', defaultColor: '#14b8a6', defaultIcon: 'laptop' },
+        'عمل حر': { key: 'freelance', ar: 'عمل حر', en: 'Freelance', defaultColor: '#14b8a6', defaultIcon: 'laptop' },
+
+        // Investments / استثمار
+        'investments': { key: 'investments', ar: 'استثمار', en: 'Investments', defaultColor: '#6366f1', defaultIcon: 'trending-up' },
+        'investment': { key: 'investments', ar: 'استثمار', en: 'Investments', defaultColor: '#6366f1', defaultIcon: 'trending-up' },
+        'استثمار': { key: 'investments', ar: 'استثمار', en: 'Investments', defaultColor: '#6366f1', defaultIcon: 'trending-up' },
+
+        // Gifts / هدايا
+        'gifts': { key: 'gifts', ar: 'هدايا', en: 'Gifts', defaultColor: '#f43f5e', defaultIcon: 'gift' },
+        'gift': { key: 'gifts', ar: 'هدايا', en: 'Gifts', defaultColor: '#f43f5e', defaultIcon: 'gift' },
+        'هدايا': { key: 'gifts', ar: 'هدايا', en: 'Gifts', defaultColor: '#f43f5e', defaultIcon: 'gift' },
+        'هدايا': { key: 'gifts', ar: 'هدايا', en: 'Gifts', defaultColor: '#f43f5e', defaultIcon: 'gift' },
+
+        // Other / أخرى
+        'other': { key: 'other', ar: 'أخرى', en: 'Other', defaultColor: '#6b7280', defaultIcon: 'more-horizontal' },
+        'أخرى': { key: 'other', ar: 'أخرى', en: 'Other', defaultColor: '#6b7280', defaultIcon: 'more-horizontal' },
+        'other income': { key: 'other_income', ar: 'دخل آخر', en: 'Other Income', defaultColor: '#6b7280', defaultIcon: 'circle-dollar-sign' },
+        'other_income': { key: 'other_income', ar: 'دخل آخر', en: 'Other Income', defaultColor: '#6b7280', defaultIcon: 'circle-dollar-sign' },
+        'دخل آخر': { key: 'other_income', ar: 'دخل آخر', en: 'Other Income', defaultColor: '#6b7280', defaultIcon: 'circle-dollar-sign' },
+        'other expense': { key: 'other_expense', ar: 'مصروف آخر', en: 'Other Expense', defaultColor: '#6b7280', defaultIcon: 'more-horizontal' },
+        'other_expense': { key: 'other_expense', ar: 'مصروف آخر', en: 'Other Expense', defaultColor: '#6b7280', defaultIcon: 'more-horizontal' },
+        'مصروف آخر': { key: 'other_expense', ar: 'مصروف آخر', en: 'Other Expense', defaultColor: '#6b7280', defaultIcon: 'more-horizontal' },
+    };
+
+    function getCategoryInfo(name: string) {
+        const raw = (name || '').trim().toLowerCase();
+        return CATEGORY_TRANSLATIONS[raw] ?? null;
+    }
+
+    function isArabicUi(): boolean {
+        const titleText = t('categories.title');
+        return /[\u0600-\u06FF]/.test(titleText);
+    }
+
+    function tr(key: string, arFallback: string, enFallback: string): string {
+        const translated = t(key);
+        if (!translated || translated === key || translated.startsWith('categories.') || translated.startsWith('transactions.')) {
+            return isArabicUi() ? arFallback : enFallback;
+        }
+        return translated;
+    }
+
+    function getTranslatedCategoryName(category: Category): string {
+        const raw = category.name ? category.name.trim() : '';
+        if (!raw) return '';
+
+        const info = getCategoryInfo(raw);
+        if (info) {
+            return isArabicUi() ? info.ar : info.en;
         }
 
-        const randomHue = Math.floor(Math.random() * 360);
-        return hslToHex(randomHue, 70, 50);
+        return raw;
+    }
+
+    function getCategoryColor(category: Category): string {
+        const info = getCategoryInfo(category.name);
+        if (info) {
+            return info.defaultColor;
+        }
+        return category.color || '#6b7280';
+    }
+
+    function getCategoryIcon(category: Category): Component | null {
+        const info = getCategoryInfo(category.name);
+        const iconName = category.icon || (info ? info.defaultIcon : null);
+        if (!iconName) return null;
+        return iconMap[iconName] ?? null;
     }
 
     function hslToHex(h: number, s: number, l: number): string {
@@ -124,14 +231,48 @@
         return `#${f(0)}${f(8)}${f(4)}`;
     }
 
+    function generateUniqueColor(): string {
+        const usedColors = new Set(categories.map((c) => c.color?.toLowerCase()).filter(Boolean));
+        const availableColors = DISTINCT_PALETTE.filter(
+            (color) => !usedColors.has(color.toLowerCase())
+        );
+
+        if (availableColors.length > 0) {
+            return availableColors[Math.floor(Math.random() * availableColors.length)];
+        }
+
+        let newColor = '';
+        let attempts = 0;
+        do {
+            const randomHue = Math.floor(Math.random() * 360);
+            newColor = hslToHex(randomHue, 65, 55);
+            attempts++;
+        } while (usedColors.has(newColor.toLowerCase()) && attempts < 50);
+
+        return newColor;
+    }
+
     let activeTab = $state<'expense' | 'income'>('expense');
 
-    let filteredCategories = $derived(categories.filter((c) => c.type === activeTab));
+    // تصفية وحذف الفئات المكررة (مثل Gift و Gifts) حسب المفتاح الموحد
+    let filteredCategories = $derived(
+        categories
+            .filter((c) => c.type === activeTab)
+            .filter((category, index, self) => {
+                const info = getCategoryInfo(category.name);
+                const uniqueKey = info ? info.key : category.name.trim().toLowerCase();
+                return (
+                    self.findIndex((c) => {
+                        const cInfo = getCategoryInfo(c.name);
+                        const cKey = cInfo ? cInfo.key : c.name.trim().toLowerCase();
+                        return cKey === uniqueKey;
+                    }) === index
+                );
+            })
+    );
 
     let isDialogOpen = $state(false);
     let editingCategory = $state<Category | null>(null);
-
-    // حالة الفئة المحددة عند الضغط بالجوال
     let selectedCategoryId = $state<number | null>(null);
 
     let formName = $state('');
@@ -139,60 +280,6 @@
     let formColor = $state('#6b7280');
     let formIcon = $state<string | null>(null);
     let errorMessage = $state<string | null>(null);
-
-    function getIconComponent(iconName: string | null): Component | null {
-        if (!iconName) return null;
-        return iconMap[iconName] ?? null;
-    }
-
-    function isArabicUi(): boolean {
-        const titleText = t('categories.title');
-        return /[\u0600-\u06FF]/.test(titleText);
-    }
-
-    function getTranslatedCategoryName(category: Category): string {
-        const raw = category.name ? category.name.trim() : '';
-        if (!raw) return '';
-
-        const isAr = isArabicUi();
-
-        const categoriesMap: Record<string, { ar: string; en: string }> = {
-            'housing': { ar: 'السكن', en: 'Housing' },
-            'home': { ar: 'السكن', en: 'Housing' },
-            'entertainment': { ar: 'الترفيه', en: 'Entertainment' },
-            'health': { ar: 'الصحة', en: 'Health' },
-            'education': { ar: 'التعليم', en: 'Education' },
-            'shopping': { ar: 'التسوق', en: 'Shopping' },
-            'bills': { ar: 'الفواتير', en: 'Bills' },
-            'bills & utilities': { ar: 'الفواتير', en: 'Bills' },
-            'food & drinks': { ar: 'الطعام والمشروبات', en: 'Food & Drinks' },
-            'food & dining': { ar: 'الطعام والمشروبات', en: 'Food & Drinks' },
-            'food_drinks': { ar: 'الطعام والمشروبات', en: 'Food & Drinks' },
-            'transportation': { ar: 'المواصلات', en: 'Transportation' },
-            'other': { ar: 'أخرى', en: 'Other' },
-            'salary': { ar: 'الراتب', en: 'Salary' },
-            'freelance': { ar: 'عمل حر', en: 'Freelance' },
-            'investments': { ar: 'الاستثمار', en: 'Investments' },
-            'gifts': { ar: 'الهدايا', en: 'Gifts' },
-        };
-
-        const key = raw.toLowerCase();
-        if (categoriesMap[key]) {
-            return isAr ? categoriesMap[key].ar : categoriesMap[key].en;
-        }
-
-        for (const item of Object.values(categoriesMap)) {
-            if (item.ar === raw) {
-                return isAr ? item.ar : item.en;
-            }
-        }
-
-        return raw;
-    }
-
-    function getSubtextLabel(): string {
-        return isArabicUi() ? 'افتراضي' : 'Default';
-    }
 
     function handleCardClick(category: Category) {
         if (category.user_id !== null) {
@@ -222,23 +309,36 @@
 
     function handleSubmit() {
         errorMessage = null;
+        const inputNameClean = formName.trim().toLowerCase();
 
-        const isDuplicate = categories.some(
-            (c) =>
-                c.name.trim().toLowerCase() === formName.trim().toLowerCase() &&
-                c.type === formType &&
-                c.id !== editingCategory?.id
-        );
+        const isDuplicateName = categories.some((c) => {
+            if (c.id === editingCategory?.id) return false;
+            if (c.type !== formType) return false;
 
-        if (isDuplicate) {
-            errorMessage = isArabicUi() ? 'تنبيه: هذه الفئة موجودة بالفعل!' : 'Category already exists!';
+            const inputInfo = getCategoryInfo(formName);
+            const inputKey = inputInfo ? inputInfo.key : inputNameClean;
+
+            const cInfo = getCategoryInfo(c.name);
+            const cKey = cInfo ? cInfo.key : c.name.trim().toLowerCase();
+
+            return inputKey === cKey;
+        });
+
+        if (isDuplicateName) {
+            errorMessage = isArabicUi() ? 'عفواً، هذه الفئة موجودة بالفعل!' : 'Category already exists!';
             return;
         }
 
+        let finalColor = formColor;
+        const usedColors = new Set(categories.map((c) => c.color?.toLowerCase()).filter(Boolean));
+        if (!editingCategory && usedColors.has(finalColor.toLowerCase())) {
+            finalColor = generateUniqueColor();
+        }
+
         const data = {
-            name: formName,
+            name: formName.trim(),
             type: formType,
-            color: formColor,
+            color: finalColor,
             icon: formIcon,
         };
 
@@ -274,191 +374,236 @@
 
 <AppHead title={t('categories.title')} />
 
-<div class="flex h-full flex-1 flex-col gap-4 overflow-y-auto p-4 pb-24 sm:p-6 lg:pb-6">
+<div class="flex h-full flex-1 flex-col gap-6 overflow-y-auto p-4 pb-24 sm:p-6 lg:pb-6">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b border-border/40 pb-3">
+    <div class="flex items-center justify-between">
         <div>
-            <h1 class="text-xl font-bold tracking-tight sm:text-2xl">{t('categories.title')}</h1>
-            <p class="mt-0.5 text-xs text-muted-foreground">{t('categories.subtitle')}</p>
+            <h1 class="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                {t('categories.title')}
+            </h1>
+            <p class="mt-1 text-xs text-zinc-400 sm:text-sm">
+                {tr('categories.subtitle', 'لكل ريال وجهة.. اعطِ أموالك الهوية التي تستحقها', 'Give every unit of your money the identity it deserves')}
+            </p>
         </div>
-        <Button onclick={openAddDialog} size="sm">
+        <Button onclick={openAddDialog} size="sm" class="rounded-xl">
             <Plus class="size-4" />
-            {t('categories.addCategory')}
+            {tr('categories.addCategory', 'إضافة فئة', 'Add Category')}
         </Button>
     </div>
 
-    <!-- التبديل المصغر (مصروف / دخل) -->
+    <!-- Segmented Tabs -->
     <div class="flex justify-center">
-        <div class="inline-flex w-[140px] rounded-lg bg-zinc-900/90 p-0.5 border border-zinc-800 text-muted-foreground">
+        <div class="inline-flex rounded-xl bg-zinc-900 p-1 border border-zinc-800">
             <button
                 type="button"
-                class="flex-1 rounded-md py-1 text-xs font-semibold transition-all {activeTab === 'expense' ? 'bg-zinc-800 text-white shadow-xs' : 'hover:text-foreground'}"
+                class="px-5 py-1.5 text-xs font-semibold rounded-lg transition-all {activeTab === 'expense' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
                 onclick={() => activeTab = 'expense'}
             >
-                {t('transactions.expense')}
+                {tr('transactions.expense', 'المصروفات', 'Expenses')}
             </button>
             <button
                 type="button"
-                class="flex-1 rounded-md py-1 text-xs font-semibold transition-all {activeTab === 'income' ? 'bg-zinc-800 text-white shadow-xs' : 'hover:text-foreground'}"
+                class="px-5 py-1.5 text-xs font-semibold rounded-lg transition-all {activeTab === 'income' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}"
                 onclick={() => activeTab = 'income'}
             >
-                {t('transactions.income')}
+                {tr('transactions.income', 'الدخل', 'Income')}
             </button>
         </div>
     </div>
 
-    <!-- عرض الفئات بألوانها المباشرة -->
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {#each filteredCategories as category (category.id)}
-            {@const IconComp = getIconComponent(category.icon)}
-            <div
-                class="group relative flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all"
-                style="
-                    background-color: rgba(18, 18, 22, 0.75);
-                    border-color: {category.color}40;
-                "
-                onclick={() => handleCardClick(category)}
-                role="button"
-                tabindex="0"
-                onkeydown={(e) => { if (e.key === 'Enter') handleCardClick(category); }}
-            >
-                <!-- اسم الفئة وتحتها (افتراضي) -->
-                <div class="min-w-0 flex-1">
-                    <p
-                        class="truncate text-base font-extrabold leading-tight sm:text-lg"
-                        style="color: {category.color};"
-                    >
-                        {getTranslatedCategoryName(category)}
-                    </p>
-                    {#if category.user_id === null}
-                        <span class="mt-0.5 block text-xs font-medium text-zinc-400">
-                            {getSubtextLabel()}
-                        </span>
+    <!-- Grid مع العرض المترجم بدون تكرار وبألوان موحدة -->
+    {#key activeTab}
+        <div 
+            in:fade={{ duration: 150 }}
+            class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+        >
+            {#each filteredCategories as category (category.id)}
+                {@const catColor = getCategoryColor(category)}
+                {@const IconComp = getCategoryIcon(category)}
+                <div
+                    animate:flip={{ duration: 250 }}
+                    in:fly={{ y: -15, duration: 200 }}
+                    out:scale={{ start: 0.95, duration: 150 }}
+                    class="group relative flex cursor-pointer items-center justify-between rounded-xl p-3.5 transition-all duration-300 hover:-translate-y-0.5"
+                    style="
+                        background: radial-gradient(circle at top right, {catColor}14 0%, rgba(24, 24, 27, 0.65) 75%);
+                        border: 1px solid {catColor}28;
+                        box-shadow: 0 4px 16px -4px {catColor}18, inset 0 0 10px -2px {catColor}0D;
+                    "
+                    onclick={() => handleCardClick(category)}
+                    role="button"
+                    tabindex="0"
+                    onkeydown={(e) => { if (e.key === 'Enter') handleCardClick(category); }}
+                >
+                    <div class="min-w-0 flex-1 pr-2 rtl:pr-0 rtl:pl-2">
+                        <p 
+                            class="truncate text-base font-bold transition-all duration-300" 
+                            style="color: {catColor}; text-shadow: 0 0 12px {catColor}35;"
+                        >
+                            {getTranslatedCategoryName(category)}
+                        </p>
+                    </div>
+
+                    <div class="shrink-0">
+                        {#if IconComp}
+                            <div
+                                class="flex size-9 items-center justify-center rounded-lg border bg-zinc-950/80 transition-all duration-300 group-hover:scale-105"
+                                style="
+                                    color: {catColor};
+                                    border-color: {catColor}30;
+                                    box-shadow: 0 0 10px -2px {catColor}25;
+                                "
+                            >
+                                <IconComp class="size-4" />
+                            </div>
+                        {:else}
+                            <div 
+                                class="flex size-9 items-center justify-center rounded-lg border bg-zinc-950/80"
+                                style="border-color: {catColor}30;"
+                            >
+                                <div 
+                                    class="size-2.5 rounded-full" 
+                                    style="
+                                        background-color: {catColor};
+                                        box-shadow: 0 0 8px {catColor}80;
+                                    "
+                                ></div>
+                            </div>
+                        {/if}
+                    </div>
+
+                    {#if category.user_id !== null}
+                        <div
+                            class="absolute top-2 left-2 flex items-center gap-1 rtl:left-auto rtl:right-2 {selectedCategoryId === category.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity"
+                        >
+                            <button
+                                type="button"
+                                class="flex size-6 items-center justify-center rounded bg-zinc-800 text-zinc-300 hover:text-white"
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    openEditDialog(category);
+                                }}
+                            >
+                                <Pencil class="size-3" />
+                            </button>
+                            <button
+                                type="button"
+                                class="flex size-6 items-center justify-center rounded bg-zinc-800 text-zinc-300 hover:text-red-400"
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    deleteCategory(category);
+                                }}
+                            >
+                                <Trash2 class="size-3" />
+                            </button>
+                        </div>
                     {/if}
                 </div>
-
-                <!-- الأيقونة بخلفية لون الفئة (أو نقطة ملونة عند عدم وجود أيقونة) -->
-                {#if IconComp}
-                    <div
-                        class="flex size-8 shrink-0 items-center justify-center rounded-lg"
-                        style="
-                            background-color: {category.color}20;
-                            color: {category.color};
-                        "
-                    >
-                        <IconComp class="size-4" />
-                    </div>
-                {:else}
-                    <div
-                        class="flex size-8 shrink-0 items-center justify-center rounded-lg"
-                        style="
-                            background-color: {category.color}20;
-                        "
-                    >
-                        <div class="size-2.5 rounded-full" style="background-color: {category.color};"></div>
-                    </div>
-                {/if}
-
-                <!-- أزرار التعديل والحذف للفئات الخاصة (الكمبيوتر والجوال) -->
-                {#if category.user_id !== null}
-                    <div
-                        class="absolute top-2 left-2 flex items-center gap-1.5 transition-opacity rtl:left-auto rtl:right-2 {selectedCategoryId === category.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
-                    >
-                        <button
-                            type="button"
-                            class="flex size-7 items-center justify-center rounded-md bg-zinc-800 text-zinc-300 shadow hover:bg-zinc-700 hover:text-white active:scale-95 transition-transform"
-                            onclick={(e) => {
-                                e.stopPropagation();
-                                openEditDialog(category);
-                            }}
-                            title="تعديل"
-                        >
-                            <Pencil class="size-3.5" />
-                        </button>
-                        <button
-                            type="button"
-                            class="flex size-7 items-center justify-center rounded-md bg-zinc-800 text-zinc-300 shadow hover:bg-red-500/20 hover:text-red-400 active:scale-95 transition-transform"
-                            onclick={(e) => {
-                                e.stopPropagation();
-                                deleteCategory(category);
-                            }}
-                            title="حذف"
-                        >
-                            <Trash2 class="size-3.5" />
-                        </button>
-                    </div>
-                {/if}
-            </div>
-        {/each}
-    </div>
+            {/each}
+        </div>
+    {/key}
 </div>
 
 <!-- Modal Dialog -->
 <Dialog bind:open={isDialogOpen}>
-    <DialogContent>
-        <DialogHeader>
-            <DialogTitle>
-                {editingCategory ? t('categories.editCategory') : t('categories.addCategory')}
+    <DialogContent class="max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-xl">
+        <DialogHeader class="pb-2 border-b border-zinc-800/60">
+            <DialogTitle class="text-lg font-bold text-white">
+                {editingCategory 
+                    ? tr('categories.editCategory', 'تعديل الفئة', 'Edit Category') 
+                    : tr('categories.addCategory', 'إضافة فئة', 'Add Category')}
             </DialogTitle>
         </DialogHeader>
 
-        <!-- تنبيه الخطأ عند وجود فئة مكررة -->
-        {#if errorMessage}
-            <div class="rounded-lg bg-destructive/15 p-2.5 text-xs font-semibold text-destructive text-center border border-destructive/20">
-                {errorMessage}
-            </div>
-        {/if}
+        <form class="flex flex-col gap-4 pt-3" autocomplete="off" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+            {#if errorMessage}
+                <div class="rounded-lg bg-red-950/40 p-2.5 text-xs font-semibold text-red-400 text-center border border-red-900/50">
+                    {errorMessage}
+                </div>
+            {/if}
 
-        <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+            <!-- اسم الفئة -->
             <div class="flex flex-col gap-1.5">
-                <Label for="cat-name">{t('categories.categoryName')}</Label>
-                <Input id="cat-name" type="text" bind:value={formName} required />
-            </div>
-
-            <div class="flex flex-col gap-1.5">
-                <Label for="cat-type">{t('categories.categoryType')}</Label>
-                <select
-                    id="cat-type"
-                    class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-                    bind:value={formType}
-                >
-                    <option value="expense">{t('transactions.expense')}</option>
-                    <option value="income">{t('transactions.income')}</option>
-                </select>
+                <Label for="cat-name" class="text-xs font-semibold text-zinc-300">
+                    {tr('categories.categoryName', 'اسم الفئة', 'Category Name')}
+                </Label>
+                <Input 
+                    id="cat-name" 
+                    type="text" 
+                    autocomplete="off"
+                    bind:value={formName} 
+                    required 
+                    placeholder={isArabicUi() ? 'ادخل اسم الفئة...' : 'Category name...'}
+                    class="h-10 rounded-xl border-zinc-800 bg-zinc-900/80 px-3 text-sm text-white focus:border-zinc-700"
+                />
             </div>
 
+            <!-- نوع الفئة -->
             <div class="flex flex-col gap-1.5">
-                <Label>{t('categories.categoryIcon')}</Label>
-                <div class="grid max-h-32 grid-cols-8 gap-1.5 overflow-y-auto rounded-lg border border-input p-2">
-                    <!-- خيار بدون أيقونة -->
+                <Label class="text-xs font-semibold text-zinc-300">
+                    {tr('categories.categoryType', 'نوع الفئة', 'Category Type')}
+                </Label>
+                <div class="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-zinc-900 border border-zinc-800/80">
                     <button
                         type="button"
-                        class="flex size-8 items-center justify-center rounded-md transition-colors {formIcon === null ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}"
-                        onclick={() => formIcon = null}
-                        title="بدون أيقونة"
+                        class="h-9 text-xs font-semibold rounded-lg transition-all {formType === 'expense' ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60' : 'text-zinc-400 hover:text-zinc-200'}"
+                        onclick={() => formType = 'expense'}
                     >
-                        <Ban class="size-4" />
+                        {tr('transactions.expense', 'المصروفات', 'Expenses')}
+                    </button>
+                    <button
+                        type="button"
+                        class="h-9 text-xs font-semibold rounded-lg transition-all {formType === 'income' ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60' : 'text-zinc-400 hover:text-zinc-200'}"
+                        onclick={() => formType = 'income'}
+                    >
+                        {tr('transactions.income', 'الدخل', 'Income')}
+                    </button>
+                </div>
+            </div>
+
+            <!-- اختيار الأيقونة -->
+            <div class="flex flex-col gap-1.5">
+                <Label class="text-xs font-semibold text-zinc-300">
+                    {tr('categories.categoryIcon', 'الأيقونة', 'Icon')}
+                </Label>
+                <div class="grid max-h-32 grid-cols-6 gap-1.5 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-900/40 p-2">
+                    <button
+                        type="button"
+                        class="flex size-8 items-center justify-center rounded-lg transition-colors {formIcon === null ? 'bg-zinc-800 text-white border border-zinc-600' : 'text-zinc-400 hover:text-white'}"
+                        onclick={() => formIcon = null}
+                    >
+                        <Ban class="size-3.5" />
                     </button>
 
                     {#each iconOptions as iconName (iconName)}
                         {@const IconComp = iconMap[iconName]}
                         <button
                             type="button"
-                            class="flex size-8 items-center justify-center rounded-md transition-colors {formIcon === iconName ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}"
+                            class="flex size-8 items-center justify-center rounded-lg transition-colors {formIcon === iconName ? 'bg-zinc-800 text-white border border-zinc-600' : 'text-zinc-400 hover:text-white'}"
                             onclick={() => formIcon = iconName}
                         >
-                            <IconComp class="size-4" />
+                            <IconComp class="size-3.5" />
                         </button>
                     {/each}
                 </div>
             </div>
 
-            <DialogFooter>
-                <Button type="button" variant="outline" onclick={() => isDialogOpen = false}>
-                    {t('categories.cancel')}
+            <!-- أزرار الحفظ والإلغاء -->
+            <DialogFooter class="mt-2 flex flex-row items-center justify-end gap-2">
+                <Button 
+                    type="button" 
+                    variant="ghost" 
+                    class="h-9 flex-1 rounded-xl text-zinc-300 hover:bg-zinc-900" 
+                    onclick={() => isDialogOpen = false}
+                >
+                    {tr('categories.cancel', 'إلغاء', 'Cancel')}
                 </Button>
-                <Button type="submit" disabled={!formName}>
-                    {t('categories.save')}
+                <Button 
+                    type="submit" 
+                    disabled={!formName.trim()} 
+                    class="h-9 flex-1 rounded-xl font-semibold"
+                >
+                    {tr('categories.save', 'حفظ', 'Save')}
                 </Button>
             </DialogFooter>
         </form>

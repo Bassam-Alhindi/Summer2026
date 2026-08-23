@@ -5,66 +5,98 @@ const STORAGE_KEY = 'locale';
 const locale = $state<{ value: Language }>({ value: 'en' });
 
 const setCookie = (name: string, value: string, days = 365): void => {
-    if (typeof document === 'undefined') {
-        return;
-    }
+  if (typeof document === 'undefined') {
+    return;
+  }
 
-    const maxAge = days * 24 * 60 * 60;
-    document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax`;
+  const maxAge = days * 24 * 60 * 60;
+  document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax`;
 };
 
 const applyDirection = (lang: Language): void => {
-    if (typeof document === 'undefined') {
-        return;
-    }
+  if (typeof document === 'undefined') {
+    return;
+  }
 
-    const dir = lang === 'ar' ? 'rtl' : 'ltr';
-    document.documentElement.dir = dir;
-    document.documentElement.lang = lang;
+  const dir = lang === 'ar' ? 'rtl' : 'ltr';
+  document.documentElement.dir = dir;
+  document.documentElement.lang = lang;
 };
 
 const getStoredLocale = (): Language => {
-    if (typeof window === 'undefined') {
-        return 'en';
-    }
+  if (typeof window === 'undefined') {
+    return 'en';
+  }
 
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === 'ar' ? 'ar' : 'en';
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored === 'ar' ? 'ar' : 'en';
 };
 
 export function initializeLocale(): void {
-    if (typeof window === 'undefined') {
-        return;
-    }
+  if (typeof window === 'undefined') {
+    return;
+  }
 
-    const lang = getStoredLocale();
-    locale.value = lang;
-    applyDirection(lang);
+  const lang = getStoredLocale();
+  locale.value = lang;
+  applyDirection(lang);
 }
 
 export function setLocale(lang: Language): void {
-    locale.value = lang;
+  locale.value = lang;
 
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, lang);
-    }
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEY, lang);
+  }
 
-    setCookie(STORAGE_KEY, lang);
-    applyDirection(lang);
+  setCookie(STORAGE_KEY, lang);
+  applyDirection(lang);
 }
 
 export function getLocale(): Language {
-    return locale.value;
+  return locale.value;
 }
 
 export function isRTL(): boolean {
-    return locale.value === 'ar';
+  return locale.value === 'ar';
 }
 
-export function t(key: TranslationKey): string {
-    return translations[locale.value]?.[key] ?? translations.en[key] ?? key;
+export function t(key: TranslationKey, fallback?: string): string {
+  const currentLang = locale.value;
+  const keys = key.split('.');
+
+  let result: any = translations[currentLang];
+  for (const k of keys) {
+    if (result && typeof result === 'object' && k in result) {
+      result = result[k];
+    } else {
+      result = null;
+      break;
+    }
+  }
+
+  if (typeof result === 'string') {
+    return result;
+  }
+
+  if (currentLang !== 'en') {
+    let fallbackResult: any = translations.en;
+    for (const k of keys) {
+      if (fallbackResult && typeof fallbackResult === 'object' && k in fallbackResult) {
+        fallbackResult = fallbackResult[k];
+      } else {
+        fallbackResult = null;
+        break;
+      }
+    }
+    if (typeof fallbackResult === 'string') {
+      return fallbackResult;
+    }
+  }
+
+  return fallback ?? key;
 }
 
 export function toggleLocale(): void {
-    setLocale(locale.value === 'en' ? 'ar' : 'en');
+  setLocale(locale.value === 'en' ? 'ar' : 'en');
 }

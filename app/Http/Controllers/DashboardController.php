@@ -51,7 +51,8 @@ class DashboardController extends Controller
             ->limit(10)
             ->get()
             ->map(function (Transaction $t) {
-                $categoryName = $t->category?->name ?? 'بدون فئة';
+                // التأكد من جلب اسم الفئة أو وضع قيمة افتراضية لتجنب خطأ null
+                $categoryName = $t->category?->name ?: 'أخرى';
                 $dateObj = $t->transaction_date ? Carbon::parse($t->transaction_date) : $t->created_at;
 
                 return [
@@ -59,9 +60,7 @@ class DashboardController extends Controller
                     'description' => $t->description ?: $categoryName,
                     'amount' => (float) $t->amount,
                     'type' => $t->type,
-                    'category' => $categoryName,
-                    'icon' => $t->category?->icon,
-                    'color' => $t->category?->color,
+                    'category' => $categoryName, // إرسال اسم الفئة كالنص الصحيح المتوافق مع الواجهة
                     'date' => $dateObj ? $dateObj->format('M d') : '',
                 ];
             });
