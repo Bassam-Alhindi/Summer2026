@@ -64,6 +64,7 @@
         color: string;
         type: 'income' | 'expense';
         sort_order: number;
+        budget_limit: string | null;
     };
 
     let { categories } = $props<{ categories: Category[] }>();
@@ -279,12 +280,13 @@
     let formType = $state<'income' | 'expense'>('expense');
     let formColor = $state('#6b7280');
     let formIcon = $state<string | null>(null);
+    let formBudgetLimit = $state('');
     let errorMessage = $state<string | null>(null);
 
+    let isEditingSystemDefault = $derived(editingCategory !== null && editingCategory.user_id === null);
+
     function handleCardClick(category: Category) {
-        if (category.user_id !== null) {
-            selectedCategoryId = selectedCategoryId === category.id ? null : category.id;
-        }
+        selectedCategoryId = selectedCategoryId === category.id ? null : category.id;
     }
 
     function openAddDialog() {
@@ -293,6 +295,7 @@
         formType = activeTab;
         formColor = generateUniqueColor();
         formIcon = null;
+        formBudgetLimit = '';
         errorMessage = null;
         isDialogOpen = true;
     }
@@ -303,12 +306,28 @@
         formType = category.type;
         formColor = category.color || generateUniqueColor();
         formIcon = category.icon || null;
+        formBudgetLimit = category.budget_limit ? String(category.budget_limit) : '';
         errorMessage = null;
         isDialogOpen = true;
     }
 
     function handleSubmit() {
         errorMessage = null;
+
+        if (isEditingSystemDefault && editingCategory) {
+            const data = {
+                budget_limit: formBudgetLimit ? Number(formBudgetLimit) : null,
+            };
+
+            router.put(categoriesUpdate.url(editingCategory.id), data, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    isDialogOpen = false;
+                },
+            });
+            return;
+        }
+
         const inputNameClean = formName.trim().toLowerCase();
 
         const isDuplicateName = categories.some((c) => {
@@ -340,6 +359,7 @@
             type: formType,
             color: finalColor,
             icon: formIcon,
+            budget_limit: formBudgetLimit ? Number(formBudgetLimit) : null,
         };
 
         const options = {
@@ -472,7 +492,7 @@
                         {/if}
                     </div>
 
-                    {#if category.user_id !== null}
+                    {#if category.user_id !== null || category.user_id === null}
                         <div
                             class="absolute top-2 left-2 flex items-center gap-1 rtl:left-auto rtl:right-2 {selectedCategoryId === category.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity"
                         >
@@ -486,6 +506,7 @@
                             >
                                 <Pencil class="size-3" />
                             </button>
+                            {#if category.user_id !== null}
                             <button
                                 type="button"
                                 class="flex size-6 items-center justify-center rounded bg-zinc-800 text-zinc-300 hover:text-red-400"
@@ -496,6 +517,7 @@
                             >
                                 <Trash2 class="size-3" />
                             </button>
+                            {/if}
                         </div>
                     {/if}
                 </div>
@@ -522,7 +544,14 @@
                 </div>
             {/if}
 
+            {#if isEditingSystemDefault}
+                <div class="rounded-lg bg-zinc-800/40 p-2.5 text-[11px] font-semibold text-zinc-400 text-center border border-zinc-700/40">
+                    {tr('categories.systemDefaultHint', 'يمكنك تعديل حد الميزانية فقط للفئات الأساسية', 'You can only modify the budget limit for system categories')}
+                </div>
+            {/if}
+
             <!-- اسم الفئة -->
+            {#if !isEditingSystemDefault}
             <div class="flex flex-col gap-1.5">
                 <Label for="cat-name" class="text-xs font-semibold text-zinc-300">
                     {tr('categories.categoryName', 'اسم الفئة', 'Category Name')}
@@ -554,7 +583,7 @@
                     <button
                         type="button"
                         class="h-9 text-xs font-semibold rounded-lg transition-all {formType === 'income' ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60' : 'text-zinc-400 hover:text-zinc-200'}"
-                        onclick={() => formType = 'income'}
+                        onclick={() => { formType = 'income'; formBudgetLimit = ''; }}
                     >
                         {tr('transactions.income', 'الدخل', 'Income')}
                     </button>
@@ -587,6 +616,28 @@
                     {/each}
                 </div>
             </div>
+            {/if}
+
+            <!-- حد الميزانية -->
+            {#if formType === 'expense' || isEditingSystemDefault}
+            <div class="flex flex-col gap-1.5">
+                <Label for="cat-budget" class="text-xs font-semibold text-zinc-300">
+                    {tr('categories.budgetLimit', 'حد الميزانية (اختياري)', 'Budget Limit (Optional)')} (<span class="text-xs font-bold text-white">⃁</span>)
+                </Label>
+                <Input 
+                    id="cat-budget" 
+                    type="number" 
+                    step="0.01" 
+                    min="0"
+                    bind:value={formBudgetLimit} 
+                    placeholder={isArabicUi() ? 'مثال: 500' : 'e.g. 500'}
+                    class="h-10 rounded-xl border-zinc-800 bg-zinc-900/80 px-3 text-sm text-white focus:border-zinc-700"
+                />
+                <p class="text-[11px] text-zinc-500 font-medium">
+                    {tr('categories.budgetHint', 'سيتم تنبيهك عند تجاوز 80% من الحد', 'You will be alerted when 80% is reached')}
+                </p>
+            </div>
+            {/if}
 
             <!-- أزرار الحفظ والإلغاء -->
             <DialogFooter class="mt-2 flex flex-row items-center justify-end gap-2">

@@ -31,13 +31,14 @@ class CategoryController extends Controller
                 Rule::unique('categories')->where(function ($query) use ($request) {
                     return $query->where(function ($q) use ($request) {
                         $q->where('user_id', $request->user()->id)
-                          ->orWhereNull('user_id');
+                            ->orWhereNull('user_id');
                     })->where('type', $request->input('type'));
                 }),
             ],
             'type' => 'required|in:income,expense',
             'color' => 'nullable|string',
             'icon' => 'nullable|string',
+            'budget_limit' => 'nullable|numeric|min:0',
         ], [
             'name.unique' => 'تنبيه: هذه الفئة موجودة بالفعل!',
         ]);
@@ -51,7 +52,17 @@ class CategoryController extends Controller
 
     public function update(Request $request, Category $category)
     {
-        if ($category->isSystemDefault() || $category->user_id !== $request->user()->id) {
+        if ($category->isSystemDefault()) {
+            $validated = $request->validate([
+                'budget_limit' => 'nullable|numeric|min:0',
+            ]);
+
+            $category->update(['budget_limit' => $validated['budget_limit'] ?? null]);
+
+            return redirect()->back();
+        }
+
+        if ($category->user_id !== $request->user()->id) {
             abort(403);
         }
 
@@ -63,13 +74,14 @@ class CategoryController extends Controller
                 Rule::unique('categories')->where(function ($query) use ($request) {
                     return $query->where(function ($q) use ($request) {
                         $q->where('user_id', $request->user()->id)
-                          ->orWhereNull('user_id');
+                            ->orWhereNull('user_id');
                     })->where('type', $request->input('type'));
                 })->ignore($category->id),
             ],
             'type' => 'required|in:income,expense',
             'color' => 'nullable|string',
             'icon' => 'nullable|string',
+            'budget_limit' => 'nullable|numeric|min:0',
         ], [
             'name.unique' => 'تنبيه: هذه الفئة موجودة بالفعل!',
         ]);

@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property string $color
  * @property string $type
  * @property int $sort_order
+ * @property string|null $budget_limit
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User|null $user
@@ -35,10 +36,12 @@ class Category extends Model
         'color',
         'type',
         'sort_order',
+        'budget_limit',
     ];
 
     protected $casts = [
         'sort_order' => 'integer',
+        'budget_limit' => 'decimal:2',
     ];
 
     public function user(): BelongsTo

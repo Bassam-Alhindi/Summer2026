@@ -140,12 +140,26 @@
 }
 
     function formatDate(dateStr: string): string {
+        if (!dateStr) return '';
         const currentLang = getLocale();
-        const localeCode = currentLang === 'ar' ? 'ar-u-nu-latn' : 'en-US';
-        return new Date(dateStr).toLocaleDateString(localeCode, {
-            month: 'short',
-            day: 'numeric',
-        });
+        const target = new Date(dateStr);
+        if (isNaN(target.getTime())) return dateStr;
+
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const targetDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+
+        const diffTime = today.getTime() - targetDay.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) {
+            return currentLang === 'ar' ? 'اليوم' : 'Today';
+        } else if (diffDays === 1) {
+            return currentLang === 'ar' ? 'أمس' : 'Yesterday';
+        } else {
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${target.getDate()} ${monthNames[target.getMonth()]}`;
+        }
     }
 
     function deleteTransaction(id: number, event: MouseEvent) {
@@ -189,7 +203,7 @@
                 {getLocale() === 'ar' ? 'المعاملات' : 'Transactions'}
             </h1>
             <p class="mt-1 text-xs text-muted-foreground sm:text-sm">
-                {getLocale() === 'ar' ? 'سجل وحركةأموالك بالتفصيل' : 'Detailed record of your money movement.'}
+                {getLocale() === 'ar' ? 'سجل وحركة أموالك بالتفصيل' : 'Detailed record of your money movement.'}
             </p>
         </div>
     </div>
@@ -400,6 +414,7 @@
                                 >
                                     <span>{formatAmount(tx)}</span>
                                     <span class="text-[11px] font-semibold inline-block" style="filter: brightness(0) invert(1);">⃁</span>
+                                </div>
                                 <!-- زر الحذف عند التحديد -->
                                 <div
                                     class={cn(

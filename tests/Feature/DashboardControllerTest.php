@@ -37,6 +37,7 @@ class DashboardControllerTest extends TestCase
                 ->has('expenseByCategory')
                 ->has('categories')
                 ->has('period')
+                ->has('remainingDays')
                 ->has('trends')
         );
     }
@@ -114,7 +115,7 @@ class DashboardControllerTest extends TestCase
         $response->assertInertia(
             fn ($page) => $page
                 ->has('expenseByCategory', 2)
-                ->where('expenseByCategory.0.category', 'food')
+                ->where('expenseByCategory.0.category', 'Food')
                 ->where('expenseByCategory.0.amount', 300)
                 ->where('expenseByCategory.0.color', '#ef4444')
         );
@@ -180,6 +181,58 @@ class DashboardControllerTest extends TestCase
                 ->where('categories.0.type', 'expense')
                 ->where('categories.1.name', 'Salary')
                 ->where('categories.1.type', 'income')
+        );
+    }
+
+    public function test_dashboard_includes_budget_limit_in_categories(): void
+    {
+        $user = User::factory()->create();
+        Category::factory()->forUser($user)->expense()->create([
+            'name' => 'Food',
+            'budget_limit' => 500.00,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertInertia(
+            fn ($page) => $page
+                ->where('categories.0.budget_limit', fn ($value) => $value == 500)
+        );
+    }
+
+    public function test_dashboard_includes_budget_limit_in_expense_by_category(): void
+    {
+        $user = User::factory()->create();
+        $foodCategory = Category::factory()->forUser($user)->expense()->create([
+            'name' => 'Food',
+            'color' => '#ef4444',
+            'budget_limit' => 1000.00,
+        ]);
+
+        Transaction::factory()->forUser($user)->forCategory($foodCategory)->expense()->create([
+            'amount' => 850,
+            'transaction_date' => now(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertInertia(
+            fn ($page) => $page
+                ->where('expenseByCategory.0.budget_limit', fn ($value) => $value == 1000)
+                ->where('expenseByCategory.0.amount', fn ($value) => $value == 850)
+        );
+    }
+
+    public function test_dashboard_returns_remaining_days(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertInertia(
+            fn ($page) => $page
+                ->has('remainingDays')
+                ->where('remainingDays', fn ($value) => $value >= 1)
         );
     }
 }

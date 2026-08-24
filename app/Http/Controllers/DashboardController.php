@@ -60,8 +60,9 @@ class DashboardController extends Controller
                     'description' => $t->description ?: $categoryName,
                     'amount' => (float) $t->amount,
                     'type' => $t->type,
-                    'category' => $categoryName, // إرسال اسم الفئة كالنص الصحيح المتوافق مع الواجهة
-                    'date' => $dateObj ? $dateObj->format('M d') : '',
+                    'category' => $categoryName,
+                    'category_id' => $t->category_id,
+                    'date' => $dateObj ? $dateObj->format('Y-m-d') : '',
                 ];
             });
 
@@ -70,13 +71,16 @@ class DashboardController extends Controller
             ->dateRange($from, $to)
             ->with('category')
             ->get()
-            ->groupBy(fn (Transaction $t) => strtolower($t->category?->name ?? 'أخرى'))
+            ->groupBy(fn (Transaction $t) => $t->category?->name ?? 'أخرى')
             ->map(function ($transactions, string $category) {
                 $firstCat = $transactions->first()?->category;
+
                 return [
                     'category' => $category,
+                    'category_id' => $firstCat?->id,
                     'amount' => (float) $transactions->sum('amount'),
                     'color' => $firstCat?->color ?? '#6b7280',
+                    'budget_limit' => $firstCat?->budget_limit ? (float) $firstCat->budget_limit : null,
                 ];
             })
             ->values();
@@ -90,6 +94,7 @@ class DashboardController extends Controller
                 'type' => $c->type,
                 'color' => $c->color,
                 'icon' => $c->icon,
+                'budget_limit' => $c->budget_limit ? (float) $c->budget_limit : null,
             ]);
 
         return Inertia::render('Dashboard', [
@@ -101,6 +106,7 @@ class DashboardController extends Controller
             'expenseByCategory' => $expenseByCategory,
             'categories' => $categories,
             'period' => $period,
+            'remainingDays' => max(1, Carbon::now()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1),
             'trends' => [
                 'income' => $incomeTrend,
                 'expenses' => $expenseTrend,

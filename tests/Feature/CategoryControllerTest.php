@@ -94,10 +94,27 @@ class CategoryControllerTest extends TestCase
             'type' => 'expense',
         ]);
 
-        $response->assertForbidden();
-        $this->assertDatabaseMissing('categories', [
+        $response->assertRedirect();
+        $this->assertDatabaseHas('categories', [
             'id' => $category->id,
-            'name' => 'Hacked',
+            'name' => $category->name,
+            'type' => $category->type,
+        ]);
+    }
+
+    public function test_user_can_update_system_default_budget_limit(): void
+    {
+        $user = User::factory()->create();
+        $category = Category::factory()->systemDefault()->expense()->create();
+
+        $response = $this->actingAs($user)->put(route('categories.update', $category), [
+            'budget_limit' => 750,
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'budget_limit' => 750,
         ]);
     }
 
@@ -168,5 +185,77 @@ class CategoryControllerTest extends TestCase
             ->component('Categories/Index')
             ->has('categories', 5)
         );
+    }
+
+    public function test_user_can_create_category_with_budget_limit(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post(route('categories.store'), [
+            'name' => 'Groceries',
+            'type' => 'expense',
+            'color' => '#ff0000',
+            'icon' => 'home',
+            'budget_limit' => 500.50,
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('categories', [
+            'name' => 'Groceries',
+            'user_id' => $user->id,
+            'budget_limit' => 500.50,
+        ]);
+    }
+
+    public function test_user_can_update_category_budget_limit(): void
+    {
+        $user = User::factory()->create();
+        $category = Category::factory()->forUser($user)->create(['budget_limit' => 200]);
+
+        $response = $this->actingAs($user)->put(route('categories.update', $category), [
+            'name' => $category->name,
+            'type' => $category->type,
+            'color' => $category->color,
+            'icon' => $category->icon,
+            'budget_limit' => 800.00,
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'budget_limit' => 800.00,
+        ]);
+    }
+
+    public function test_budget_limit_can_be_null(): void
+    {
+        $user = User::factory()->create();
+        $category = Category::factory()->forUser($user)->create(['budget_limit' => 500]);
+
+        $response = $this->actingAs($user)->put(route('categories.update', $category), [
+            'name' => $category->name,
+            'type' => $category->type,
+            'color' => $category->color,
+            'icon' => $category->icon,
+            'budget_limit' => null,
+        ]);
+
+        $response->assertRedirect();
+        $category->refresh();
+        $this->assertNull($category->budget_limit);
+    }
+
+    public function test_budget_limit_rejects_negative_values(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post(route('categories.store'), [
+            'name' => 'Bad Budget',
+            'type' => 'expense',
+            'color' => '#ff0000',
+            'budget_limit' => -100,
+        ]);
+
+        $response->assertSessionHasErrors('budget_limit');
     }
 }

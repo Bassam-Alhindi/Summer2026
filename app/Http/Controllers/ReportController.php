@@ -78,6 +78,7 @@ class ReportController extends Controller
                 'percentage' => $percentage,
                 'descriptions' => $descriptions,
                 'type' => $type,
+                'budget_limit' => $category->budget_limit ? (float) $category->budget_limit : null,
             ];
         }
 
