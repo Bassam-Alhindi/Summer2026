@@ -33,10 +33,14 @@ RUN mkdir -p database && touch database/database.sqlite
 # تثبيت مكتبات PHP
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts --ignore-platform-reqs
 
-# تثبيت مكتبات Node المخصصة لنظام Linux
+# ++++ التعديل السحري لحل مشكلتك ++++
+# إنشاء ملف بيئة مؤقت وتوليد مفتاح تشفير ليتمكن Laravel من تشغيل الأوامر أثناء البناء
+RUN cp .env.example .env && php artisan key:generate
+
+# تثبيت مكتبات Node
 RUN npm install
 
-# تجميع ملفات الواجهة
+# تجميع ملفات الواجهة (لن يفشل الآن لأن Laravel جاهز)
 RUN npm run build
 
 EXPOSE 10000
