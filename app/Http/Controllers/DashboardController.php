@@ -39,8 +39,17 @@ class DashboardController extends Controller
             ->dateRange($prevFrom, $prevTo)
             ->sum('amount');
 
-        $netBalance = $totalIncome - $totalExpenses;
-        $savingsRate = (int) round(($netBalance / max($totalIncome, 1)) * 100);
+        $allTimeIncome = Transaction::forUser($userId)
+            ->income()
+            ->sum('amount');
+
+        $allTimeExpenses = Transaction::forUser($userId)
+            ->expense()
+            ->sum('amount');
+
+        $periodNetBalance = $totalIncome - $totalExpenses;
+        $netBalance = $allTimeIncome - $allTimeExpenses;
+        $savingsRate = (int) round(($periodNetBalance / max($totalIncome, 1)) * 100);
 
         $incomeTrend = $this->calculateTrend($totalIncome, $prevIncome);
         $expenseTrend = $this->calculateTrend($totalExpenses, $prevExpenses);

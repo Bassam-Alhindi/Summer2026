@@ -12,25 +12,18 @@
 </script>
 
 <script lang="ts">
-    import { fade, slide, fly, scale } from 'svelte/transition';
-    import { flip } from 'svelte/animate';
-    import AppHead from '@/components/AppHead.svelte';
-    import { Card, CardContent } from '@/components/ui/card';
-    import { Button } from '@/components/ui/button';
-    import {
-        Receipt,
-        Trash2,
-        ChevronLeft,
-        ChevronRight,
-        ChevronDown,
-        Check,
-        Filter
-    } from 'lucide-svelte';
     import { router } from '@inertiajs/svelte';
+    import { Receipt, Trash2, Pencil, Plus, ChevronLeft, ChevronRight, ChevronDown, Check, Filter } from 'lucide-svelte';
+    import { flip } from 'svelte/animate';
+    import { fade, slide, fly, scale } from 'svelte/transition';
     import { toast } from 'svelte-sonner';
-    import { getLocale } from '@/lib/i18n.svelte';
-    import { cn } from '@/lib/utils';
+    import AppHead from '@/components/AppHead.svelte';
+    import QuickAddModal from '@/components/dashboard/QuickAddModal.svelte';
+    import { Button } from '@/components/ui/button';
+    import { Card, CardContent } from '@/components/ui/card';
     import { resolveCategoryMeta } from '@/lib/categories';
+    import { getLocale, t } from '@/lib/i18n.svelte';
+    import { cn } from '@/lib/utils';
 
     type CategoryItem = {
         id: number;
@@ -47,6 +40,15 @@
         description: string | null;
         transaction_date: string;
         category: CategoryItem | null;
+    };
+
+    type EditingTransaction = {
+        id: number;
+        amount: string;
+        type: 'income' | 'expense';
+        category_id: number;
+        transaction_date: string;
+        description: string | null;
     };
 
     type PaginationData = {
@@ -80,24 +82,71 @@
     let typeFilter = $state(filters.type || 'all');
     let categoryFilter = $state(filters.category_id || 'all');
     let isCategoryDropdownOpen = $state(false);
+    let isQuickAddOpen = $state(false);
+    let editingTx = $state<EditingTransaction | null>(null);
 
     let availableCategories = $derived.by(() => {
-        const seen = new Set<string>();
-        return categories.filter((cat) => {
+        const seenIds = new Set<number>();
+        const seenKeys = new Set<string>();
+        const result: CategoryItem[] = [];
+
+        const normalize = (str: string) => {
+            let s = (str ?? '').toLowerCase().trim();
+            if (!s) return '';
+            
+            if (s === 'هدايا' || s === 'هدية' || s === 'gifts' || s === 'gift') return 'gift';
+
+            if (s.length > 3 && s.endsWith('s')) {
+                s = s.slice(0, -1);
+            }
+            
+            return s.replace(/ات$/, '').replace(/[ةه]$/, '');
+        };
+
+        for (const cat of categories) {
+            if (seenIds.has(cat.id)) continue;
+
+            // فلترة الفئات حسب نوع التبويب النشط (مصروفات / دخل)
+            if (typeFilter !== 'all' && cat.type && cat.type !== typeFilter) {
+                continue;
+            }
+
             const meta = resolveCategoryMeta(cat.name ?? '', cat.color, cat.icon);
-            const key = meta.ar.toLowerCase().trim();
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-        });
+            const canonical = meta.en.toLowerCase().trim();
+            const localizedAr = meta.ar.toLowerCase().trim();
+            const rawName = (cat.name ?? '').toLowerCase().trim();
+
+            // Exclude "Other" / "Other Income" (أخرى / دخل آخر)
+            if (canonical.includes('other') || localizedAr.includes('أخرى') || localizedAr.includes('دخل آخر')) continue;
+
+            const normEn = normalize(canonical);
+            const normAr = normalize(localizedAr);
+            const normRaw = normalize(rawName);
+
+            if (
+                (normEn && seenKeys.has(normEn)) ||
+                (normAr && seenKeys.has(normAr)) ||
+                (normRaw && seenKeys.has(normRaw))
+            ) {
+                continue;
+            }
+
+            seenIds.add(cat.id);
+            if (normEn) seenKeys.add(normEn);
+            if (normAr) seenKeys.add(normAr);
+            if (normRaw) seenKeys.add(normRaw);
+
+            result.push(cat);
+        }
+
+        return result;
     });
 
     let typeTabs = $derived.by(() => {
-        const lang = getLocale();
         return [
-            { id: 'all', label: lang === 'ar' ? 'الكل' : 'All', type: 'all' },
-            { id: 'expense', label: lang === 'ar' ? 'المصاريف' : 'Expenses', type: 'expense' },
-            { id: 'income', label: lang === 'ar' ? 'الدخل' : 'Income', type: 'income' },
+            { id: 'all', label: t('transactions.all'), type: 'all' },
+            { id: 'expense', label: t('transactions.expense'), type: 'expense' },
+            { id: 'income', label: t('transactions.income'), type: 'income' },
         ];
     });
 
@@ -114,6 +163,7 @@
 
     function changeType(val: string) {
         typeFilter = val;
+        categoryFilter = 'all'; // إعادة ضبط الفئة عند تغيير التبويب
         applyFilters();
     }
 
@@ -127,21 +177,20 @@
         selectedTxId = selectedTxId === id ? null : id;
     }
 
-   function formatAmount(tx: TransactionItem): string {
-    const val = Math.abs(parseFloat(tx.amount));
-    const hasDecimals = val % 1 !== 0; // التحقق من وجود هللات
+    function formatAmount(tx: TransactionItem): string {
+        const val = Math.abs(parseFloat(tx.amount));
+        const hasDecimals = val % 1 !== 0;
 
-    const num = val.toLocaleString('en-US', {
-        minimumFractionDigits: hasDecimals ? 2 : 0,
-        maximumFractionDigits: 2,
-    });
-    
-    return tx.type === 'income' ? `+${num}` : `-${num}`;
-}
+        const num = val.toLocaleString('en-US', {
+            minimumFractionDigits: hasDecimals ? 2 : 0,
+            maximumFractionDigits: 2,
+        });
+        
+        return tx.type === 'income' ? `+${num}` : `-${num}`;
+    }
 
     function formatDate(dateStr: string): string {
         if (!dateStr) return '';
-        const currentLang = getLocale();
         const target = new Date(dateStr);
         if (isNaN(target.getTime())) return dateStr;
 
@@ -153,9 +202,9 @@
         const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
         if (diffDays === 0) {
-            return currentLang === 'ar' ? 'اليوم' : 'Today';
+            return t('transactions.today');
         } else if (diffDays === 1) {
-            return currentLang === 'ar' ? 'أمس' : 'Yesterday';
+            return t('transactions.yesterday');
         } else {
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             return `${target.getDate()} ${monthNames[target.getMonth()]}`;
@@ -164,24 +213,38 @@
 
     function deleteTransaction(id: number, event: MouseEvent) {
         event.stopPropagation();
-        const isAr = getLocale() === 'ar';
-        const confirmMsg = isAr ? 'هل أنت تأكد من حذف هذه المعاملة؟' : 'Are you sure you want to delete this transaction?';
-        if (!confirm(confirmMsg)) return;
+        if (!confirm(t('transactions.deleteConfirm'))) return;
 
         router.delete(transactions.destroy.url(id), {
             preserveScroll: true,
             onSuccess: () => {
                 selectedTxId = null;
-                toast.success(isAr ? 'تم حذف المعاملة بنجاح' : 'Transaction deleted successfully', {
-                    position: 'bottom-center',
-                });
             },
             onError: () => {
-                toast.error(isAr ? 'حدث خطأ أثناء حذف المعاملة' : 'An error occurred while deleting the transaction', {
-                    position: 'bottom-center',
-                });
+                toast.error(t('transactions.deleteError'));
             },
         });
+    }
+
+    function openAdd() {
+        editingTx = null;
+        isQuickAddOpen = true;
+    }
+
+    function openEdit(tx: TransactionItem) {
+        if (!tx.category) {
+            return;
+        }
+
+        editingTx = {
+            id: tx.id,
+            amount: tx.amount,
+            type: tx.type,
+            category_id: tx.category.id,
+            transaction_date: tx.transaction_date,
+            description: tx.description ?? '',
+        };
+        isQuickAddOpen = true;
     }
 
     function goToPage(url: string) {
@@ -193,22 +256,30 @@
     );
 </script>
 
-<AppHead title={getLocale() === 'ar' ? 'المعاملات' : 'Transactions'} />
+<AppHead title={t('transactions.title')} />
 
 <div class="flex flex-1 flex-col gap-4 p-4 pb-24 sm:p-6 lg:pb-6">
     <!-- الهيدر -->
     <div class="flex items-center justify-between gap-4">
         <div>
             <h1 class="text-xl font-bold tracking-tight sm:text-2xl">
-                {getLocale() === 'ar' ? 'المعاملات' : 'Transactions'}
+                {t('transactions.title')}
             </h1>
             <p class="mt-1 text-xs text-muted-foreground sm:text-sm">
-                {getLocale() === 'ar' ? 'سجل وحركة أموالك بالتفصيل' : 'Detailed record of your money movement.'}
+                {t('transactions.subtitle')}
             </p>
         </div>
+        <Button
+            type="button"
+            onclick={openAdd}
+            class="shrink-0 h-10 px-4 rounded-xl text-xs font-bold gap-1.5 active:scale-95 transition-transform duration-200"
+        >
+            <Plus class="size-4" />
+            <span>{t('transactions.addTransaction')}</span>
+        </Button>
     </div>
 
-    <!-- تبويبات التصفية بدون أي أيقونات -->
+    <!-- تبويبات التصفية -->
     <div class="inline-flex p-1 bg-muted/60 rounded-2xl gap-1 w-full border border-border/40">
         {#each typeTabs as tab}
             {@const isActive = typeFilter === tab.id}
@@ -256,7 +327,7 @@
                         <Filter class="size-3.5" />
                     </div>
                     <span class="text-muted-foreground text-xs sm:text-sm font-medium">
-                        {getLocale() === 'ar' ? 'جميع الفئات' : 'All Categories'}
+                        {t('transactions.selectCategory')}
                     </span>
                 {/if}
             </div>
@@ -296,7 +367,7 @@
                         <div class="size-6 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0 border border-border/40">
                             <Filter class="size-3.5" />
                         </div>
-                        <span>{getLocale() === 'ar' ? 'جميع الفئات' : 'All Categories'}</span>
+                        <span>{t('transactions.selectCategory')}</span>
                     </div>
                     {#if categoryFilter === 'all'}
                         <Check class="size-4 text-primary" />
@@ -347,10 +418,10 @@
                         <Receipt class="size-8" />
                     </div>
                     <p class="text-sm font-bold">
-                        {getLocale() === 'ar' ? 'لا توجد معاملات' : 'No Transactions'}
+                        {t('transactions.emptyState')}
                     </p>
                     <p class="mt-1 text-xs text-muted-foreground">
-                        {getLocale() === 'ar' ? 'لم تقم بتسجيل أي معاملات تطابق الخيارات المختارة.' : 'No recorded transactions match the selected filters.'}
+                        {t('transactions.emptyHint')}
                     </p>
                 </div>
             {:else}
@@ -391,7 +462,7 @@
                                 <IconComponent class="size-5.5" />
                             </div>
 
-                            <!-- التفاصيل: اسم الفئة والتاريخ فقط (بدون وصف) -->
+                            <!-- التفاصيل -->
                             <div class="flex flex-1 flex-col min-w-0">
                                 <span class="text-sm font-bold text-foreground truncate">
                                     {getLocale() === 'ar' ? meta.ar : meta.en}
@@ -415,17 +486,32 @@
                                     <span>{formatAmount(tx)}</span>
                                     <span class="text-[11px] font-semibold inline-block" style="filter: brightness(0) invert(1);">⃁</span>
                                 </div>
-                                <!-- زر الحذف عند التحديد -->
+                                <!-- أزرار التعديل والحذف -->
                                 <div
                                     class={cn(
-                                        "flex items-center justify-center transition-all duration-300 ease-out overflow-hidden shrink-0",
-                                        isSelected ? "w-8 opacity-100 scale-100 ms-2" : "w-0 opacity-0 scale-75 ms-0 pointer-events-none"
+                                        "flex items-center justify-end gap-1 transition-all duration-300 ease-out overflow-hidden shrink-0",
+                                        isSelected ? "w-[4.5rem] opacity-100 scale-100 ms-2" : "w-0 opacity-0 scale-75 ms-0 pointer-events-none"
                                     )}
                                 >
+                                    {#if tx.category}
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            title={t('common.edit')}
+                                            tabindex={isSelected ? 0 : -1}
+                                            class="size-8 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-xl shrink-0 transition-all duration-200 active:scale-90"
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                openEdit(tx);
+                                            }}
+                                        >
+                                            <Pencil class="size-4" />
+                                        </Button>
+                                    {/if}
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        title={getLocale() === 'ar' ? 'حذف المعاملة' : 'Delete transaction'}
+                                        title={t('transactions.deleteTitle')}
                                         tabindex={isSelected ? 0 : -1}
                                         class="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl shrink-0 transition-all duration-200 active:scale-90"
                                         onclick={(e) => deleteTransaction(tx.id, e)}
@@ -483,4 +569,6 @@
             </div>
         </div>
     {/if}
+
+    <QuickAddModal bind:open={isQuickAddOpen} categories={categories} editing={editingTx} />
 </div>

@@ -31,12 +31,15 @@ class ReportController extends Controller
         $categoryBreakdown = [];
 
         // حساب إجمالي المصاريف وإجمالي الدخل بشكل منفصل
+        // يُحتسب فقط للمعاملات ذات فئة حتى تتوافق الإجماليات مع قائمة التصنيفات
+        $categorized = fn ($t) => $t->category !== null;
+
         $totalExpenses = (float) $transactions
-            ->filter(fn ($t) => ($t->type ?? $t->category?->type) === 'expense')
+            ->filter(fn ($t) => $categorized($t) && ($t->type ?? $t->category?->type) === 'expense')
             ->sum('amount');
 
         $totalIncome = (float) $transactions
-            ->filter(fn ($t) => ($t->type ?? $t->category?->type) === 'income')
+            ->filter(fn ($t) => $categorized($t) && ($t->type ?? $t->category?->type) === 'income')
             ->sum('amount');
 
         foreach ($grouped as $categoryId => $categoryTransactions) {

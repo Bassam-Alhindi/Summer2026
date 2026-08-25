@@ -5,13 +5,6 @@
   import { getLocale } from '@/lib/i18n.svelte';
   import { getCategoryColor, getCategoryIcon, translateCategory } from '@/lib/categories';
 
-  type CategoryData = {
-    category: string;
-    amount: number;
-    color: string;
-    type?: 'income' | 'expense';
-  };
-
   type TransactionItem = {
     id: number | string;
     title?: string;
@@ -43,19 +36,11 @@
   };
 
   let {
-    expenseByCategory = [],
     categoryBreakdown = [],
-    totalExpenses = 0,
-    totalIncome = 0,
-    transactions = [],
     dateRange = { from: '', to: '' },
   }: {
-    expenseByCategory?: CategoryData[];
     categoryBreakdown?: CategoryBreakdown[];
-    totalExpenses?: number;
-    totalIncome?: number;
     dateRange?: DateRange;
-    transactions?: TransactionItem[];
   } = $props();
 
   let currentLocale = $derived(getLocale());
@@ -171,6 +156,43 @@
 
   const todayStr = formatDate(new Date());
 
+  function resolvePeriodFromDateRange(from?: string, to?: string): string {
+    if (!from || !to) {
+      return 'this_month';
+    }
+
+    const now = new Date();
+    const today = formatDate(now);
+    const yesterday = formatDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+    const weekStart = formatDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()));
+    const thisMonthFrom = formatDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    const thisMonthTo = formatDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    const lastMonthFrom = formatDate(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+    const lastMonthTo = formatDate(new Date(now.getFullYear(), now.getMonth(), 0));
+
+    if (from === to && from === today) {
+      return 'today';
+    }
+
+    if (from === to && from === yesterday) {
+      return 'yesterday';
+    }
+
+    if (from === weekStart && to === today) {
+      return 'this_week';
+    }
+
+    if (from === thisMonthFrom && to === thisMonthTo) {
+      return 'this_month';
+    }
+
+    if (from === lastMonthFrom && to === lastMonthTo) {
+      return 'last_month';
+    }
+
+    return 'custom';
+  }
+
   const periodOptions = $derived([
     { id: 'today', label: currentLocale === 'en' ? 'Today' : 'اليوم' },
     { id: 'yesterday', label: currentLocale === 'en' ? 'Yesterday' : 'أمس' },
@@ -181,13 +203,16 @@
   ]);
 
   let isopen = $state(false);
-  let selectedPeriod = $state('this_month');
+  let selectedPeriod = $state(resolvePeriodFromDateRange(dateRange?.from, dateRange?.to));
   let fromDate = $state(dateRange?.from || todayStr);
   let toDate = $state(dateRange?.to || todayStr);
 
   $effect(() => {
     if (dateRange?.from) fromDate = dateRange.from;
     if (dateRange?.to) toDate = dateRange.to;
+    if (dateRange?.from || dateRange?.to) {
+      selectedPeriod = resolvePeriodFromDateRange(dateRange?.from, dateRange?.to);
+    }
   });
 
   const currentLabel = $derived(
@@ -235,7 +260,7 @@
       {currentLocale === 'en' ? 'Reports' : 'التقارير'}
     </h1>
     <p class="text-xs text-muted-foreground mt-0.5">
-      {currentLocale === 'en' ? 'Period expenses and details' : 'معرفة كل ريال وين انصرف وفي أي تاريخ'}
+      {currentLocale === 'en' ? 'Period expenses and details' : 'معرفة كل ريال فين انصرف وفي أي تاريخ'}
     </p>
   </div>
 
@@ -351,7 +376,7 @@
               <span class="text-2xl font-black tabular-nums text-foreground">
                 {formatAmount(activeCategory.amountAbs)}
               </span>
-              <span class="text-xs font-bold text-foreground">{currentLocale === 'en' ? 'SAR' : 'ر.س'}</span>
+              <span class="text-xs font-bold text-foreground">{currentLocale === 'en' ? 'SAR' : '⃁'}</span>
             </div>
             <span class="text-xs font-semibold text-muted-foreground mt-0.5">
               {activeCategory.displayPercentage}% {currentLocale === 'en' ? 'of total' : 'من الإجمالي'}
@@ -362,7 +387,7 @@
               <span class="text-2xl font-black text-foreground tabular-nums">
                 {formatAmount(grandTotal)}
               </span>
-              <span class="text-xs font-bold text-foreground">{currentLocale === 'en' ? 'SAR' : 'ر.س'}</span>
+              <span class="text-xs font-bold text-foreground">{currentLocale === 'en' ? 'SAR' : '⃁'}</span>
             </div>
           {/if}
         </div>
@@ -402,8 +427,8 @@
             <div class="flex flex-col items-end shrink-0" dir="ltr">
               <span class="text-xs font-black tabular-nums {isExceeded ? 'text-rose-500' : 'text-amber-400'}">
                 {isExceeded 
-                  ? (currentLocale === 'en' ? `+${formatAmount(Math.abs(remaining))} SAR over` : `تجاوز بـ ${formatAmount(Math.abs(remaining))} ر.س`)
-                  : `${formatAmount(remaining)} ${currentLocale === 'en' ? 'SAR left' : 'ر.س متبقي'}`}
+                  ? (currentLocale === 'en' ? `+${formatAmount(Math.abs(remaining))} SAR over` : `تجاوز بـ ${formatAmount(Math.abs(remaining))} ⃁`)
+                  : `${formatAmount(remaining)} ${currentLocale === 'en' ? 'SAR left' : '⃁ متبقي'}`}
               </span>
             </div>
           </div>
@@ -455,8 +480,8 @@
                     <div class="flex flex-col items-end shrink-0" dir="ltr">
                       <span class="text-xs font-black tabular-nums {isExceeded ? 'text-rose-500' : 'text-amber-400'}">
                         {isExceeded 
-                          ? (currentLocale === 'en' ? `+${formatAmount(Math.abs(remaining))} SAR over` : `تجاوز بـ ${formatAmount(Math.abs(remaining))} ر.س`)
-                          : `${formatAmount(remaining)} ${currentLocale === 'en' ? 'SAR left' : 'ر.س متبقي'}`}
+                          ? (currentLocale === 'en' ? `+${formatAmount(Math.abs(remaining))} SAR over` : `تجاوز بـ ${formatAmount(Math.abs(remaining))} ⃁`)
+                          : `${formatAmount(remaining)} ${currentLocale === 'en' ? 'SAR left' : '⃁ متبقي'}`}
                       </span>
                     </div>
                   </div>
@@ -518,7 +543,7 @@
                 <span class="text-sm font-black tabular-nums {cat.isIncome ? 'text-emerald-500' : 'text-rose-500'}">
                   {cat.isIncome ? '+' : ''}{formatAmount(cat.amountAbs)}
                 </span>
-                <span class="text-xs font-semibold text-foreground">{currentLocale === 'en' ? 'SAR' : 'ر.س'}</span>
+                <span class="text-xs font-semibold text-foreground">{currentLocale === 'en' ? 'SAR' : '⃁'}</span>
               </div>
             </div>
           </button>

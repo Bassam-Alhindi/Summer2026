@@ -29,11 +29,14 @@ export const translations: Record<Language, TranslationDictionary> = {
       search: "Search...",
       loading: "Loading...",
       noData: "No data available",
-      confirm: "Confirm"
+      confirm: "Confirm",
+      saving: "Saving...",
+      viewAll: "View All"
     },
 
     // 2. Bottom Navigation Bar
     nav: {
+      home: "Home",
       dashboard: "My Wallet",
       transactions: "Transactions",
       reports: "Reports",
@@ -50,7 +53,16 @@ export const translations: Record<Language, TranslationDictionary> = {
       monthlyExpenses: "Monthly Expenses",
       recentTransactions: "Recent Transactions",
       viewAll: "View All",
-      quickAdd: "Quick Add"
+      quickAdd: "Quick Add",
+      subtitle: "Manage smartly and keep track of your budget",
+      net_balance: "Net Balance",
+      daily_budget: "Suggested Daily Budget",
+      total_income: "Total Income",
+      total_expenses: "Total Expenses",
+      view_all: "View All",
+      recent_transactions: "Recent Transactions",
+      no_recent_transactions: "No recent transactions recorded",
+      add_transaction: "Add Transaction"
     },
 
     // 4. Transactions Page & Actions
@@ -66,7 +78,15 @@ export const translations: Record<Language, TranslationDictionary> = {
       date: "Date",
       note: "Note / Description",
       type: "Type",
-      emptyState: "No transactions found"
+      empty: "No transactions yet",
+      emptyState: "No transactions found",
+      allCategories: "All Categories",
+      today: "Today",
+      yesterday: "Yesterday",
+      deleteConfirm: "Are you sure you want to delete this transaction?",
+      deleteError: "An error occurred while deleting the transaction",
+      emptyHint: "No recorded transactions match the selected filters.",
+      deleteTitle: "Delete transaction"
     },
 
     // 5. Reports & Analytics Page
@@ -118,7 +138,17 @@ export const translations: Record<Language, TranslationDictionary> = {
       categoryName: "Category Name",
       type: "Type",
       icon: "Icon",
-      color: "Color"
+      color: "Color",
+      subtitle: "Give every unit of your money the identity it deserves",
+      deleteConfirm: "Are you sure you want to delete this category?",
+      systemDefaultHint: "System default category",
+      categoryType: "Category Type",
+      categoryIcon: "Icon",
+      budgetLimit: "Monthly budget limit",
+      budgetHint: "You will be alerted when 80% is reached",
+      save: "Save",
+      cancel: "Cancel",
+      deleteCategory: "Delete Category"
     },
 
     // 7. Individual Category Names (Singular, Plural & Full Names)
@@ -150,6 +180,56 @@ export const translations: Record<Language, TranslationDictionary> = {
       other: "Other"
     },
 
+    // 7.5 Transaction Form / Quick Add (singular)
+    transaction: {
+      add_quick_transaction: "Add Quick Transaction",
+      expense: "Expense",
+      income: "Income",
+      amount: "Amount",
+      category: "Category",
+      description_optional: "Description (Optional)",
+      description_placeholder: "What is this for?",
+      error_required: "Please select amount and category"
+    },
+
+    // 7.6 Dashboard Period Selector
+    period: {
+      week: "This Week",
+      month: "This Month",
+      year: "This Year"
+    },
+
+    // 7.7 Voice Add
+    voice: {
+      title: "Voice Add",
+      error: "Could not process audio, try again",
+      not_supported: "Voice recognition not supported"
+    },
+
+    // 7.8 Quick Add Modal (reusable)
+    quickadd: {
+      title: "Quick Add",
+      expense: "Expense",
+      income: "Income",
+      amount: "Amount",
+      category: "Category",
+      date: "Date",
+      description: "Description",
+      descriptionPlaceholder: "What is this for?",
+      cancel: "Cancel",
+      save: "Save",
+      errorMessage: "Please make sure to fill all required fields",
+      errors: {
+        selectCategory: "Please select a category first"
+      }
+    },
+
+    // 7.9 AI Insights card
+    insights: {
+      title: "AI Insights",
+      empty: "Your AI insights will appear here once you have transactions."
+    },
+
     // 8. AI Assistant Page
     ai: {
       title: "AI Assistant",
@@ -157,6 +237,32 @@ export const translations: Record<Language, TranslationDictionary> = {
       placeholder: "Type a message or ask for analysis...",
       send: "Send",
       thinking: "Thinking..."
+    },
+
+    // 9. Welcome / Landing Page
+    welcome: {
+      badge: "Smart money management",
+      tagline: "Every coin has a destination... Give your money the identity it deserves",
+      subtitle: "Smart automated daily budgets and effortless expense tracking — without the complexity.",
+      ctaStart: "Get Started",
+      ctaDashboard: "Go to Dashboard",
+      ctaPreview: "See how it works",
+      ctaLogin: "Log In",
+      featureDailyBudget: "Daily Budget",
+      featureDailyBudgetDesc: "A smart daily budget calculated automatically to keep you on track.",
+      featureTracking: "Transaction Tracking",
+      featureTrackingDesc: "Log expenses and income in seconds, effortlessly.",
+      featureReports: "Reports & Analytics",
+      featureReportsDesc: "Clear visual insights into exactly where your money goes.",
+      featurePrivacy: "Full Privacy & Secure Data",
+      featurePrivacyDesc: "Your data is encrypted, securely stored, and private to you.",
+      mockWelcome: "Welcome Ahmed",
+      mockNetBalance: "Net Balance",
+      mockDailyBudget: "Daily Budget",
+      mockTodaySpent: "Today's Spending",
+      mockAdd: "Add",
+      mockIncome: "Income",
+      mockExpense: "Expense"
     }
   },
 
@@ -182,11 +288,14 @@ export const translations: Record<Language, TranslationDictionary> = {
       search: "بحث...",
       loading: "جاري التحميل...",
       noData: "لا توجد بيانات متاحة",
-      confirm: "تأكيد"
+      confirm: "تأكيد",
+      saving: "جاري الحفظ...",
+      viewAll: "عرض الكل"
     },
 
     // 2. Bottom Navigation Bar
     nav: {
+      home: "الرئيسية",
       dashboard: "الرئيسية",
       transactions: "المعاملات",
       reports: "التقارير",
@@ -203,7 +312,16 @@ export const translations: Record<Language, TranslationDictionary> = {
       monthlyExpenses: "المصروفات الشهرية",
       recentTransactions: "أحدث المعاملات",
       viewAll: "عرض الكل",
-      quickAdd: "إضافة سريعة"
+      quickAdd: "إضافة سريعة",
+      subtitle: "إدارة ذكية وتتبع لميزانيتك بكل سهولة",
+      net_balance: "صافي الرصيد",
+      daily_budget: "الميزانية اليومية المقترحة",
+      total_income: "إجمالي الدخل",
+      total_expenses: "إجمالي المصاريف",
+      view_all: "عرض الكل",
+      recent_transactions: "المعاملات الأخيرة",
+      no_recent_transactions: "لا توجد معاملات مسجلة مؤخراً",
+      add_transaction: "إضافة معاملة"
     },
 
     // 4. Transactions Page & Actions
@@ -219,7 +337,15 @@ export const translations: Record<Language, TranslationDictionary> = {
       date: "التاريخ",
       note: "ملاحظة / الوصف",
       type: "النوع",
-      emptyState: "لا توجد معاملات مسجلة"
+      empty: "لا توجد معاملات بعد",
+      emptyState: "لا توجد معاملات مسجلة",
+      allCategories: "جميع الفئات",
+      today: "اليوم",
+      yesterday: "أمس",
+      deleteConfirm: "هل أنت متأكد من حذف هذه المعاملة؟",
+      deleteError: "حدث خطأ أثناء حذف المعاملة",
+      emptyHint: "لم تقم بتسجيل أي معاملات تطابق الخيارات المختارة.",
+      deleteTitle: "حذف المعاملة"
     },
 
     // 5. Reports & Analytics Page
@@ -271,7 +397,17 @@ export const translations: Record<Language, TranslationDictionary> = {
       categoryName: "اسم الفئة",
       type: "النوع",
       icon: "الأيقونة",
-      color: "اللون"
+      color: "اللون",
+      subtitle: "أعطِ كل ريال هويته التي يستحقها",
+      deleteConfirm: "هل أنت متأكد من حذف هذه الفئة؟",
+      systemDefaultHint: "فئة افتراضية بالنظام",
+      categoryType: "نوع الفئة",
+      categoryIcon: "الأيقونة",
+      budgetLimit: "حد الميزانية الشهري",
+      budgetHint: "سيتم تنبيهك عند تجاوز 80%",
+      save: "حفظ",
+      cancel: "إلغاء",
+      deleteCategory: "حذف الفئة"
     },
 
     // 7. Individual Category Names (Singular, Plural & Full Names)
@@ -303,6 +439,56 @@ export const translations: Record<Language, TranslationDictionary> = {
       other: "أخرى"
     },
 
+    // 7.5 Transaction Form / Quick Add (singular)
+    transaction: {
+      add_quick_transaction: "إضافة معاملة سريعة",
+      expense: "مصروف",
+      income: "دخل",
+      amount: "المبلغ",
+      category: "الفئة",
+      description_optional: "الوصف (اختياري)",
+      description_placeholder: "عن ماذا كانت هذه المعاملة؟",
+      error_required: "يرجى تحديد المبلغ والفئة أولاً"
+    },
+
+    // 7.6 Dashboard Period Selector
+    period: {
+      week: "هذا الأسبوع",
+      month: "هذا الشهر",
+      year: "هذه السنة"
+    },
+
+    // 7.7 Voice Add
+    voice: {
+      title: "إضافة صوتية",
+      error: "لم نتمكن من معالجة الصوت، حاول مرة أخرى",
+      not_supported: "التعرف الصوتي غير مدعوم في هذا المتصفح"
+    },
+
+    // 7.8 Quick Add Modal (reusable)
+    quickadd: {
+      title: "إضافة سريعة",
+      expense: "مصروف",
+      income: "دخل",
+      amount: "المبلغ",
+      category: "الفئة",
+      date: "التاريخ",
+      description: "الوصف",
+      descriptionPlaceholder: "عن ماذا كانت هذه المعاملة؟",
+      cancel: "إلغاء",
+      save: "حفظ",
+      errorMessage: "يرجى التأكد من ملء جميع الحقول المطلوبة",
+      errors: {
+        selectCategory: "يرجى اختيار تصنيف أولاً"
+      }
+    },
+
+    // 7.9 AI Insights card
+    insights: {
+      title: "رؤى الذكاء الاصطناعي",
+      empty: "ستظهر رؤى الذكاء الاصطناعي هنا بمجرد وجود معاملات لديك."
+    },
+
     // 8. AI Assistant Page
     ai: {
       title: "المساعد الذكي",
@@ -310,6 +496,32 @@ export const translations: Record<Language, TranslationDictionary> = {
       placeholder: "اكتب رسالة أو اطلب تحليلاً مالياً...",
       send: "إرسال",
       thinking: "جاري التفكير..."
+    },
+
+    // 9. Welcome / Landing Page
+    welcome: {
+      badge: "إدارة مالية ذكية",
+      tagline: "لكل مال وجهة... أعط أموالك الهوية التي تستحقها",
+      subtitle: "ميزانيات يومية ذكية تُحسب تلقائياً، وتتبع نفقاتك بلا أي تعقيد.",
+      ctaStart: "ابدأ الآن",
+      ctaDashboard: "الانتقال للوحة التحكم",
+      ctaPreview: "شاهد كيف يعمل",
+      ctaLogin: "تسجيل الدخول",
+      featureDailyBudget: "الميزانية اليومية",
+      featureDailyBudgetDesc: "ميزانية يومية ذكية تُحسب تلقائياً لتُبقيك على المسار الصحيح.",
+      featureTracking: "تتبع المعاملات",
+      featureTrackingDesc: "سجّل مصاريفك ودخلك في ثوانٍ وبكل سهولة.",
+      featureReports: "تقارير وتحليلات",
+      featureReportsDesc: "رؤى بصرية واضحة تُظهر لك أين تذهب أموالك بالضبط.",
+      featurePrivacy: "أمان وخصوصية تامة",
+      featurePrivacyDesc: "بياناتك مشفّرة ومحفوظة بأمان ولا يطّلع عليها أحد.",
+      mockWelcome: "مرحباً أحمد",
+      mockNetBalance: "صافي الرصيد",
+      mockDailyBudget: "الميزانية اليومية",
+      mockTodaySpent: "مصروفات اليوم",
+      mockAdd: "إضافة",
+      mockIncome: "دخل",
+      mockExpense: "مصروف"
     }
   }
 };

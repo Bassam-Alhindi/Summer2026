@@ -51,7 +51,7 @@ return [
 
     'providers' => [
         'opencode' => [
-            'driver' => 'openai',
+            'driver' => 'openai-compatible',
             'key' => env('OPENCODE_API_KEY'),
             'url' => env('OPENCODE_BASE_URL', 'https://opencode.ai/zen/go/v1'),
             'models' => [

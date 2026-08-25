@@ -223,6 +223,51 @@ class DashboardControllerTest extends TestCase
         );
     }
 
+    public function test_dashboard_net_balance_is_lifetime_while_period_totals_are_filtered(): void
+    {
+        $user = User::factory()->create();
+        $incomeCategory = Category::factory()->forUser($user)->income()->create();
+        $expenseCategory = Category::factory()->forUser($user)->expense()->create();
+
+        // Current period transactions.
+        Transaction::factory()->forUser($user)->forCategory($incomeCategory)->income()->create([
+            'amount' => 5000,
+            'transaction_date' => now(),
+        ]);
+        Transaction::factory()->forUser($user)->forCategory($expenseCategory)->expense()->create([
+            'amount' => 1500,
+            'transaction_date' => now(),
+        ]);
+
+        // Previous month transactions (excluded from the current period, included in lifetime).
+        Transaction::factory()->forUser($user)->forCategory($incomeCategory)->income()->create([
+            'amount' => 400,
+            'transaction_date' => now()->subMonth(),
+        ]);
+        Transaction::factory()->forUser($user)->forCategory($expenseCategory)->expense()->create([
+            'amount' => 800,
+            'transaction_date' => now()->subMonth(),
+        ]);
+
+        $lifetimeNetBalance = 5000 + 400 - 1500 - 800; // 3100
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertInertia(
+            fn ($page) => $page
+                ->where('totalIncome', 5000)
+                ->where('totalExpenses', 1500)
+                ->where('netBalance', $lifetimeNetBalance)
+                ->where('savingsRate', 70)
+        );
+
+        // The lifetime net balance stays fixed regardless of the active period filter.
+        foreach (['week', 'month', 'year'] as $period) {
+            $response = $this->actingAs($user)->get(route('dashboard', ['period' => $period]));
+            $response->assertInertia(fn ($page) => $page->where('netBalance', $lifetimeNetBalance));
+        }
+    }
+
     public function test_dashboard_returns_remaining_days(): void
     {
         $user = User::factory()->create();

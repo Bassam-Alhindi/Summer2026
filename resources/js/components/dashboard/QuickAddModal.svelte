@@ -12,14 +12,26 @@
     type CategoryItem = {
         id: number;
         name: string;
-        type: string;
+        type?: string;
         color?: string;
+    };
+
+    type EditingTransaction = {
+        id: number;
+        amount: string;
+        type: 'income' | 'expense';
+        category_id: number;
+        transaction_date: string;
+        description: string | null;
     };
 
     let {
         open = $bindable(false),
         categories = [] as CategoryItem[],
+        editing = null as EditingTransaction | null,
     } = $props();
+
+    const isEditing = $derived(editing !== null);
 
     const form = useForm({
         amount: '',
@@ -165,34 +177,56 @@
             return;
         }
 
-        form.post(transactions.store.url(), {
+        const onSubmit = {
             preserveScroll: true,
             onSuccess: () => {
-                toast.success(t('quickadd.successMessage') || 'تمت إضافة المعاملة بنجاح!');
+                // إلغاء toast.success اليدوي لمنع تكرار الإشعارات ولإعطاء الأولوية لتنبيه الميزانية من السيرفر
                 open = false;
-                form.reset('amount', 'category_id', 'description');
+                form.reset();
                 form.type = 'expense';
                 form.transaction_date = new Date().toISOString().split('T')[0];
             },
             onError: () => {
                 toast.error(t('quickadd.errorMessage') || 'يرجى التأكد من ملء جميع الحقول المطلوبة');
             }
-        });
+        };
+
+        if (isEditing && editing) {
+            form.put(transactions.update.url(editing.id), onSubmit);
+        } else {
+            form.post(transactions.store.url(), onSubmit);
+        }
     }
 
     $effect(() => {
-        if (open) {
-            untrack(() => {
-                form.clearErrors();
-            });
+        if (!open) {
+            return;
         }
+
+        const currentEditing = editing;
+
+        untrack(() => {
+            form.clearErrors();
+
+            if (currentEditing) {
+                form.amount = String(currentEditing.amount);
+                form.type = currentEditing.type;
+                form.category_id = String(currentEditing.category_id);
+                form.transaction_date = currentEditing.transaction_date;
+                form.description = currentEditing.description ?? '';
+            } else {
+                form.reset();
+                form.type = 'expense';
+                form.transaction_date = new Date().toISOString().split('T')[0];
+            }
+        });
     });
 </script>
 
 <Dialog bind:open>
     <DialogContent class="sm:max-w-[425px]">
         <DialogHeader>
-            <DialogTitle>{t('quickadd.title')}</DialogTitle>
+            <DialogTitle>{isEditing ? t('common.edit') : t('transactions.addTransaction')}</DialogTitle>
         </DialogHeader>
         <form class="flex flex-col gap-4" onsubmit={(e) => {
             e.preventDefault(); 
@@ -285,7 +319,7 @@
             <DialogFooter class="mt-2">
                 <Button type="button" variant="outline" onclick={() => (open = false)}>{t('quickadd.cancel')}</Button>
                 <Button type="submit" disabled={form.processing || !form.amount || !form.category_id}>
-                    {form.processing ? '...' : t('quickadd.save')}
+                    {form.processing ? '...' : (isEditing ? t('common.save') : t('common.add'))}
                 </Button>
             </DialogFooter>
         </form>

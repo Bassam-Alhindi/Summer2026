@@ -29,6 +29,7 @@
   import { t, getLocale, setLocale } from '@/lib/i18n.svelte';
   import type { TranslationKey } from '@/lib/translations';
   import { resolveCategoryMeta } from '@/lib/categories';
+  import { toast } from 'svelte-sonner';
 
   type CategoryObject = {
     id: number;
@@ -81,9 +82,6 @@
 
   let selectedPeriod = $state(period || 'month');
   let currentLang = $state(getLocale());
-  let showToast = $state(false);
-  let toastMessage = $state('');
-  let toastTimeout: ReturnType<typeof setTimeout>;
   let isListening = $state(false);
 
   $effect(() => {
@@ -93,8 +91,13 @@
   });
 
   let dailyBudget = $derived.by(() => {
-    if (netBalance <= 0 || remainingDays <= 0) return 0;
-    return netBalance / remainingDays;
+    const periodNetBalance = totalIncome - totalExpenses;
+
+    if (periodNetBalance <= 0 || remainingDays <= 0) {
+      return 0;
+    }
+
+    return periodNetBalance / remainingDays;
   });
 
   function toggleLanguage() {
@@ -142,10 +145,12 @@
 
   function formatNumber(value: number): string {
     const num = Number(value) || 0;
-    return num.toLocaleString('en-US', {
+    const formatted = num.toLocaleString('en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+
+    return formatted.replace(/\.00$/, '');
   }
 
   function formatTransactionDate(dateStr: string, lang: string): string {
@@ -205,6 +210,13 @@
     return str;
   }
 
+  function isOtherCategory(name: string): boolean {
+    if (!name) return false;
+    const ar = cleanArabicSentence(name);
+    const en = cleanEnglishText(name);
+    return ar === 'اخري' || en === 'other' || en === 'misc';
+  }
+
   const SYNONYM_MAP: Record<string, string[]> = {
     transport: ['مواصلات', 'تكسي', 'سيارة', 'بنزين', 'وقود', 'اوبر', 'كريم', 'transport', 'transportation', 'transit', 'taxi', 'ride', 'car', 'fuel'],
     food: ['أكل', 'طعام', 'مطعم', 'مطاعم', 'وجبة', 'وجبات', 'قهوة', 'كافيه', 'مشروبات', 'food', 'drink', 'drinks', 'restaurant', 'dining', 'cafe', 'coffee'],
@@ -236,7 +248,7 @@
   }
 
   let filteredCategories = $derived.by(() => {
-    const list = categories.filter((c) => !c.type || c.type === formType);
+    const list = categories.filter((c) => (!c.type || c.type === formType) && !isOtherCategory(c.name));
     const seenKeys = new Set<string>();
     const uniqueList: CategoryObject[] = [];
     for (const cat of list) {
@@ -287,15 +299,6 @@
     }
   }
 
-  function triggerToast(msg: string) {
-    if (toastTimeout) clearTimeout(toastTimeout);
-    toastMessage = msg;
-    showToast = true;
-    toastTimeout = setTimeout(() => {
-      showToast = false;
-    }, 3500);
-  }
-
   function triggerHapticFeedback() {
     if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
       try {
@@ -326,63 +329,74 @@
   function startVoiceRecognition() {
     if (typeof window === 'undefined') return;
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
     if (!SpeechRecognition) {
-      triggerToast(tr('voice.not_supported', 'التعرف الصوتي غير مدعوم في هذا المتصفح', 'Voice recognition not supported'));
-      return;
+        toast.error(tr('voice.not_supported', 'التعرف الصوتي غير مدعوم في هذا المتصفح', 'Voice recognition not supported'));
+        return;
     }
+    
     const recognition = new SpeechRecognition();
     recognition.lang = currentLang === 'ar' ? 'ar-SA' : 'en-US';
     recognition.interimResults = false;
+    
     recognition.onstart = () => {
-      isListening = true;
-      triggerHapticFeedback();
+        isListening = true;
+        triggerHapticFeedback();
     };
+    
     recognition.onend = () => {
-      isListening = false;
+        isListening = false;
     };
+    
     recognition.onerror = () => {
-      isListening = false;
-      triggerToast(tr('voice.error', 'لم نتمكن من معالجة الصوت، حاول مرة أخرى', 'Could not process audio, try again'));
+        isListening = false;
+        // يظهر الإشعار باللون الأحمر الداكن الزجاجي المتناسق مع الواجهة
+        toast.error(tr('voice.error', 'لم نتمكن من معالجة الصوت، حاول مرة أخرى', 'Could not process audio, try again'));
     };
+    
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      if (!transcript) return;
-      openAddDialog();
-      const extractedAmount = parseAmountFromText(transcript);
-      if (extractedAmount) {
-        formAmount = extractedAmount;
-      }
-      const wordsInTranscript = cleanArabicSentence(transcript).split(' ');
-      let matchedCategory = categories.find((cat) => {
-        const catCleanName = cleanArabicSentence(cat.name);
-        const canonicalKey = getCanonicalCategoryKey(cat.name).replace('cat_', '');
-        const synonyms = (SYNONYM_MAP[canonicalKey] || []).map((s) => cleanArabicSentence(s));
-        return wordsInTranscript.some((word) =>
-          word.length > 1 && (
-            catCleanName.includes(word) ||
-            synonyms.some((syn) => syn.includes(word) || word.includes(syn))
-          )
-        );
-      });
-      if (matchedCategory) {
-        formCategoryId = matchedCategory.id;
-        const canonicalKey = getCanonicalCategoryKey(matchedCategory.name);
-        if (
-          matchedCategory.type === 'income' ||
-          canonicalKey.includes('salary') ||
-          canonicalKey.includes('freelance') ||
-          canonicalKey.includes('income')
-        ) {
-          formType = 'income';
-        } else {
-          formType = 'expense';
+        const transcript = event.results[0][0].transcript;
+        if (!transcript) return;
+        
+        openAddDialog();
+        const extractedAmount = parseAmountFromText(transcript);
+        if (extractedAmount) {
+            formAmount = extractedAmount;
         }
-      }
-      triggerHapticFeedback();
-      triggerToast(tr('voice.success', `تمت الالتقاط: "${transcript}"`, `Captured: "${transcript}"`));
+        
+        const wordsInTranscript = cleanArabicSentence(transcript).split(' ');
+        let matchedCategory = categories.find((cat) => {
+            const catCleanName = cleanArabicSentence(cat.name);
+            const canonicalKey = getCanonicalCategoryKey(cat.name).replace('cat_', '');
+            const synonyms = (SYNONYM_MAP[canonicalKey] || []).map((s) => cleanArabicSentence(s));
+            return wordsInTranscript.some((word) =>
+                word.length > 1 && (
+                    catCleanName.includes(word) ||
+                    synonyms.some((syn) => syn.includes(word) || word.includes(syn))
+                )
+            );
+        });
+        
+        if (matchedCategory) {
+            formCategoryId = matchedCategory.id;
+            const canonicalKey = getCanonicalCategoryKey(matchedCategory.name);
+            if (
+                matchedCategory.type === 'income' ||
+                canonicalKey.includes('salary') ||
+                canonicalKey.includes('freelance') ||
+                canonicalKey.includes('income')
+            ) {
+                formType = 'income';
+            } else {
+                formType = 'expense';
+            }
+        }
+        
+        triggerHapticFeedback();
     };
+    
     recognition.start();
-  }
+}
 
   function handleSubmit() {
     if (!formAmount || !formCategoryId) {
@@ -406,7 +420,7 @@
           triggerHapticFeedback();
           isDialogOpen = false;
           isSubmitting = false;
-          triggerToast(tr('transaction.added_success', 'تمت إضافة المعاملة بنجاح!', 'Transaction added successfully!'));
+          // Toast is handled by backend flash session - no duplicate here
         },
         onError: (errors: any) => {
           isSubmitting = false;
@@ -429,27 +443,12 @@
 
 <AppHead title={tr('dashboard.title', 'محفظتي', 'My Wallet')} />
 
-{#if showToast}
-  <div class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-xs px-4 py-3 rounded-2xl bg-emerald-600/95 text-white backdrop-blur-xl shadow-2xl border border-emerald-400/30 font-bold text-xs flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-6 duration-200">
-    <div class="flex items-center gap-2.5">
-      <span class="flex size-2 relative shrink-0">
-        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-        <span class="relative inline-flex rounded-full size-2 bg-white"></span>
-      </span>
-      <span class="truncate">{toastMessage}</span>
-    </div>
-    <button type="button" onclick={() => (showToast = false)} class="opacity-70 hover:opacity-100 transition-opacity p-0.5 cursor-pointer">
-      <X class="size-3.5" />
-    </button>
-  </div>
-{/if}
-
 <div class="flex flex-1 flex-col gap-5 p-4 pb-36 sm:p-6 max-w-lg mx-auto w-full">
   <!-- الهيدر والعنوان -->
   <div class="flex items-center justify-between gap-2">
     <div>
       <h1 class="text-2xl font-black tracking-tight text-foreground">{tr('dashboard.title', 'محفظتي', 'My Wallet')}</h1>
-      <p class="text-xs text-muted-foreground mt-0.5 font-medium">{tr('dashboard.subtitle', 'أدر ميزانيتك بذكاء وتتبع أداءك اليومي', 'Manage smartly and keep track of your budget')}</p>
+      <p class="text-xs text-muted-foreground mt-0.5 font-medium">{tr('dashboard.subtitle', 'اعرف كل ريال فين راح، وتطمن على جيبك', 'Manage smartly and keep track of your budget')}</p>
     </div>
     <button
       type="button"
@@ -493,7 +492,7 @@
         <span class="text-3xl font-black text-foreground tabular-nums tracking-tight">
           {formatNumber(netBalance)}
         </span>
-        <span class="text-base font-bold text-white">{tr('common.currency', 'ر.س', 'SAR')}</span>
+        <span class="text-base font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
       </div>
     </div>
 
@@ -507,7 +506,7 @@
         </div>
         <div class="flex items-baseline gap-1">
           <span class="text-sm font-black tabular-nums text-amber-400">{formatNumber(dailyBudget)}</span>
-          <span class="text-[11px] font-bold text-white/50">{tr('common.currency', 'ر.س', 'SAR')}</span>
+          <span class="text-[11px] font-bold text-white/50">{tr('common.currency', '⃁', 'SAR')}</span>
         </div>
       </div>
       <div class="h-px bg-white/10 w-full"></div>
@@ -525,7 +524,7 @@
             <span class="text-lg font-black tabular-nums {totalIncome === 0 ? 'text-muted-foreground' : 'text-emerald-500'}">
               {formatNumber(totalIncome)}
             </span>
-            <span class="text-sm font-bold text-white">{tr('common.currency', 'ر.س', 'SAR')}</span>
+            <span class="text-sm font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
           </div>
         </div>
       </div>
@@ -541,7 +540,7 @@
             <span class="text-lg font-black tabular-nums {totalExpenses === 0 ? 'text-muted-foreground' : 'text-rose-500'}">
               {formatNumber(totalExpenses)}
             </span>
-            <span class="text-sm font-bold text-white">{tr('common.currency', 'ر.س', 'SAR')}</span>
+            <span class="text-sm font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
           </div>
         </div>
       </div>
@@ -597,9 +596,9 @@
             </div>
             <div class="flex items-center gap-1 dir-ltr">
               <span class="text-sm font-bold tabular-nums {item.amount === 0 ? 'text-muted-foreground' : (isIncome ? 'text-emerald-500' : 'text-rose-500')}">
-                {item.amount === 0 ? '0.00' : (isIncome ? '+' : '') + formatNumber(Math.abs(item.amount))}
+                {item.amount === 0 ? '0' : (isIncome ? '+' : '') + formatNumber(Math.abs(item.amount))}
               </span>
-              <span class="text-sm font-bold text-white">{tr('common.currency', 'ر.س', 'SAR')}</span>
+              <span class="text-sm font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
             </div>
           </div>
         {/each}

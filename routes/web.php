@@ -1,17 +1,20 @@
 <?php
 
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::inertia('/', 'Welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('reports', [ReportController::class, 'index'])->name('reports');
-    Route::inertia('ai-assistant', 'AIAssistant')->name('ai-assistant');
+    Route::get('assistant', fn () => Inertia::render('AIAssistant'))->name('ai-assistant');
+    Route::post('assistant/stream', [AssistantController::class, 'stream'])->name('assistant.stream');
 
     Route::get('transactions', [TransactionController::class, 'index'])->name('transactions.index');
     Route::post('transactions', [TransactionController::class, 'store'])->name('transactions.store');

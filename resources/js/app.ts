@@ -6,10 +6,10 @@ import { initializeFlashToast } from '@/lib/flash-toast';
 import { initializeLocale } from '@/lib/i18n.svelte';
 import { initializeTheme } from '@/lib/theme.svelte';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const browserTitle = 'محفظتي | لكل ريال وجهة';
 
 createInertiaApp({
-    title: (title) => (title ? `${title} - ${appName}` : appName),
+    title: () => browserTitle,
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':

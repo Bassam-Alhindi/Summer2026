@@ -81,6 +81,8 @@ class TransactionController extends Controller
             'transaction_date' => $validated['transaction_date'],
         ]);
 
+        $this->checkBudgetLimit($request->user(), $category, $validated['type'], $validated['transaction_date'], 'store');
+
         return redirect()->back();
     }
 
@@ -113,6 +115,8 @@ class TransactionController extends Controller
             'transaction_date' => $validated['transaction_date'],
         ]);
 
+        $this->checkBudgetLimit($request->user(), $category, $validated['type'], $validated['transaction_date'], 'update');
+
         return redirect()->back();
     }
 
@@ -125,5 +129,92 @@ class TransactionController extends Controller
         $transaction->delete();
 
         return redirect()->back();
+    }
+
+    /**
+     * ترجمة اسم الفئة تلقائياً إلى العربية لإشعارات الميزانية
+     */
+    private function translateCategoryName(string $name): string
+    {
+        $map = [
+            'food & drinks' => 'طعام ومشروبات',
+            'food' => 'طعام ومشروبات',
+            'housing' => 'سكن',
+            'entertainment' => 'ترفيه',
+            'health' => 'صحة',
+            'education' => 'تعليم',
+            'bills' => 'فواتير',
+            'shopping' => 'تسوق',
+            'transportation' => 'مواصلات',
+            'transport' => 'مواصلات',
+            'salary' => 'الراتب',
+            'freelance' => 'عمل حر',
+            'investment' => 'استثمار',
+            'gift' => 'هدية',
+            'other' => 'أخرى',
+            'groceries' => 'مقاضي',
+            'grocery' => 'مقاضي',
+        ];
+
+        $key = strtolower(trim($name));
+
+        return $map[$key] ?? $name;
+    }
+
+    private function checkBudgetLimit($user, Category $category, string $type, string $transactionDate, string $action = 'store'): void
+    {
+        $isArabic = request()->cookie('locale', 'en') === 'ar';
+        $successMessage = $action === 'update'
+            ? ($isArabic ? 'تم تعديل المعاملة بنجاح!' : 'Transaction updated successfully!')
+            : ($isArabic ? 'تمت إضافة المعاملة بنجاح!' : 'Transaction added successfully!');
+        $limit = (float) ($category->budget_limit ?? $category->budget ?? 0);
+
+        // 1. إذا لم تكن مصاريف أو لا يوجد حد مالي -> إشعار نجاح عادي
+        if ($type !== 'expense' || $limit <= 0) {
+            session()->flash('toast', [
+                'type' => 'success',
+                'message' => $successMessage,
+            ]);
+
+            return;
+        }
+
+        $date = Carbon::parse($transactionDate);
+
+        $totalSpent = (float) Transaction::forUser($user->id)
+            ->forCategory($category->id)
+            ->where('type', 'expense')
+            ->whereBetween('transaction_date', [$date->copy()->startOfMonth(), $date->copy()->endOfMonth()])
+            ->sum('amount');
+
+        $percentage = round(($totalSpent / $limit) * 100);
+        $categoryName = $isArabic ? $this->translateCategoryName($category->name) : $category->name;
+
+        // 2. إذا تجاوز الحد المالي -> عرض إشعار التجاوز ونسبة الاستهلاك فقط
+        if ($totalSpent > $limit) {
+            $exceeded = number_format($totalSpent - $limit, 2);
+            $message = $isArabic
+                ? "⚠️ تنبيه الميزانية: وصلت نسبة استهلاك فئة ({$categoryName}) إلى {$percentage}% وتجاوزت الحد بـ {$exceeded} ⃁"
+                : "⚠️ Budget warning: the '{$categoryName}' category reached {$percentage}% of its limit and exceeded it by {$exceeded} SAR";
+            session()->flash('toast', [
+                'type' => 'warning',
+                'message' => $message,
+            ]);
+        } elseif ($percentage >= 80) {
+            $message = $isArabic
+                ? "📊 تنبيه الميزانية: وصلت نسبة استهلاك فئة ({$categoryName}) إلى {$percentage}% من الحد المالي"
+                : "📊 Budget warning: the '{$categoryName}' category reached {$percentage}% of its monthly budget limit";
+            session()->flash('toast', [
+                'type' => 'warning',
+                'message' => $message,
+            ]);
+        }
+        // 4. معاملة عادية ضمن نطاق الأمان -> إشعار النجاح العادي
+        else {
+            session()->flash('toast', [
+                'type' => 'success',
+                'message' => $successMessage,
+            ]);
+        }
     }
 }
