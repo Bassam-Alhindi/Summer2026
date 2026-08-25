@@ -1,9 +1,10 @@
 # ============================================================================
 #  Laravel 13 + Svelte (Inertia) + Vite 8 — Production image
-#  Base: php:8.3-cli  (composer.json requires "php": "^8.3"; php:8.2 was the
-#  cause of the "syntax error ... Request.php line 117" parse error)
+#  Base: php:8.4-cli  — composer.json says "php": "^8.3" (allows 8.4) AND the
+#  committed composer.lock pins Symfony 8.1.x / aws-sdk deps that require
+#  php >=8.4.1. PHP 8.4 satisfies BOTH (8.2/8.3 broke on these).
 # ============================================================================
-FROM php:8.3-cli
+FROM php:8.4-cli
 
 # --- System tools + required PHP extensions --------------------------------
 # pdo_sqlite, zip, mbstring, xml, bcmath, ctype, fileinfo
