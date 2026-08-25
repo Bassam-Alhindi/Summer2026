@@ -1,0 +1,32 @@
+# ============================================================
+#  Docker build context excludes (prevents Windows binaries /
+#  local artifacts from leaking into the Linux image)
+# ============================================================
+node_modules
+npm-debug.log*
+vendor
+
+# Frontend build output is regenerated inside the container
+public/build
+public/hot
+public/storage
+
+# Runtime-writable dirs inside the container are recreated
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*.php
+storage/*.key
+
+# Local env / git artifacts (Dockerfile generates .env itself)
+.env
+.env.*
+!.env.example
+.git/
+.gitignore
+
+# Editor / OS junk
+.DS_Store
+Thumbs.db
+*.log
