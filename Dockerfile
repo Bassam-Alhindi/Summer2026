@@ -24,17 +24,20 @@ WORKDIR /var/www
 
 COPY . .
 
+# حذف أي مجلدات منسوخة من الويندوز لضمان تثبيت حزم متوافقة مع Linux
+RUN rm -rf node_modules vendor
+
 # إنشاء ملف قاعدة البيانات
 RUN mkdir -p database && touch database/database.sqlite
 
 # تثبيت مكتبات PHP
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts --ignore-platform-reqs
 
-# تثبيت كافة مكتبات Node بما فيها أدوات البناء
-RUN npm install --include=dev
+# تثبيت مكتبات Node المخصصة لنظام Linux
+RUN npm install
 
-# تجميع الواجهة مع رفع حد الذاكرة المسموح لـ Node
-RUN NODE_OPTIONS="--max-old-space-size=2048" npm run build
+# تجميع ملفات الواجهة
+RUN npm run build
 
 EXPOSE 10000
 
