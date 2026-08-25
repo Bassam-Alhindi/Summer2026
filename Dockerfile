@@ -1,6 +1,6 @@
 FROM php:8.2-cli
 
-# تثبيت الحزم وامتدادات PHP المطلوبة
+# تثبيت الحزم وامتدادات PHP المطلوبة لتشغيل Laravel
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     libsqlite3-dev \
     libonig-dev \
     libxml2-dev \
-    && docker-php-ext-install pdo_sqlite zip mbstring xml
+    && docker-php-ext-install pdo_sqlite zip mbstring xml bcmath ctype fileinfo
 
 # تثبيت Node.js
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -24,11 +24,11 @@ WORKDIR /var/www
 
 COPY . .
 
-# إنشاء ملف قاعدة البيانات
+# إنشاء ملف قاعدة بيانات SQLite
 RUN mkdir -p database && touch database/database.sqlite
 
-# تثبيت مكتبات PHP بدون تشغيل السكربتات التلقائية أثناء البناء
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+# تثبيت مكتبات PHP وتجاوز فحوصات البيئة أثناء البناء
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts --ignore-platform-reqs
 
 # تثبيت وتجميع ملفات Svelte
 RUN npm install
