@@ -1,6 +1,6 @@
 FROM php:8.2-cli
 
-# تثبيت الحزم وامتدادات PHP المطلوبة لتشغيل Laravel
+# تثبيت الحزم وامتدادات PHP المطلوبة
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -24,15 +24,17 @@ WORKDIR /var/www
 
 COPY . .
 
-# إنشاء ملف قاعدة بيانات SQLite
+# إنشاء ملف قاعدة البيانات
 RUN mkdir -p database && touch database/database.sqlite
 
-# تثبيت مكتبات PHP وتجاوز فحوصات البيئة أثناء البناء
+# تثبيت مكتبات PHP
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts --ignore-platform-reqs
 
-# تثبيت وتجميع ملفات Svelte
-RUN npm install
-RUN npm run build
+# تثبيت كافة مكتبات Node بما فيها أدوات البناء
+RUN npm install --include=dev
+
+# تجميع الواجهة مع رفع حد الذاكرة المسموح لـ Node
+RUN NODE_OPTIONS="--max-old-space-size=2048" npm run build
 
 EXPOSE 10000
 
