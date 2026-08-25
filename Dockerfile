@@ -1,48 +1,61 @@
+# ============================================================================
+#  Laravel 13 + Svelte (Inertia) + Vite 8 — Production image
+#  Base: php:8.3-cli  (composer.json requires "php": "^8.3"; php:8.2 was the
+#  cause of the "syntax error ... Request.php line 117" parse error)
+# ============================================================================
 FROM php:8.3-cli
 
-# تثبيت الحزم وامتدادات PHP المطلوبة
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    unzip \
-    libzip-dev \
-    libsqlite3-dev \
-    libonig-dev \
-    libxml2-dev \
-    && docker-php-ext-install pdo_sqlite zip mbstring xml bcmath ctype fileinfo
+# --- System tools + required PHP extensions --------------------------------
+# pdo_sqlite, zip, mbstring, xml, bcmath, ctype, fileinfo
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+        curl \
+        libzip-dev \
+        libonig-dev \
+        libxml2-dev \
+    && docker-php-ext-install pdo_sqlite bcmath mbstring zip xml ctype fileinfo \
+    && rm -rf /var/lib/apt/lists/*
 
-# تثبيت Node.js
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs
+# --- Composer (pinned 2.x, avoids PHP-version mismatch) ---------------------
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# تثبيت Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# --- Node.js 22 + npm (required by Vite 8 / Svelte 5) ----------------------
+ENV NODE_VERSION=22.14.0
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+        -o /tmp/node.tar.xz \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+    && rm /tmp/node.tar.xz \
+    && node --version \
+    && npm --version
 
-ENV COMPOSER_ALLOW_SUPERUSER=1
+# --- Working directory ------------------------------------------------------
+WORKDIR /var/www/html
 
-WORKDIR /var/www
-
+# Copy only project files (vendor + node_modules are excluded by .dockerignore,
+# so no Windows binaries are copied; both are installed fresh below).
 COPY . .
 
-# حذف أي مجلدات منسوخة من الويندوز لضمان تثبيت حزم متوافقة مع Linux
-RUN rm -rf node_modules vendor
+# --- Install PHP dependencies (fresh Linux build) ---------------------------
+RUN composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader
 
-# إنشاء ملف قاعدة البيانات
-RUN mkdir -p database && touch database/database.sqlite
+# --- App setup: .env + APP_KEY (the step that previously failed) ------------
+RUN cp .env.example .env \
+    && php artisan key:generate \
+    && (php artisan storage:link --force || true)
 
-# تثبيت مكتبات PHP
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts --ignore-platform-reqs
+# --- Build the frontend ------------------------------------------------------
+RUN npm ci --no-audit --no-fund \
+    && npm run build
 
-# ++++ التعديل السحري لحل مشكلتك ++++
-# إنشاء ملف بيئة مؤقت وتوليد مفتاح تشفير ليتمكن Laravel من تشغيل الأوامر أثناء البناء
-RUN cp .env.example .env && php artisan key:generate
+# --- Permissions (runtime user must be able to write) ------------------------
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# تثبيت مكتبات Node
-RUN npm install
-
-# تجميع ملفات الواجهة (لن يفشل الآن لأن Laravel جاهز)
-RUN npm run build
-
+# --- Runtime ----------------------------------------------------------------
+ENV PORT=10000
 EXPOSE 10000
 
-CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
+USER www-data
+
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=10000"]
