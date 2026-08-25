@@ -8,7 +8,7 @@ import ScrollDownButton from "./select-scroll-down-button.svelte";
 import ScrollUpButton from "./select-scroll-up-button.svelte";
 import Separator from "./select-separator.svelte";
 import Trigger from "./select-trigger.svelte";
-import Root from "./select.svelte";
+import Root from "./Select.svelte";
 
 export {
 	Root,
