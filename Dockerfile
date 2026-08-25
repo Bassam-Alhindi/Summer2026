@@ -41,18 +41,24 @@ COPY . .
 # --- Install PHP dependencies (fresh Linux build) ---------------------------
 RUN composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader
 
-# --- App setup: .env + APP_KEY (the step that previously failed) ------------
+# --- App setup: .env + APP_KEY -----------------------------------------------
 RUN cp .env.example .env \
     && php artisan key:generate \
     && (php artisan storage:link --force || true)
+
+# --- SQLite database: create the file + run migrations -----------------------
+# database/database.sqlite is gitignored, so it is absent from this image.
+# Laravel needs the file to exist before it can run (sessions/cache tables).
+RUN touch /var/www/html/database/database.sqlite \
+    && php artisan migrate --force
 
 # --- Build the frontend ------------------------------------------------------
 RUN npm ci --no-audit --no-fund \
     && npm run build
 
 # --- Permissions (runtime user must be able to write) ------------------------
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
 
 # --- Runtime ----------------------------------------------------------------
 ENV PORT=10000
