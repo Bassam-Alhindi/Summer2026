@@ -41,8 +41,7 @@ COPY . .
 # --- Install PHP dependencies (fresh Linux build) ---------------------------
 RUN composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader --ignore-platform-req=ext-pdo_pgsql
 # --- App setup: .env + APP_KEY -----------------------------------------------
-RUN cp .env.example .env \
-    && php artisan key:generate \
+RUN touch .env \
     && (php artisan storage:link --force || true)
 
 # --- Build the frontend ------------------------------------------------------
