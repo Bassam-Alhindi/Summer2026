@@ -7,7 +7,7 @@
 FROM php:8.4-cli
 
 # --- System tools + required PHP extensions --------------------------------
-# pdo_sqlite, zip, mbstring, xml, bcmath, ctype, fileinfo
+# Added libpq-dev, pdo_pgsql, and pgsql for PostgreSQL support
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         unzip \
@@ -16,7 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libonig-dev \
         libxml2-dev \
         libsqlite3-dev \
-    && docker-php-ext-install pdo_sqlite bcmath mbstring zip xml ctype fileinfo \
+        libpq-dev \
+    && docker-php-ext-install pdo_sqlite pdo_pgsql pgsql bcmath mbstring zip xml ctype fileinfo \
     && rm -rf /var/lib/apt/lists/*
 
 # --- Composer (pinned 2.x, avoids PHP-version mismatch) ---------------------
@@ -34,8 +35,7 @@ RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-l
 # --- Working directory ------------------------------------------------------
 WORKDIR /var/www/html
 
-# Copy only project files (vendor + node_modules are excluded by .dockerignore,
-# so no Windows binaries are copied; both are installed fresh below).
+# Copy only project files
 COPY . .
 
 # --- Install PHP dependencies (fresh Linux build) ---------------------------
@@ -46,20 +46,13 @@ RUN cp .env.example .env \
     && php artisan key:generate \
     && (php artisan storage:link --force || true)
 
-# --- SQLite database: create the file + run migrations -----------------------
-# database/database.sqlite is gitignored, so it is absent from this image.
-# Laravel needs the file to exist before it can run (sessions/cache tables).
-RUN touch /var/www/html/database/database.sqlite \
-    && php artisan migrate --force \
-    && php artisan db:seed --class=CategorySeeder --force
-
 # --- Build the frontend ------------------------------------------------------
 RUN npm ci --no-audit --no-fund \
     && npm run build
 
 # --- Permissions (runtime user must be able to write) ------------------------
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # --- Runtime ----------------------------------------------------------------
 ENV PORT=10000
