@@ -23,7 +23,9 @@
     import Wrench from 'lucide-svelte/icons/wrench';
     import Check from 'lucide-svelte/icons/check';
     import X from 'lucide-svelte/icons/x';
-    import MessageCircle from 'lucide-svelte/icons/message-circle';
+    import MessageSquarePlus from 'lucide-svelte/icons/message-square-plus';
+    import Bot from 'lucide-svelte/icons/bot';
+    import User from 'lucide-svelte/icons/user';
     import { t, getLocale, isRTL } from '@/lib/i18n.svelte';
     import { renderMarkdown } from '@/lib/markdown';
 
@@ -79,15 +81,15 @@
             prompt: isArabic ? 'أعطني ملخص مصاريف هذا الأسبوع' : 'Give me a summary of this week\'s expenses',
         },
         {
-            label: isArabic ? 'كم رصيدى الحالي؟' : 'What\'s my current balance?',
-            prompt: isArabic ? 'كم رصيدى الحالي؟' : 'What\'s my current balance?',
+            label: isArabic ? 'كم رصيدي الحالي؟' : 'What\'s my current balance?',
+            prompt: isArabic ? 'كم رصيدي الحالي؟' : 'What\'s my current balance?',
         },
     ]);
 
     function getWelcomeMessage(): string {
         return isArabic
-            ? 'مرحباً! أنا مساعدك المالي. يمكنني مساعدتك في تتبع مصاريفك، إضافة معاملات جديدة، أو تحليل عاداتك المالية. كيف أقدر أساعدك اليوم؟'
-            : 'Hello! I\'m your financial assistant. I can help you track expenses, add new transactions, or analyze your spending habits. How can I help you today?';
+            ? 'مرحباً! أنا مساعدك المالي الذكي. يمكنني مساعدتك في تتبع مصاريفك، إضافة معاملات جديدة، أو تحليل عاداتك المالية. كيف أقدر أساعدك اليوم؟'
+            : 'Hello! I\'m your smart financial assistant. I can help you track expenses, add new transactions, or analyze your spending habits. How can I help you today?';
     }
 
     $effect(() => {
@@ -113,7 +115,7 @@
     function autoResize() {
         if (textarea) {
             textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+            textarea.style.height = Math.min(textarea.scrollHeight, 130) + 'px';
         }
     }
 
@@ -184,13 +186,10 @@
             });
 
             if (!response.ok) {
-                // Read and surface the server's actual error message (e.g. a 401
-                // from the AI provider or a validation message) instead of a bare "HTTP 401".
                 let serverMsg = '';
                 try {
                     serverMsg = (await response.text()).trim();
-                } catch {
-                }
+                } catch {}
                 const err: any = new Error(serverMsg || `HTTP ${response.status}`);
                 err.status = response.status;
                 throw err;
@@ -264,8 +263,7 @@
                                     : m
                             );
                         }
-                    } catch {
-                    }
+                    } catch {}
                 }
             }
         } catch (err: any) {
@@ -316,18 +314,29 @@
 
 <AppHead title={t('ai.title')} />
 
-<div class="flex h-full flex-1 flex-col p-4 pb-24 sm:p-6 lg:pb-6 max-w-4xl mx-auto w-full">
-    <div class="flex items-center justify-between gap-2 mb-4">
-        <div class="flex items-center gap-2">
-            <Sparkles class="size-5 text-primary" />
-            <h1 class="text-xl font-bold tracking-tight sm:text-2xl">{t('ai.title')}</h1>
+<div class="flex flex-1 flex-col gap-4 p-4 pb-24 sm:p-6 lg:pb-6 max-w-3xl mx-auto w-full h-[calc(100vh-4rem)]">
+    <!-- هيدر الصفحة بتصميم متناسق مع بقية الفئات -->
+    <div class="flex items-center justify-between gap-3 px-1">
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm border border-primary/20">
+                <Sparkles class="size-5" />
+            </div>
+            <div class="flex flex-col min-w-0">
+                <h1 class="text-xl font-bold tracking-tight sm:text-2xl truncate">
+                    {t('ai.title')}
+                </h1>
+                <p class="text-xs text-muted-foreground mt-0.5 truncate">
+                    {isArabic ? 'المساعد الشخصي لإدارة مصاريفك وتنظيم ميزانيتك' : 'Personal assistant to manage and track your expenses'}
+                </p>
+            </div>
         </div>
-        <div class="flex items-center gap-2">
+
+        <div class="flex items-center gap-1.5 shrink-0">
             {#if isStreaming}
                 <Button
                     variant="ghost"
                     size="icon"
-                    class="size-9 rounded-xl text-rose-500 hover:bg-rose-500/10 cursor-pointer"
+                    class="size-9 rounded-2xl text-rose-500 hover:bg-rose-500/10 transition-colors"
                     onclick={stopStreaming}
                 >
                     <Square class="size-4" />
@@ -336,145 +345,162 @@
             <Button
                 variant="ghost"
                 size="icon"
-                class="size-9 rounded-xl text-muted-foreground hover:text-foreground cursor-pointer"
+                class="size-9 rounded-2xl text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
                 onclick={clearChat}
+                title={isArabic ? 'مسح المحادثة' : 'Clear Chat'}
             >
                 <Trash2 class="size-4" />
             </Button>
         </div>
     </div>
 
-    <div class="flex flex-1 flex-col rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
+    <!-- كارت المحادثة الرئيسي -->
+    <div class="flex flex-1 flex-col rounded-3xl border border-border/60 bg-card shadow-sm overflow-hidden min-h-0">
+        <!-- شريط المحادثات -->
         <div
             bind:this={chatContainer}
-            class="flex-1 overflow-y-auto p-4 space-y-4"
+            class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 scroll-smooth"
             dir={isArabic ? 'rtl' : 'ltr'}
         >
             {#each messages as msg (msg.id)}
                 {#if msg.role === 'user'}
-                    <div class="flex justify-end">
-                        <div class="max-w-[85%] rounded-2xl rounded-br-md bg-primary text-primary-foreground px-4 py-2.5 text-sm leading-relaxed">
+                    <div class="flex justify-end items-end gap-2">
+                        <div class="max-w-[85%] sm:max-w-[75%] rounded-3xl rounded-br-sm bg-primary text-primary-foreground px-4 py-3 text-xs sm:text-sm leading-relaxed shadow-sm font-medium">
                             <p class="whitespace-pre-wrap">{msg.content}</p>
+                        </div>
+                        <div class="size-7 rounded-full bg-primary/20 text-primary flex items-center justify-center shrink-0 mb-0.5">
+                            <User class="size-3.5" />
                         </div>
                     </div>
                 {:else}
-                    {#if msg.toolCalls && msg.toolCalls.length > 0}
-                        <div class="flex justify-start">
-                            <div class="max-w-[90%] space-y-2">
-                                {#each msg.toolCalls as tc (tc.id)}
-                                    <div class="rounded-xl border border-border/50 bg-muted/30 overflow-hidden">
-                                        <button
-                                            type="button"
-                                            class="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs cursor-pointer hover:bg-muted/50 transition-colors"
-                                            onclick={() => {
-                                                toolExpanded[tc.id] = !toolExpanded[tc.id];
-                                                toolExpanded = toolExpanded;
-                                            }}
-                                        >
-                                            <div class="flex items-center gap-2 min-w-0">
-                                                {#if tc.ok === undefined}
-                                                    <Loader2 class="size-3.5 text-amber-500 animate-spin shrink-0" />
-                                                {:else if tc.ok}
-                                                    <Check class="size-3.5 text-emerald-500 shrink-0" />
-                                                {:else}
-                                                    <X class="size-3.5 text-rose-500 shrink-0" />
-                                                {/if}
-                                                <Wrench class="size-3.5 text-muted-foreground shrink-0" />
-                                                <span class="font-semibold text-foreground truncate">{getToolDisplayName(tc.name)}</span>
-                                                {#if tc.summary}
-                                                    <span class="text-muted-foreground truncate">{tc.summary}</span>
-                                                {/if}
-                                            </div>
-                                            <ChevronDown class="size-3.5 text-muted-foreground transition-transform shrink-0 {toolExpanded[tc.id] ? 'rotate-180' : ''}" />
-                                        </button>
-                                        {#if toolExpanded[tc.id]}
-                                            <div class="border-t border-border/30 px-3 py-2 space-y-2">
-                                                <div>
-                                                    <p class="text-[10px] font-semibold text-muted-foreground mb-1">INPUT</p>
-                                                    <pre class="text-[11px] text-foreground/80 bg-muted/50 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(tc.arguments, null, 2)}</pre>
+                    <div class="flex items-start gap-3">
+                        <div class="size-8 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 mt-1 shadow-sm">
+                            <Bot class="size-4" />
+                        </div>
+                        <div class="max-w-[88%] sm:max-w-[80%] space-y-2.5">
+                            {#if msg.toolCalls && msg.toolCalls.length > 0}
+                                <div class="space-y-2">
+                                    {#each msg.toolCalls as tc (tc.id)}
+                                        <div class="rounded-2xl border border-border/60 bg-muted/20 overflow-hidden shadow-xs">
+                                            <button
+                                                type="button"
+                                                class="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-xs font-semibold cursor-pointer hover:bg-muted/40 transition-colors"
+                                                onclick={() => {
+                                                    toolExpanded[tc.id] = !toolExpanded[tc.id];
+                                                }}
+                                            >
+                                                <div class="flex items-center gap-2 min-w-0">
+                                                    {#if tc.ok === undefined}
+                                                        <Loader2 class="size-3.5 text-amber-500 animate-spin shrink-0" />
+                                                    {:else if tc.ok}
+                                                        <div class="size-4 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center shrink-0">
+                                                            <Check class="size-3 stroke-[3]" />
+                                                        </div>
+                                                    {:else}
+                                                        <div class="size-4 rounded-full bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
+                                                            <X class="size-3 stroke-[3]" />
+                                                        </div>
+                                                    {/if}
+                                                    <Wrench class="size-3.5 text-muted-foreground shrink-0" />
+                                                    <span class="text-foreground font-bold truncate">{getToolDisplayName(tc.name)}</span>
+                                                    {#if tc.summary}
+                                                        <span class="text-muted-foreground font-normal truncate opacity-80">- {tc.summary}</span>
+                                                    {/if}
                                                 </div>
-                                                {#if tc.result}
+                                                <ChevronDown class="size-3.5 text-muted-foreground transition-transform duration-200 shrink-0 {toolExpanded[tc.id] ? 'rotate-180' : ''}" />
+                                            </button>
+                                            {#if toolExpanded[tc.id]}
+                                                <div class="border-t border-border/40 px-3.5 py-3 space-y-2 bg-background/50 text-[11px]">
                                                     <div>
-                                                        <p class="text-[10px] font-semibold text-muted-foreground mb-1">OUTPUT</p>
-                                                        <pre class="text-[11px] text-foreground/80 bg-muted/50 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-40">{tc.result}</pre>
+                                                        <p class="font-bold text-muted-foreground uppercase text-[9px] tracking-wider mb-1">INPUT</p>
+                                                        <pre class="font-mono text-foreground/80 bg-muted/60 rounded-xl p-2.5 overflow-x-auto whitespace-pre-wrap break-all border border-border/30">{JSON.stringify(tc.arguments, null, 2)}</pre>
                                                     </div>
-                                                {/if}
-                                            </div>
-                                        {/if}
-                                    </div>
-                                {/each}
-                            </div>
-                        </div>
-                    {/if}
+                                                    {#if tc.result}
+                                                        <div>
+                                                            <p class="font-bold text-muted-foreground uppercase text-[9px] tracking-wider mb-1">OUTPUT</p>
+                                                            <pre class="font-mono text-foreground/80 bg-muted/60 rounded-xl p-2.5 overflow-x-auto whitespace-pre-wrap break-all max-h-40 border border-border/30">{tc.result}</pre>
+                                                        </div>
+                                                    {/if}
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    {/each}
+                                </div>
+                            {/if}
 
-                    {#if msg.content}
-                        <div class="flex justify-start">
-                            <div class="max-w-[85%] rounded-2xl rounded-bl-md bg-muted/70 px-4 py-2.5 text-sm leading-relaxed prose-content" dir="auto">
-                                {@html renderMarkdown(msg.content)}
-                            </div>
+                            {#if msg.content}
+                                <div class="rounded-3xl rounded-tl-sm bg-muted/40 border border-border/40 p-4 text-xs sm:text-sm leading-relaxed text-foreground prose-content shadow-xs" dir="auto">
+                                    {@html renderMarkdown(msg.content)}
+                                </div>
+                            {:else if msg.isStreaming && (!msg.toolCalls || msg.toolCalls.length === 0)}
+                                <div class="inline-flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-muted/40 border border-border/40">
+                                    <div class="size-2 rounded-full bg-primary/60 animate-bounce" style="animation-delay: 0ms;"></div>
+                                    <div class="size-2 rounded-full bg-primary/60 animate-bounce" style="animation-delay: 150ms;"></div>
+                                    <div class="size-2 rounded-full bg-primary/60 animate-bounce" style="animation-delay: 300ms;"></div>
+                                </div>
+                            {/if}
                         </div>
-                    {:else if msg.isStreaming && (!msg.toolCalls || msg.toolCalls.length === 0)}
-                        <div class="flex justify-start">
-                            <div class="flex items-center gap-1.5 px-4 py-3">
-                                <div class="size-2 rounded-full bg-muted-foreground/40 animate-bounce" style="animation-delay: 0ms;"></div>
-                                <div class="size-2 rounded-full bg-muted-foreground/40 animate-bounce" style="animation-delay: 150ms;"></div>
-                                <div class="size-2 rounded-full bg-muted-foreground/40 animate-bounce" style="animation-delay: 300ms;"></div>
-                            </div>
-                        </div>
-                    {/if}
+                    </div>
                 {/if}
             {/each}
         </div>
 
+        <!-- اقتراحات البدء السريع -->
         {#if messages.length <= 1}
-            <div class="px-4 pb-3">
+            <div class="px-4 pb-3 pt-1 border-t border-border/30 bg-muted/10">
+                <p class="text-[11px] font-bold text-muted-foreground mb-2 px-1">
+                    {isArabic ? 'اقتراحات سريعة:' : 'Quick suggestions:'}
+                </p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {#each quickActions as action}
                         <button
                             type="button"
-                            class="text-start rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5 text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors cursor-pointer"
+                            class="group text-start rounded-2xl border border-border/50 bg-card p-3 text-xs font-semibold text-foreground/80 hover:text-foreground hover:bg-muted/40 hover:border-primary/40 transition-all shadow-xs flex items-center justify-between"
                             onclick={() => sendMessage(action.prompt)}
                         >
-                            <MessageCircle class="size-3.5 inline-block me-1.5 opacity-60" />
-                            {action.label}
+                            <span class="truncate pr-2">{action.label}</span>
+                            <MessageSquarePlus class="size-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                         </button>
                     {/each}
                 </div>
             </div>
         {/if}
 
-        <div class="border-t border-border/50 p-3">
-            <div class="flex items-end gap-2">
+        <!-- منطقة الإدخال السفلى -->
+        <div class="p-3 bg-card border-t border-border/50">
+            <div class="relative flex items-center bg-muted/30 rounded-2xl border border-border/60 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
                 <textarea
                     bind:this={textarea}
                     bind:value={inputValue}
                     onkeydown={handleKeydown}
                     oninput={autoResize}
-                    placeholder={isArabic ? 'اكتب رسالتك هنا...' : 'Type your message...'}
+                    placeholder={isArabic ? 'اكتب رسالتك أو استفسارك المالي...' : 'Type your message or financial question...'}
                     rows="1"
                     disabled={isStreaming}
-                    class="flex-1 resize-none rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-50 transition-all"
+                    class="w-full resize-none bg-transparent px-4 py-3 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none disabled:opacity-50 max-h-32"
                 ></textarea>
 
-                {#if isStreaming}
-                    <Button
-                        size="icon"
-                        variant="ghost"
-                        class="size-10 rounded-xl text-rose-500 hover:bg-rose-500/10 cursor-pointer shrink-0"
-                        onclick={stopStreaming}
-                    >
-                        <Square class="size-4" />
-                    </Button>
-                {:else}
-                    <Button
-                        size="icon"
-                        class="size-10 rounded-xl shrink-0 cursor-pointer"
-                        onclick={() => sendMessage()}
-                        disabled={!inputValue.trim()}
-                    >
-                        <Send class="size-4 {isRTL() ? 'rotate-180' : ''}" />
-                    </Button>
-                {/if}
+                <div class="pe-2 shrink-0">
+                    {#if isStreaming}
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            class="size-9 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-colors"
+                            onclick={stopStreaming}
+                        >
+                            <Square class="size-4" />
+                        </Button>
+                    {:else}
+                        <Button
+                            size="icon"
+                            class="size-9 rounded-xl transition-all duration-200 {inputValue.trim() ? 'bg-primary text-primary-foreground shadow-sm hover:scale-105' : 'bg-muted/60 text-muted-foreground opacity-60'}"
+                            onclick={() => sendMessage()}
+                            disabled={!inputValue.trim()}
+                        >
+                            <Send class="size-4 {isRTL() ? 'rotate-180' : ''}" />
+                        </Button>
+                    {/if}
+                </div>
             </div>
         </div>
     </div>
@@ -482,7 +508,7 @@
 
 <style>
     .prose-content :global(p) {
-        margin: 0.25em 0;
+        margin: 0.3em 0;
     }
     .prose-content :global(p:first-child) {
         margin-top: 0;
@@ -491,28 +517,32 @@
         margin-bottom: 0;
     }
     .prose-content :global(code) {
-        background: rgba(0,0,0,0.08);
-        padding: 0.1em 0.35em;
-        border-radius: 0.25em;
-        font-size: 0.875em;
+        background: rgba(var(--primary-rgb, 59, 130, 246), 0.1);
+        color: var(--primary);
+        padding: 0.15em 0.4em;
+        border-radius: 0.375em;
+        font-size: 0.85em;
+        font-weight: 600;
     }
     .prose-content :global(pre) {
-        background: rgba(0,0,0,0.06);
+        background: rgba(0,0,0,0.05);
         padding: 0.75em 1em;
-        border-radius: 0.5em;
+        border-radius: 0.75em;
         overflow-x: auto;
         margin: 0.5em 0;
+        border: 1px solid rgba(0,0,0,0.05);
     }
     .prose-content :global(pre code) {
         background: none;
+        color: inherit;
         padding: 0;
     }
     .prose-content :global(ul), .prose-content :global(ol) {
-        padding-inline-start: 1.5em;
-        margin: 0.25em 0;
+        padding-inline-start: 1.25em;
+        margin: 0.3em 0;
     }
     .prose-content :global(li) {
-        margin: 0.1em 0;
+        margin: 0.15em 0;
     }
     .prose-content :global(strong) {
         font-weight: 700;
@@ -520,30 +550,30 @@
     .prose-content :global(a) {
         color: var(--primary);
         text-decoration: underline;
+        font-weight: 600;
     }
     .prose-content :global(blockquote) {
-        border-inline-start: 3px solid var(--border);
-        padding-inline-start: 1em;
+        border-inline-start: 3px solid var(--primary);
+        padding-inline-start: 0.75em;
         margin: 0.5em 0;
-        opacity: 0.85;
+        opacity: 0.9;
+        font-style: italic;
     }
     .prose-content :global(table) {
         width: 100%;
         border-collapse: collapse;
         margin: 0.5em 0;
         font-size: 0.85em;
+        border-radius: 0.5em;
+        overflow: hidden;
     }
     .prose-content :global(th), .prose-content :global(td) {
         border: 1px solid var(--border);
-        padding: 0.35em 0.6em;
+        padding: 0.4em 0.6em;
         text-align: start;
     }
     .prose-content :global(th) {
-        background: rgba(0,0,0,0.05);
-        font-weight: 600;
-    }
-    .prose-content :global(h3), .prose-content :global(h4) {
-        margin: 0.5em 0 0.25em;
+        background: rgba(0,0,0,0.04);
         font-weight: 700;
     }
 </style>

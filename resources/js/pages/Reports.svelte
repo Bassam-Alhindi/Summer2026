@@ -107,7 +107,8 @@
     normalizedCategories.find((c) => String(c.id) === String(activeCategoryId)) ?? null
   );
 
-  function handleCategoryClick(catId: number | string, fromDonut = false) {
+  function handleCategoryClick(catId: number | string, fromDonut = false, e?: MouseEvent) {
+    if (e) e.stopPropagation();
     if (String(selectedCategoryId) === String(catId)) {
       selectedCategoryId = null;
     } else {
@@ -251,6 +252,8 @@
   }
 </script>
 
+<svelte:window onclick={() => (selectedCategoryId = null)} />
+
 <AppHead title={currentLocale === 'en' ? 'Reports' : 'التقارير'} />
 
 <div class="flex flex-1 flex-col gap-5 p-4 pb-24 sm:p-6 lg:pb-6 max-w-xl mx-auto w-full">
@@ -265,7 +268,7 @@
   </div>
 
   <!-- مرشح الفترة الزمنية -->
-  <div class="p-4 rounded-3xl bg-card border border-border/60 shadow-sm flex flex-col gap-3 relative">
+  <div class="p-4 rounded-3xl bg-card border border-border/60 shadow-sm flex flex-col gap-3 relative" onclick={(e) => e.stopPropagation()} role="presentation">
     <div class="flex items-center gap-2 text-xs font-bold text-foreground px-0.5">
       <Calendar class="size-4 text-primary" />
       <span>{currentLocale === 'en' ? 'Select Time Period' : 'تحديد فترة زمنية'}</span>
@@ -331,7 +334,7 @@
       <div class="flex items-center justify-between w-full">
         <h2 class="text-xs font-bold text-foreground">{currentLocale === 'en' ? 'Details' : 'التفاصيل'}</h2>
         {#if selectedCategoryId !== null}
-          <button type="button" onclick={() => (selectedCategoryId = null)} class="text-[11px] font-bold text-primary hover:underline">
+          <button type="button" onclick={(e) => { e.stopPropagation(); selectedCategoryId = null; }} class="text-[11px] font-bold text-primary hover:underline">
             {currentLocale === 'en' ? 'Show All' : 'عرض الكل'}
           </button>
         {/if}
@@ -339,7 +342,7 @@
 
       <div class="relative size-60 sm:size-64 flex items-center justify-center my-2">
         <svg class="size-full -rotate-90 transform" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r={RADIUS} fill="transparent" stroke="currentColor" stroke-width="10" class="text-muted/15" />
+          <circle cx="50" cy="50" r={RADIUS} fill="transparent" stroke="currentColor" stroke-width="10" class="text-muted/15 cursor-pointer" onclick={() => (selectedCategoryId = null)} />
           {#each donutSegments as segment}
             {@const isActive = String(activeCategoryId) === String(segment.id)}
             {@const isAnyActive = activeCategoryId !== null}
@@ -356,7 +359,7 @@
                 stroke-linecap={isActive ? 'round' : 'butt'}
                 style="transition: all 0.25s ease-in-out;"
                 class="cursor-pointer origin-center {isAnyActive && !isActive ? 'opacity-25' : 'opacity-100'}"
-                onclick={() => handleCategoryClick(segment.id, true)}
+                onclick={(e) => handleCategoryClick(segment.id, true, e)}
                 onmouseenter={() => (hoveredCategoryId = segment.id)}
                 onmouseleave={() => (hoveredCategoryId = null)}
                 role="button"
@@ -396,7 +399,7 @@
 
     <!-- تنبيهات الميزانية -->
     {#if reportBudgetAlerts.length > 0}
-      <div class="flex flex-col gap-2.5">
+      <div class="flex flex-col gap-2.5" onclick={(e) => e.stopPropagation()} role="presentation">
         <h2 class="text-xs font-bold text-foreground px-1">{currentLocale === 'en' ? 'Budget Warnings' : 'تنبيهات الميزانية'}</h2>
 
         {#if reportBudgetAlerts.length === 1}
@@ -505,7 +508,7 @@
             id="cat-card-{cat.id}"
             class="w-full text-start rounded-2xl border transition-all duration-300 overflow-hidden {isActive ? 'border-primary/50' : 'border-border/40 bg-card'}"
             style={isActive ? `border-color: ${cat.color}; box-shadow: 0 0 0 1px ${cat.color}40; background-color: ${cat.color}0A;` : ''}
-            onclick={() => handleCategoryClick(cat.id, false)}
+            onclick={(e) => handleCategoryClick(cat.id, false, e)}
             onmouseenter={() => (hoveredCategoryId = cat.id)}
             onmouseleave={() => (hoveredCategoryId = null)}
           >

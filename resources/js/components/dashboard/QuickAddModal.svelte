@@ -9,6 +9,8 @@
     import { localToday } from '@/lib/utils';
     import transactions from '@/routes/transactions';
     import { toast } from 'svelte-sonner';
+    import ChevronUp from 'lucide-svelte/icons/chevron-up';
+    import ChevronDown from 'lucide-svelte/icons/chevron-down';
 
     type CategoryItem = {
         id: number;
@@ -46,47 +48,41 @@
         categories.filter((c) => c.type === form.type)
     );
 
-    // قاموس الألوان الموحد للفئات (لحل مشكلة التباين وإرهاق العين)
+    function adjustAmount(step: number) {
+        const current = parseFloat(form.amount) || 0;
+        const updated = Math.max(0, current + step);
+        form.amount = updated === 0 ? '' : updated.toString();
+    }
+
     const CATEGORY_COLORS: Record<string, string> = {
-        // --- المصاريف ---
-        food: '#EC4899',             // طعام ومشروبات (وردي)
+        food: '#EC4899',
         'food & drinks': '#EC4899',
         طعام: '#EC4899',
         'طعام ومشروبات': '#EC4899',
-
-        housing: '#10B981',          // سكن (أخضر زمرّدي)
+        housing: '#10B981',
         سكن: '#10B981',
-
-        entertainment: '#3B82F6',    // ترفيه (أزرق)
+        entertainment: '#3B82F6',
         ترفيه: '#3B82F6',
-
-        health: '#A855F7',           // صحة (بنفسجي)
+        health: '#A855F7',
         صحة: '#A855F7',
-
-        education: '#F59E0B',        // تعليم (برتقالي)
+        education: '#F59E0B',
         تعليم: '#F59E0B',
-
-        bills: '#EF4444',            // فواتير (أحمر)
+        bills: '#EF4444',
         فواتير: '#EF4444',
-
-        shopping: '#6366F1',         // تسوق (نيلي)
+        shopping: '#6366F1',
         تسوق: '#6366F1',
-
-        transportation: '#06B6D4',   // مواصلات (سماوي)
+        transportation: '#06B6D4',
         transport: '#06B6D4',
         مواصلات: '#06B6D4',
-
-        other: '#6B7280',            // أخرى (رمادي)
+        other: '#6B7280',
         أخرى: '#6B7280',
-
-        // --- الدخل ---
-        salary: '#10B981',           // الراتب
+        salary: '#10B981',
         الراتب: '#10B981',
-        freelance: '#06B6D4',        // عمل حر
+        freelance: '#06B6D4',
         'عمل حر': '#06B6D4',
-        investment: '#8B5CF6',       // استثمار
+        investment: '#8B5CF6',
         استثمار: '#8B5CF6',
-        gift: '#EC4899',             // هدية
+        gift: '#EC4899',
         هدية: '#EC4899',
     };
 
@@ -96,66 +92,48 @@
         return CATEGORY_COLORS[key] ?? '#3B82F6';
     }
 
-    // دالة الترجمة الشاملة للدخل والمصاريف
     function translateCategory(name: string): string {
         if (!name) return '';
-
         const currentExpenseLabel = t('quickadd.expense');
         const isAr = currentExpenseLabel !== 'Expense' && currentExpenseLabel !== 'expense';
-
         const cleanKey = name.toLowerCase().trim();
 
         const categoryMap: Record<string, { ar: string; en: string }> = {
             'salary': { ar: 'الراتب', en: 'Salary' },
             'الراتب': { ar: 'الراتب', en: 'Salary' },
-
             'freelance': { ar: 'عمل حر', en: 'Freelance' },
             'عمل حر': { ar: 'عمل حر', en: 'Freelance' },
-
             'investment': { ar: 'استثمار', en: 'Investment' },
             'استثمار': { ar: 'استثمار', en: 'Investment' },
-
             'gift': { ar: 'هدية', en: 'Gift' },
             'هدية': { ar: 'هدية', en: 'Gift' },
-
             'other income': { ar: 'دخل آخر', en: 'Other Income' },
             'other_income': { ar: 'دخل آخر', en: 'Other Income' },
             'دخل آخر': { ar: 'دخل آخر', en: 'Other Income' },
-
             'housing': { ar: 'سكن', en: 'Housing' },
             'سكن': { ar: 'سكن', en: 'Housing' },
-
             'entertainment': { ar: 'ترفيه', en: 'Entertainment' },
             'ترفيه': { ar: 'ترفيه', en: 'Entertainment' },
-
             'health': { ar: 'صحة', en: 'Health' },
             'صحة': { ar: 'صحة', en: 'Health' },
-
             'education': { ar: 'تعليم', en: 'Education' },
             'تعليم': { ar: 'تعليم', en: 'Education' },
-
             'bills': { ar: 'فواتير', en: 'Bills' },
             'فواتير': { ar: 'فواتير', en: 'Bills' },
-
             'shopping': { ar: 'تسوق', en: 'Shopping' },
             'تسوق': { ar: 'تسوق', en: 'Shopping' },
-
             'transportation': { ar: 'مواصلات', en: 'Transportation' },
             'transport': { ar: 'مواصلات', en: 'Transportation' },
             'مواصلات': { ar: 'مواصلات', en: 'Transportation' },
-
             'food & drinks': { ar: 'طعام ومشروبات', en: 'Food & Drinks' },
             'food': { ar: 'طعام ومشروبات', en: 'Food & Drinks' },
             'طعام ومشروبات': { ar: 'طعام ومشروبات', en: 'Food & Drinks' },
             'طعام': { ar: 'طعام ومشروبات', en: 'Food & Drinks' },
-
             'other': { ar: 'أخرى', en: 'Other' },
             'أخرى': { ar: 'أخرى', en: 'Other' },
-
             'other expense': { ar: 'مصروف آخر', en: 'Other Expense' },
             'other_expense': { ar: 'مصروف آخر', en: 'Other Expense' },
             'مصروف آخر': { ar: 'مصروف آخر', en: 'Other Expense' },
-
             'grocery': { ar: 'مقاضي', en: 'Groceries' },
             'groceries': { ar: 'مقاضي', en: 'Groceries' },
             'مقاضي': { ar: 'مقاضي', en: 'Groceries' },
@@ -181,7 +159,6 @@
         const onSubmit = {
             preserveScroll: true,
             onSuccess: () => {
-                // إلغاء toast.success اليدوي لمنع تكرار الإشعارات ولإعطاء الأولوية لتنبيه الميزانية من السيرفر
                 open = false;
                 form.reset();
                 form.type = 'expense';
@@ -200,15 +177,11 @@
     }
 
     $effect(() => {
-        if (!open) {
-            return;
-        }
-
+        if (!open) return;
         const currentEditing = editing;
 
         untrack(() => {
             form.clearErrors();
-
             if (currentEditing) {
                 form.amount = String(currentEditing.amount);
                 form.type = currentEditing.type;
@@ -257,22 +230,61 @@
                 </button>
             </div>
 
-            <!-- ادخال المبلغ -->
+            <!-- ادخال المبلغ مع زري الزيادة والنقصان السريعة -->
             <div class="flex flex-col gap-1.5">
                 <Label for="qa-amount">{t('quickadd.amount')}</Label>
-                <Input
-                    id="qa-amount"
-                    type="number"
-                    placeholder="0.00"
-                    bind:value={form.amount}
-                    min="0"
-                    step="0.01"
-                    required
-                    autofocus
-                />
+                <div class="relative flex items-center group">
+                    <Input
+                        id="qa-amount"
+                        type="number"
+                        placeholder="0.00"
+                        bind:value={form.amount}
+                        min="0"
+                        step="0.01"
+                        required
+                        autofocus
+                        class="pe-10"
+                    />
+
+                    <div
+                        class="absolute end-1.5 flex flex-col items-center overflow-hidden rounded-xl opacity-0 pointer-events-none scale-90 transition-all duration-300 ease-out group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-focus-within:scale-100 z-10"
+                        style="
+                            background: linear-gradient(135deg, color-mix(in srgb, var(--accent, #3b82f6) 20%, rgba(20, 20, 25, 0.85)) 0%, rgba(10, 10, 14, 0.92) 100%);
+                            backdrop-filter: blur(16px) saturate(180%);
+                            -webkit-backdrop-filter: blur(16px) saturate(180%);
+                            border: 1px solid color-mix(in srgb, var(--accent, #3b82f6) 40%, rgba(255,255,255,0.15));
+                            box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--accent, #3b82f6) 30%, transparent), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+                        "
+                    >
+                        <button
+                            type="button"
+                            onclick={() => adjustAmount(50)}
+                            class="flex h-5 w-7 items-center justify-center transition-all cursor-pointer active:scale-90 hover:bg-white/10"
+                            style="color: var(--accent, #3b82f6);"
+                            title="زيادة 50"
+                        >
+                            <ChevronUp class="size-3.5 stroke-[2.5]" style="filter: drop-shadow(0 0 6px var(--accent, #3b82f6));" />
+                        </button>
+
+                        <div
+                            class="h-[1px] w-full"
+                            style="background: color-mix(in srgb, var(--accent, #3b82f6) 35%, rgba(255,255,255,0.12));"
+                        ></div>
+
+                        <button
+                            type="button"
+                            onclick={() => adjustAmount(-50)}
+                            class="flex h-5 w-7 items-center justify-center transition-all cursor-pointer active:scale-90 hover:bg-white/10"
+                            style="color: var(--accent, #3b82f6);"
+                            title="إنقاص 50"
+                        >
+                            <ChevronDown class="size-3.5 stroke-[2.5]" style="filter: drop-shadow(0 0 6px var(--accent, #3b82f6));" />
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- اختيار التصنيف بألوان ناعمة ومريحة للعين -->
+            <!-- اختيار التصنيف -->
             <div class="flex flex-col gap-1.5">
                 <Label>{t('quickadd.category')}</Label>
                 {#if availableCategories.length === 0}

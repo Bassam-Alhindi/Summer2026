@@ -19,6 +19,8 @@
     ArrowUpRight,
     ArrowDownRight,
     ChevronLeft,
+    ChevronUp,   
+    ChevronDown,  
     Wallet,
     X,
     Receipt,
@@ -31,6 +33,21 @@
   import { resolveCategoryMeta } from '@/lib/categories';
   import { localToday } from '@/lib/utils';
   import { toast } from 'svelte-sonner';
+
+
+  let isAmountFocused = $state(false);
+
+  function incrementAmount() {
+    const val = parseFloat(formAmount) || 0;
+    formAmount = (val + 10).toString();
+  }
+
+  function decrementAmount() {
+    const val = parseFloat(formAmount) || 0;
+    const next = Math.max(0, val - 10);
+    formAmount = next === 0 ? '' : next.toString();
+  }
+  // ----------------------------------------
 
   type CategoryObject = {
     id: number;
@@ -683,6 +700,53 @@ function startVoiceRecognition() {
 </div>
 
 <!-- نافذة إضافة معاملة سريعة -->
+<!-- شريط الإضافة الزجاجي والسفلي -->
+<div class="fixed bottom-16 inset-x-0 z-40 max-w-lg mx-auto px-4 flex items-center justify-center pointer-events-none">
+  <div class="flex items-center gap-2 p-1.5 rounded-full bg-[#121215]/80 border border-white/10 shadow-2xl backdrop-blur-xl pointer-events-auto">
+    <!-- زر الإضافة الصوتية -->
+    <button
+      type="button"
+      onclick={startVoiceRecognition}
+      title={tr('voice.title', 'إضافة صوتية', 'Voice Add')}
+      class="relative size-11 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all cursor-pointer active:scale-95 shrink-0 {isListening ? 'border-rose-500 bg-rose-500/20 text-rose-400' : 'text-white/80 hover:text-white'}"
+    >
+      <Mic class="size-5 {isListening ? 'animate-pulse' : ''}" />
+      {#if isListening}
+        <span class="absolute top-0.5 right-0.5 flex size-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full size-3 bg-rose-500"></span>
+        </span>
+      {/if}
+    </button>
+
+    <div class="h-5 w-px bg-white/10 my-auto"></div>
+
+    <!-- زر إضافة معاملة -->
+    <button
+      type="button"
+      onclick={openAddDialog}
+      class="h-11 px-5 rounded-full bg-primary text-primary-foreground font-bold text-xs shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+    >
+      <Plus class="size-4 stroke-[2.5]" />
+      <span>{tr('dashboard.add_transaction', 'إضافة معاملة', 'Add Transaction')}</span>
+    </button>
+  </div>
+</div>
+
+<!-- شريط التنقل السفلي -->
+<div class="fixed bottom-0 inset-x-0 z-40 bg-[#09090b]/90 backdrop-blur-xl border-t border-white/10 px-6 py-2.5 max-w-lg mx-auto flex items-center justify-around">
+  <Link href={dashboard()} class="relative flex flex-col items-center gap-1 text-primary transition-all">
+    <span class="absolute -top-2 size-1.5 rounded-full bg-primary shadow-[0_0_8px_#3b82f6]"></span>
+    <LayoutDashboard class="size-5" />
+    <span class="text-[10px] font-bold">{tr('nav.home', 'الرئيسية', 'Home')}</span>
+  </Link>
+  <Link href="/transactions" class="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-all">
+    <Receipt class="size-5" />
+    <span class="text-[10px] font-medium">{tr('nav.transactions', 'المعاملات', 'Transactions')}</span>
+  </Link>
+</div>
+
+<!-- نافذة إضافة معاملة سريعة -->
 {#if isDialogOpen}
   <div
     in:fade={{ duration: 150 }}
@@ -752,21 +816,59 @@ function startVoiceRecognition() {
           </button>
         </div>
 
-        <!-- إدخال المبلغ -->
+        <!-- إدخال المبلغ (محمي من الزوم بـ text-base) -->
         <div class="flex flex-col gap-1.5">
           <label for="tx-amount" class="text-xs font-bold text-white/80">
             {tr('transaction.amount', 'المبلغ', 'Amount')}
           </label>
-          <input
-            id="tx-amount"
-            type="number"
-            step="0.01"
-            min="0.01"
-            bind:value={formAmount}
-            placeholder={amountPlaceholder}
-            required
-            class="h-11 w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-3.5 text-start font-mono text-base font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-all focus:ring-2 focus:ring-white/10"
-          />
+          <div class="relative flex items-center">
+            <input
+              id="tx-amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              bind:value={formAmount}
+              placeholder={amountPlaceholder}
+              required
+              onfocus={() => (isAmountFocused = true)}
+              onblur={() => (isAmountFocused = false)}
+              class="h-11 w-full rounded-xl border border-white/10 bg-[#1a1a1a] ps-3.5 pe-12 text-start font-mono text-base font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-all focus:ring-2 focus:ring-white/10"
+            />
+
+            <!-- أزرار (+50 / -50) -->
+            <div
+              onmousedown={(e) => e.preventDefault()}
+              class="absolute end-1.5 z-20 flex flex-col items-center overflow-hidden rounded-lg transition-all duration-300 ease-out {isAmountFocused ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-90 pointer-events-none'}"
+              style="
+                background: rgba(24, 24, 27, 0.95);
+                backdrop-filter: blur(8px);
+                border: 1px solid color-mix(in srgb, var(--accent) 40%, rgba(255,255,255,0.15));
+                box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 25%, transparent);
+              "
+            >
+              <button
+                type="button"
+                onclick={incrementAmount}
+                class="flex h-4.5 w-6 items-center justify-center transition-colors hover:bg-white/10 active:scale-90 cursor-pointer"
+                style="color: var(--accent);"
+                title="+50"
+              >
+                <ChevronUp class="size-3.5 stroke-[2.5]" />
+              </button>
+
+              <div class="h-[1px] w-full bg-white/10"></div>
+
+              <button
+                type="button"
+                onclick={decrementAmount}
+                class="flex h-4.5 w-6 items-center justify-center transition-colors hover:bg-white/10 active:scale-90 cursor-pointer"
+                style="color: var(--accent);"
+                title="-50"
+              >
+                <ChevronDown class="size-3.5 stroke-[2.5]" />
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- اختيار الفئة -->
@@ -801,7 +903,7 @@ function startVoiceRecognition() {
           </div>
         </div>
 
-        <!-- الوصف (اختياري) -->
+        <!-- الوصف (تم تعديله إلى text-base لمنع الزوم) -->
         <div class="flex flex-col gap-1.5">
           <label for="tx-desc" class="text-xs font-bold text-white/80">{tr('transaction.description_optional', 'الوصف (اختياري)', 'Description (Optional)')}</label>
           <input
@@ -809,7 +911,7 @@ function startVoiceRecognition() {
             type="text"
             bind:value={formDescription}
             placeholder={tr('transaction.description_placeholder', 'عن ماذا كانت هذه المعاملة؟', 'What is this for?')}
-            class="h-10 w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-3 text-xs font-semibold text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all"
+            class="h-10 w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-3 text-base font-medium text-white placeholder:text-white/20 placeholder:text-xs focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all"
           />
         </div>
 
@@ -842,7 +944,7 @@ function startVoiceRecognition() {
       opacity: 0.9;
     }
     50% {
-      box-shadow: 0 0 12px var(--glow-color), inset 0 0 5px var(--glow-color);
+      box-shadow: 0 0 12px var(--glow-color), inset 0 0 12px var(--glow-color);
       opacity: 1;
     }
   }
