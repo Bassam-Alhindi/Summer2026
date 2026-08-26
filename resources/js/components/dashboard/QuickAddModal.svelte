@@ -6,6 +6,7 @@
     import { Label } from '@/components/ui/label';
     import { useForm } from '@inertiajs/svelte';
     import { t } from '@/lib/i18n.svelte';
+    import { localToday } from '@/lib/utils';
     import transactions from '@/routes/transactions';
     import { toast } from 'svelte-sonner';
 
@@ -37,7 +38,7 @@
         amount: '',
         type: 'expense' as 'income' | 'expense',
         category_id: '',
-        transaction_date: new Date().toISOString().split('T')[0],
+        transaction_date: localToday(),
         description: '',
     });
 
@@ -184,7 +185,7 @@
                 open = false;
                 form.reset();
                 form.type = 'expense';
-                form.transaction_date = new Date().toISOString().split('T')[0];
+                form.transaction_date = localToday();
             },
             onError: () => {
                 toast.error(t('quickadd.errorMessage') || 'يرجى التأكد من ملء جميع الحقول المطلوبة');
@@ -217,7 +218,7 @@
             } else {
                 form.reset();
                 form.type = 'expense';
-                form.transaction_date = new Date().toISOString().split('T')[0];
+                form.transaction_date = localToday();
             }
         });
     });

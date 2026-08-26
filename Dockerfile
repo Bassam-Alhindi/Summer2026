@@ -50,7 +50,8 @@ RUN cp .env.example .env \
 # database/database.sqlite is gitignored, so it is absent from this image.
 # Laravel needs the file to exist before it can run (sessions/cache tables).
 RUN touch /var/www/html/database/database.sqlite \
-    && php artisan migrate --force
+    && php artisan migrate --force \
+    && php artisan db:seed --class=CategorySeeder --force
 
 # --- Build the frontend ------------------------------------------------------
 RUN npm ci --no-audit --no-fund \

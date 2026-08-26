@@ -184,7 +184,16 @@
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                // Read and surface the server's actual error message (e.g. a 401
+                // from the AI provider or a validation message) instead of a bare "HTTP 401".
+                let serverMsg = '';
+                try {
+                    serverMsg = (await response.text()).trim();
+                } catch {
+                }
+                const err: any = new Error(serverMsg || `HTTP ${response.status}`);
+                err.status = response.status;
+                throw err;
             }
 
             const reader = response.body?.getReader();
@@ -261,11 +270,12 @@
             }
         } catch (err: any) {
             if (err.name !== 'AbortError') {
+                const serverMsg = err?.message && err.status ? err.message : '';
                 messages = messages.map((m) =>
                     m.id === assistantMsg.id
                         ? {
                               ...m,
-                              content: m.content || (isArabic
+                              content: m.content || serverMsg || (isArabic
                                   ? 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.'
                                   : 'Sorry, a connection error occurred. Please try again.'),
                               isStreaming: false,

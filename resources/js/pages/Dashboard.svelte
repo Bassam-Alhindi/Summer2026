@@ -29,6 +29,7 @@
   import { t, getLocale, setLocale } from '@/lib/i18n.svelte';
   import type { TranslationKey } from '@/lib/translations';
   import { resolveCategoryMeta } from '@/lib/categories';
+  import { localToday } from '@/lib/utils';
   import { toast } from 'svelte-sonner';
 
   type CategoryObject = {
@@ -134,7 +135,7 @@
   let formType = $state<'income' | 'expense'>('expense');
   let formCategoryId = $state<number | null>(null);
   let formDescription = $state('');
-  let formDate = $state(new Date().toISOString().split('T')[0]);
+  let formDate = $state(localToday());
   let errorMessage = $state<string | null>(null);
   let isSubmitting = $state(false);
 
@@ -278,7 +279,7 @@
     formAmount = '';
     formType = 'expense';
     formDescription = '';
-    formDate = new Date().toISOString().split('T')[0];
+    formDate = localToday();
     errorMessage = null;
     const targetDefaultKey = 'cat_food';
     const found = categories.find((c) => getCanonicalCategoryKey(c.name) === targetDefaultKey);
@@ -326,7 +327,10 @@
     return null;
   }
 
-  function startVoiceRecognition() {
+  // عرف متغير عام برا الدالة عشان نحتفظ بنسخة التعرف النشطة ونقفلها لو كانت شغالة
+let activeRecognition: any = null;
+
+function startVoiceRecognition() {
     if (typeof window === 'undefined') return;
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     
@@ -335,9 +339,27 @@
         return;
     }
     
+    // إذا كان فيه جلسة صوتية شغالـة، نوقفها أول عشان ما يتداخلون ويطلعون إشعارات مكررة
+    if (activeRecognition) {
+        try {
+            activeRecognition.stop();
+        } catch (e) {}
+    }
+
     const recognition = new SpeechRecognition();
+    activeRecognition = recognition; // حفظ المرجع
+    
     recognition.lang = currentLang === 'ar' ? 'ar-SA' : 'en-US';
     recognition.interimResults = false;
+    let voiceErrorNotified = false;
+    
+    function notifyVoiceError() {
+        if (voiceErrorNotified) return;
+        voiceErrorNotified = true;
+        isListening = false;
+        // نضمن إن الإشعار يظهر مرة واحدة فقط بدون تكرار
+        toast.error(tr('voice.error', 'لم نتمكن من معالجة الصوت، حاول مرة أخرى', 'Could not process audio, try again'));
+    }
     
     recognition.onstart = () => {
         isListening = true;
@@ -346,12 +368,15 @@
     
     recognition.onend = () => {
         isListening = false;
+        if (activeRecognition === recognition) {
+            activeRecognition = null;
+        }
     };
     
-    recognition.onerror = () => {
-        isListening = false;
-        // يظهر الإشعار باللون الأحمر الداكن الزجاجي المتناسق مع الواجهة
-        toast.error(tr('voice.error', 'لم نتمكن من معالجة الصوت، حاول مرة أخرى', 'Could not process audio, try again'));
+    recognition.onerror = (event: any) => {
+        // نتجاهل خطأ 'aborted' لأنه طبيعي لو وقفنا الجلسة يدوياً
+        if (event && event.error === 'aborted') return;
+        notifyVoiceError();
     };
     
     recognition.onresult = (event: any) => {
@@ -395,7 +420,11 @@
         triggerHapticFeedback();
     };
     
-    recognition.start();
+    try {
+        recognition.start();
+    } catch {
+        notifyVoiceError();
+    }
 }
 
   function handleSubmit() {

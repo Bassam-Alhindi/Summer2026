@@ -13,12 +13,11 @@
 
 <script lang="ts">
     import { router } from '@inertiajs/svelte';
-    import { Receipt, Trash2, Pencil, Plus, ChevronLeft, ChevronRight, ChevronDown, Check, Filter } from 'lucide-svelte';
+    import { Receipt, Trash2, ChevronLeft, ChevronRight, ChevronDown, Check, Filter } from 'lucide-svelte';
     import { flip } from 'svelte/animate';
     import { fade, slide, fly, scale } from 'svelte/transition';
     import { toast } from 'svelte-sonner';
     import AppHead from '@/components/AppHead.svelte';
-    import QuickAddModal from '@/components/dashboard/QuickAddModal.svelte';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent } from '@/components/ui/card';
     import { resolveCategoryMeta } from '@/lib/categories';
@@ -40,15 +39,6 @@
         description: string | null;
         transaction_date: string;
         category: CategoryItem | null;
-    };
-
-    type EditingTransaction = {
-        id: number;
-        amount: string;
-        type: 'income' | 'expense';
-        category_id: number;
-        transaction_date: string;
-        description: string | null;
     };
 
     type PaginationData = {
@@ -82,8 +72,6 @@
     let typeFilter = $state(filters.type || 'all');
     let categoryFilter = $state(filters.category_id || 'all');
     let isCategoryDropdownOpen = $state(false);
-    let isQuickAddOpen = $state(false);
-    let editingTx = $state<EditingTransaction | null>(null);
 
     let availableCategories = $derived.by(() => {
         const seenIds = new Set<number>();
@@ -226,27 +214,6 @@
         });
     }
 
-    function openAdd() {
-        editingTx = null;
-        isQuickAddOpen = true;
-    }
-
-    function openEdit(tx: TransactionItem) {
-        if (!tx.category) {
-            return;
-        }
-
-        editingTx = {
-            id: tx.id,
-            amount: tx.amount,
-            type: tx.type,
-            category_id: tx.category.id,
-            transaction_date: tx.transaction_date,
-            description: tx.description ?? '',
-        };
-        isQuickAddOpen = true;
-    }
-
     function goToPage(url: string) {
         router.get(url, {}, { preserveState: true, only: ['transactions'] });
     }
@@ -269,14 +236,6 @@
                 {t('transactions.subtitle')}
             </p>
         </div>
-        <Button
-            type="button"
-            onclick={openAdd}
-            class="shrink-0 h-10 px-4 rounded-xl text-xs font-bold gap-1.5 active:scale-95 transition-transform duration-200"
-        >
-            <Plus class="size-4" />
-            <span>{t('transactions.addTransaction')}</span>
-        </Button>
     </div>
 
     <!-- تبويبات التصفية -->
@@ -459,7 +418,7 @@
                                 class="flex size-11 shrink-0 items-center justify-center rounded-xl shadow-xs transition-transform duration-200 group-hover:scale-105 border"
                                 style="background-color: color-mix(in srgb, {meta.color} 14%, transparent); color: {meta.color}; border-color: color-mix(in srgb, {meta.color} 28%, transparent);"
                             >
-                                <IconComponent class="size-5.5" />
+                                <IconComponent class="size-5" />
                             </div>
 
                             <!-- التفاصيل -->
@@ -486,28 +445,13 @@
                                     <span>{formatAmount(tx)}</span>
                                     <span class="text-[11px] font-semibold inline-block" style="filter: brightness(0) invert(1);">⃁</span>
                                 </div>
-                                <!-- أزرار التعديل والحذف -->
+                                <!-- زر الحذف فقط -->
                                 <div
                                     class={cn(
                                         "flex items-center justify-end gap-1 transition-all duration-300 ease-out overflow-hidden shrink-0",
-                                        isSelected ? "w-[4.5rem] opacity-100 scale-100 ms-2" : "w-0 opacity-0 scale-75 ms-0 pointer-events-none"
+                                        isSelected ? "w-[2.5rem] opacity-100 scale-100 ms-2" : "w-0 opacity-0 scale-75 ms-0 pointer-events-none"
                                     )}
                                 >
-                                    {#if tx.category}
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            title={t('common.edit')}
-                                            tabindex={isSelected ? 0 : -1}
-                                            class="size-8 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-xl shrink-0 transition-all duration-200 active:scale-90"
-                                            onclick={(e) => {
-                                                e.stopPropagation();
-                                                openEdit(tx);
-                                            }}
-                                        >
-                                            <Pencil class="size-4" />
-                                        </Button>
-                                    {/if}
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -569,6 +513,4 @@
             </div>
         </div>
     {/if}
-
-    <QuickAddModal bind:open={isQuickAddOpen} categories={categories} editing={editingTx} />
 </div>
