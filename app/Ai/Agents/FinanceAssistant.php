@@ -23,8 +23,8 @@ use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Promptable;
 use Stringable;
 
-#[Provider('opencode')]
-#[Model('hy3')]
+#[Provider('gemini')]
+#[Model('gemini-flash-lite-latest')]
 #[MaxSteps(10)]
 #[Temperature(0.2)]
 #[Timeout(300)]
@@ -39,9 +39,7 @@ class FinanceAssistant implements Agent, Conversational, HasProviderOptions, Has
 
     public function providerOptions(Lab|string $provider): array
     {
-        return [
-            'reasoning_effort' => 'low',
-        ];
+        return [];
     }
 
     public function instructions(): Stringable|string
@@ -80,15 +78,16 @@ You are a financial assistant within an expense tracking web application.
 9. Reject relative date strings in tool calls — always pass absolute dates.
 
 ## Response Style (IMPORTANT)
-1. Keep replies concise, direct, and focused on high-level summaries — maximum 2-3 sentences.
-2. Always answer in the same language as the user's prompt (Arabic prompt → Arabic reply, English prompt → English reply).
-3. Do NOT display a detailed transaction table or list every transaction unless the user explicitly asks for "details", "breakdown", or "list". Otherwise give only a high-level summary.
-4. In every summary, clearly state the key figures: Total spent, budget status (whether the budget was exceeded or what amount remains), and the total transaction count.
+1. Be extremely concise, brief, and direct. Keep replies to 1-2 short sentences maximum.
+2. Answer the user's exact question immediately without fluff, preamble, or unnecessary background numbers.
+3. Do NOT include transaction counts, total spent, or extra financial stats unless the user explicitly asks for them.
+4. Do NOT display detailed tables or transaction lists unless explicitly requested (e.g., "details", "breakdown", "list").
+5. Always answer in the same language as the user's prompt (Arabic prompt → Arabic reply).
 
 ## Special Persona Rule
-If the user explicitly states they are "ساره" or "Sarah":
+If the user explicitly states they are "انا ساره" or "I am Sarah":
 - Reply immediately with: "كم الباسوورد؟"
-- If the user responds with "مالك دخل" (case-insensitive, trim spaces), reply exactly: "احبك واعشقك يقلبي. بسام😘❤️"
+- If the user responds with "مالك دخل" (case-insensitive, trim spaces), reply exactly: "احبك واعشقك يقلبي. بسام"
 - If the user replies with anything else, reply: "أعتذر منك، الرمز غير صحيح ولا يمكنني تقديم الخدمة."
 PROMPT;
     }

@@ -16,30 +16,74 @@
     import { Spinner } from '@/components/ui/spinner';
     import { login } from '@/routes';
     import { store } from '@/routes/register';
-    import { ArrowRight } from 'lucide-svelte';
+    import { ArrowRight, AlertCircle } from 'lucide-svelte';
 
-    let { passwordRules }: { passwordRules: string } = $props();
+    let { passwordRules }: { passwordRules?: string } = $props();
+
+    function formatError(message: string | string[] | undefined): string {
+        if (!message) return '';
+
+        // استخراج النص الأولي في حال كانت القيمة مصفوفة أخطاء
+        const rawKey = Array.isArray(message) ? message[0] : message;
+
+        const errorMap: Record<string, string> = {
+            'auth.failed': 'These credentials do not match our records.',
+            'validation.required': 'This field is required.',
+            'validation.email': 'Please enter a valid email address.',
+            'validation.confirmed': 'Password confirmation does not match.',
+            'validation.unique': 'This email is already registered.',
+            
+            // ترجمة كافة شروط كلمة المرور
+            'validation.password.symbols': 'Password must contain at least one symbol (e.g. @, #, $).',
+            'validation.password.letters': 'Password must contain at least one letter.',
+            'validation.password.mixed': 'Password must contain both uppercase and lowercase letters.',
+            'validation.password.numbers': 'Password must contain at least one number.',
+            'validation.password.uncompromised': 'This password has appeared in a data leak.',
+            'validation.min.string': 'Password must be at least 8 characters long.',
+        };
+
+        if (errorMap[rawKey]) {
+            return errorMap[rawKey];
+        }
+
+        // حماية واقية لأي رمز تحقق غير مسجل
+        if (typeof rawKey === 'string' && rawKey.startsWith('validation.password.')) {
+            return 'Password does not meet security requirements.';
+        }
+        if (typeof rawKey === 'string' && rawKey.startsWith('validation.')) {
+            return 'Please enter a valid value.';
+        }
+
+        return rawKey;
+    }
 </script>
 
 <AppHead title="Register" />
 
 <div class="relative w-full max-w-md mx-auto">
-    <!-- Glassmorphic Card Container -->
     <div class="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.05] via-white/[0.02] to-transparent p-6 sm:p-8 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]">
         
-        <!-- Soft Calm Ambient Glows -->
+        <!-- Background Glows -->
         <div class="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-violet-600/10 blur-3xl"></div>
         <div class="pointer-events-none absolute -left-16 -bottom-16 size-48 rounded-full bg-cyan-500/10 blur-3xl"></div>
 
         <Form
             {...store.form()}
             resetOnSuccess={['password', 'password_confirmation']}
-            class="relative z-10 flex flex-col gap-6"
+            class="relative z-10 flex flex-col gap-5"
         >
             {#snippet children({ errors, processing })}
-                <div class="grid gap-5">
+                
+                {#if Object.keys(errors).length > 0}
+                    <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs text-rose-300 backdrop-blur-md flex items-center gap-2.5">
+                        <AlertCircle class="size-4 shrink-0 text-rose-400" />
+                        <span>Please correct the errors in the form below.</span>
+                    </div>
+                {/if}
+
+                <div class="grid gap-4">
                     
-                    <!-- Name Field -->
+                    <!-- Name -->
                     <div class="grid gap-2">
                         <Label for="name" class="text-xs font-bold text-slate-200">
                             Name
@@ -50,13 +94,13 @@
                             required
                             autocomplete="name"
                             name="name"
-                            placeholder="Full name"
-                            class="h-11 rounded-xl border-white/10 bg-white/[0.04] text-slate-100 placeholder:text-slate-500 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/30 backdrop-blur-md transition-all"
+                            placeholder="John Doe"
+                            class="h-11 rounded-xl border-white/10 bg-white/[0.04] text-slate-100 placeholder:text-slate-500 focus-visible:border-cyan-500/50 focus-visible:ring-cyan-500/30 backdrop-blur-md transition-all"
                         />
-                        <InputError message={errors.name} class="text-xs text-rose-400" />
+                        <InputError message={formatError(errors.name)} class="text-xs text-rose-400 mt-0.5" />
                     </div>
 
-                    <!-- Email Field -->
+                    <!-- Email address -->
                     <div class="grid gap-2">
                         <Label for="email" class="text-xs font-bold text-slate-200">
                             Email address
@@ -68,12 +112,12 @@
                             autocomplete="email"
                             name="email"
                             placeholder="email@example.com"
-                            class="h-11 rounded-xl border-white/10 bg-white/[0.04] text-slate-100 placeholder:text-slate-500 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/30 backdrop-blur-md transition-all"
+                            class="h-11 rounded-xl border-white/10 bg-white/[0.04] text-slate-100 placeholder:text-slate-500 focus-visible:border-cyan-500/50 focus-visible:ring-cyan-500/30 backdrop-blur-md transition-all"
                         />
-                        <InputError message={errors.email} class="text-xs text-rose-400" />
+                        <InputError message={formatError(errors.email)} class="text-xs text-rose-400 mt-0.5" />
                     </div>
 
-                    <!-- Password Field -->
+                    <!-- Password -->
                     <div class="grid gap-2">
                         <Label for="password" class="text-xs font-bold text-slate-200">
                             Password
@@ -83,14 +127,14 @@
                             required
                             autocomplete="new-password"
                             name="password"
-                            placeholder="Password"
+                            placeholder="••••••••"
                             passwordrules={passwordRules}
-                            class="h-11 rounded-xl border-white/10 bg-white/[0.04] text-slate-100 placeholder:text-slate-500 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/30 backdrop-blur-md transition-all"
+                            class="h-11 rounded-xl border-white/10 bg-white/[0.04] text-slate-100 placeholder:text-slate-500 focus-visible:border-cyan-500/50 focus-visible:ring-cyan-500/30 backdrop-blur-md transition-all"
                         />
-                        <InputError message={errors.password} class="text-xs text-rose-400" />
+                        <InputError message={formatError(errors.password)} class="text-xs text-rose-400 mt-0.5" />
                     </div>
 
-                    <!-- Confirm Password Field -->
+                    <!-- Confirm password -->
                     <div class="grid gap-2">
                         <Label for="password_confirmation" class="text-xs font-bold text-slate-200">
                             Confirm password
@@ -100,14 +144,14 @@
                             required
                             autocomplete="new-password"
                             name="password_confirmation"
-                            placeholder="Confirm password"
+                            placeholder="••••••••"
                             passwordrules={passwordRules}
-                            class="h-11 rounded-xl border-white/10 bg-white/[0.04] text-slate-100 placeholder:text-slate-500 focus-visible:border-violet-500/50 focus-visible:ring-violet-500/30 backdrop-blur-md transition-all"
+                            class="h-11 rounded-xl border-white/10 bg-white/[0.04] text-slate-100 placeholder:text-slate-500 focus-visible:border-cyan-500/50 focus-visible:ring-cyan-500/30 backdrop-blur-md transition-all"
                         />
-                        <InputError message={errors.password_confirmation} class="text-xs text-rose-400" />
+                        <InputError message={formatError(errors.password_confirmation)} class="text-xs text-rose-400 mt-0.5" />
                     </div>
 
-                    <!-- Calm & Subtle Premium Button -->
+                    <!-- Submit Button -->
                     <div class="mt-2">
                         <button
                             type="submit"
@@ -126,7 +170,7 @@
                     </div>
                 </div>
 
-                <!-- Log in Link -->
+                <!-- Footer Navigation -->
                 <div class="mt-2 text-center text-xs text-slate-400">
                     Already have an account?
                     <TextLink 

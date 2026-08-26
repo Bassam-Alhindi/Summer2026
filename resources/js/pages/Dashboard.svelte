@@ -39,12 +39,12 @@
 
   function incrementAmount() {
     const val = parseFloat(formAmount) || 0;
-    formAmount = (val + 10).toString();
+    formAmount = (val + 5).toString();
   }
 
   function decrementAmount() {
     const val = parseFloat(formAmount) || 0;
-    const next = Math.max(0, val - 10);
+    const next = Math.max(0, val - 5);
     formAmount = next === 0 ? '' : next.toString();
   }
   // ----------------------------------------
