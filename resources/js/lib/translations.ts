@@ -155,7 +155,10 @@ export const translations: Record<Language, TranslationDictionary> = {
       budgetHint: "You will be alerted when 80% is reached",
       save: "Save",
       cancel: "Cancel",
-      deleteCategory: "Delete Category"
+      deleteCategory: "Delete Category",
+      addedSuccessfully: "Category added successfully",
+      updatedSuccessfully: "Category updated successfully",
+      deletedSuccessfully: "Category deleted successfully"
     },
 
     // 7. Individual Category Names (Singular, Plural & Full Names)
@@ -416,7 +419,10 @@ export const translations: Record<Language, TranslationDictionary> = {
       budgetHint: "سيتم تنبيهك عند تجاوز 80%",
       save: "حفظ",
       cancel: "إلغاء",
-      deleteCategory: "حذف الفئة"
+      deleteCategory: "حذف الفئة",
+      addedSuccessfully: "تم إضافة الفئة بنجاح",
+      updatedSuccessfully: "تم تعديل الفئة بنجاح",
+      deletedSuccessfully: "تم حذف الفئة بنجاح"
     },
 
     // 7. Individual Category Names (Singular, Plural & Full Names)

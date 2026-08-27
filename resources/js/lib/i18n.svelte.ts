@@ -40,6 +40,11 @@ export function initializeLocale(): void {
 
   const lang = getStoredLocale();
   locale.value = lang;
+
+  // The backend reads this cookie to localize flash toasts and validation
+  // errors. Without writing it here it only existed after a manual language
+  // switch, so a default-Arabic visitor got English notifications.
+  setCookie(STORAGE_KEY, lang);
   applyDirection(lang);
 }
 

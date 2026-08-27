@@ -51,7 +51,7 @@ class CategoryController extends Controller
             'icon' => 'nullable|string',
             'budget_limit' => 'nullable|numeric|min:0',
         ], [
-            'name.unique' => 'تنبيه: هذه الفئة موجودة بالفعل!',
+            'name.unique' => __('messages.category_exists'),
         ]);
 
         $validated['icon'] = $validated['icon'] ?? '';
@@ -99,7 +99,7 @@ class CategoryController extends Controller
             'icon' => 'nullable|string',
             'budget_limit' => 'nullable|numeric|min:0',
         ], [
-            'name.unique' => 'تنبيه: هذه الفئة موجودة بالفعل!',
+            'name.unique' => __('messages.category_exists'),
         ]);
 
         $validated['icon'] = $validated['icon'] ?? '';

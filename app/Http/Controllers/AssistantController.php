@@ -83,7 +83,7 @@ class AssistantController extends Controller
                 // داخلية أو مفاتيح داخل الروابط، فما نرجّعها للمتصفح.
                 $this->sendEvent([
                     'type' => 'error',
-                    'message' => __('Something went wrong while processing your request. Please try again.'),
+                    'message' => __('messages.assistant_failed'),
                 ]);
             }
         }, 200, [

@@ -15,7 +15,7 @@
   import { Button } from '@/components/ui/button';
   import { Input } from '@/components/ui/input';
   import { Label } from '@/components/ui/label';
-  import { t } from '@/lib/i18n.svelte';
+  import { t, getLocale } from '@/lib/i18n.svelte';
   import { sortFoodFirst } from '@/lib/categories';
   import { router } from '@inertiajs/svelte';
   import { toast } from 'svelte-sonner';
@@ -150,8 +150,7 @@
   }
 
   function isArabicUi(): boolean {
-    const titleText = t('categories.title');
-    return /[\u0600-\u06FF]/.test(titleText);
+    return getLocale() === 'ar';
   }
 
   function tr(key: string, arFallback: string, enFallback: string): string {
