@@ -547,7 +547,7 @@
               </div>
               <div class="flex items-center gap-1 shrink-0" dir="ltr">
                 <span class="text-sm font-black tabular-nums {cat.isIncome ? 'text-emerald-500' : 'text-rose-500'}">
-                  {cat.isIncome ? '+' : ''}{formatAmount(cat.amountAbs)}
+                  {cat.isIncome ? '+' : '-'}{formatAmount(cat.amountAbs)}
                 </span>
                 <span class="text-xs font-semibold text-foreground">{currentLocale === 'en' ? 'SAR' : '⃁'}</span>
               </div>

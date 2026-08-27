@@ -514,7 +514,7 @@
                             onclick={() => sendMessage()}
                             disabled={!inputValue.trim()}
                         >
-                            <Send class="size-4 {isRTL() ? 'rotate-180' : ''}" />
+                            <Send class="size-4 {isRTL() ? 'scale-x-[-1]' : ''}" />
                         </Button>
                     {/if}
                 </div>

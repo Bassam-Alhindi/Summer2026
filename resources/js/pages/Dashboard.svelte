@@ -694,7 +694,7 @@ function startVoiceRecognition() {
             </div>
             <div class="flex items-center gap-1 dir-ltr">
               <span class="text-sm font-bold tabular-nums {item.amount === 0 ? 'text-muted-foreground' : (isIncome ? 'text-emerald-500' : 'text-rose-500')}">
-                {item.amount === 0 ? '0' : (isIncome ? '+' : '') + formatNumber(Math.abs(item.amount))}
+                {item.amount === 0 ? '0' : (isIncome ? '+' : '-') + formatNumber(Math.abs(item.amount))}
               </span>
               <span class="text-sm font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
             </div>
