@@ -167,7 +167,7 @@ class TransactionController extends Controller
         $successMessage = $action === 'update'
             ? ($isArabic ? 'تم تعديل المعاملة بنجاح!' : 'Transaction updated successfully!')
             : ($isArabic ? 'تمت إضافة المعاملة بنجاح!' : 'Transaction added successfully!');
-        $limit = (float) ($category->budget_limit ?? $category->budget ?? 0);
+        $limit = (float) ($category->budgetLimitFor($user->id) ?? 0);
 
         // 1. إذا لم تكن مصاريف أو لا يوجد حد مالي -> إشعار نجاح عادي
         if ($type !== 'expense' || $limit <= 0) {

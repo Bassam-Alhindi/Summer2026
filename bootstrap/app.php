@@ -7,6 +7,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -31,4 +33,20 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // بدون هذا، خطأ 500 أثناء تنقّل Inertia يرجّع صفحة HTML خام
+        // فتطلع شاشة بيضاء بدل رسالة مفهومة.
+        $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
+            if (app()->environment('local') || ! $request->header('X-Inertia')) {
+                return $response;
+            }
+
+            if (in_array($response->getStatusCode(), [500, 503, 404, 403, 429], true)) {
+                return Inertia::render('Error', ['status' => $response->getStatusCode()])
+                    ->toResponse($request)
+                    ->setStatusCode($response->getStatusCode());
+            }
+
+            return $response;
+        });
     })->create();

@@ -24,9 +24,11 @@
     import X from 'lucide-svelte/icons/x';
     import MessageSquarePlus from 'lucide-svelte/icons/message-square-plus';
     import Bot from 'lucide-svelte/icons/bot';
+    import Mic from 'lucide-svelte/icons/mic';
     import User from 'lucide-svelte/icons/user';
     import { t, getLocale, isRTL } from '@/lib/i18n.svelte';
     import { renderMarkdown } from '@/lib/markdown';
+    import { startSpeechToText } from '@/lib/speech';
 
     type ToolCall = {
         id: string;
@@ -57,6 +59,33 @@
     let nextId = $state(1);
     let chatContainer: HTMLDivElement | null = $state(null);
     let textarea: HTMLTextAreaElement | null = $state(null);
+
+    // إدخال صوتي: النص يروح للمربع عشان المستخدم يراجعه قبل الإرسال
+    let isListening = $state(false);
+    let speechHandle: { stop: () => void } | null = null;
+
+    function toggleVoiceInput() {
+        if (speechHandle) {
+            speechHandle.stop();
+            speechHandle = null;
+            isListening = false;
+            return;
+        }
+
+        speechHandle = startSpeechToText({
+            onStart: () => (isListening = true),
+            onEnd: () => {
+                isListening = false;
+                speechHandle = null;
+            },
+            onResult: (transcript) => {
+                // نضيف للنص الموجود بدل ما نمسحه، وما نرسل تلقائياً
+                inputValue = inputValue.trim() ? `${inputValue.trim()} ${transcript}` : transcript;
+                textarea?.focus();
+                autoResize();
+            },
+        });
+    }
 
     let currentLang = $derived(getLocale());
     let isArabic = $derived(currentLang === 'ar');
@@ -496,6 +525,27 @@
                     disabled={isStreaming}
                     class="w-full resize-none bg-transparent px-4 py-3 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none disabled:opacity-50 max-h-32"
                 ></textarea>
+
+                <!-- زر الميك: يفرّغ الصوت داخل المربع للمراجعة قبل الإرسال -->
+                <div class="ps-2 shrink-0">
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        disabled={isStreaming}
+                        onclick={toggleVoiceInput}
+                        aria-label={isArabic ? 'إدخال صوتي' : 'Voice input'}
+                        title={isArabic ? 'إدخال صوتي' : 'Voice input'}
+                        class="relative size-9 rounded-xl transition-all duration-200 disabled:opacity-40 {isListening ? 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/20' : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.06]'}"
+                    >
+                        <Mic class="size-4 {isListening ? 'animate-pulse' : ''}" />
+                        {#if isListening}
+                            <span class="absolute -top-0.5 -end-0.5 flex size-2.5">
+                                <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75"></span>
+                                <span class="relative inline-flex size-2.5 rounded-full bg-rose-500"></span>
+                            </span>
+                        {/if}
+                    </Button>
+                </div>
 
                 <div class="pe-2 shrink-0">
                     {#if isStreaming}

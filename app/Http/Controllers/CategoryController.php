@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\CategoryBudget;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -12,9 +13,19 @@ class CategoryController extends Controller
 {
     public function index(Request $request)
     {
-        $categories = Category::forUser($request->user()->id)
+        $userId = $request->user()->id;
+
+        $categories = Category::forUser($userId)
+            ->withBudgetFor($userId)
             ->ordered()
-            ->get();
+            ->get()
+            ->map(function (Category $category) use ($userId) {
+                // نطلع الحد الخاص بالمستخدم بدل العمود المشترك
+                $category->setAttribute('budget_limit', $category->budgetLimitFor($userId));
+                $category->unsetRelation('budgets');
+
+                return $category;
+            });
 
         return Inertia::render('Categories/Index', [
             'categories' => $categories,
@@ -45,7 +56,11 @@ class CategoryController extends Controller
 
         $validated['icon'] = $validated['icon'] ?? '';
 
-        $request->user()->categories()->create($validated);
+        $budgetLimit = $validated['budget_limit'] ?? null;
+        unset($validated['budget_limit']);
+
+        $category = $request->user()->categories()->create($validated);
+        $this->saveBudgetFor($request->user()->id, $category, $budgetLimit);
 
         return redirect()->back();
     }
@@ -57,7 +72,8 @@ class CategoryController extends Controller
                 'budget_limit' => 'nullable|numeric|min:0',
             ]);
 
-            $category->update(['budget_limit' => $validated['budget_limit'] ?? null]);
+            // الصف مشترك بين كل المستخدمين، فالحد ينحفظ لكل مستخدم على حدة
+            $this->saveBudgetFor($request->user()->id, $category, $validated['budget_limit'] ?? null);
 
             return redirect()->back();
         }
@@ -88,9 +104,30 @@ class CategoryController extends Controller
 
         $validated['icon'] = $validated['icon'] ?? '';
 
+        $budgetLimit = $validated['budget_limit'] ?? null;
+        unset($validated['budget_limit']);
+
         $category->update($validated);
+        $this->saveBudgetFor($request->user()->id, $category, $budgetLimit);
 
         return redirect()->back();
+    }
+
+    /** حفظ/حذف حد الميزانية لهذا المستخدم فقط. */
+    private function saveBudgetFor(int $userId, Category $category, $budgetLimit): void
+    {
+        if ($budgetLimit === null || (float) $budgetLimit <= 0) {
+            CategoryBudget::where('user_id', $userId)
+                ->where('category_id', $category->id)
+                ->delete();
+
+            return;
+        }
+
+        CategoryBudget::updateOrCreate(
+            ['user_id' => $userId, 'category_id' => $category->id],
+            ['budget_limit' => $budgetLimit],
+        );
     }
 
     public function destroy(Request $request, Category $category)

@@ -42,6 +42,15 @@ class FinanceAssistant implements Agent, Conversational, HasProviderOptions, Has
         return [];
     }
 
+    /**
+     * سقف زمني لطلب المزوّد. بدونه، مزوّد معلّق يحجز عاملاً كامل لين
+     * ينتهي set_time_limit، و8 طلبات معلّقة توقف التطبيق كله.
+     */
+    public function timeout(): int
+    {
+        return 60;
+    }
+
     public function instructions(): Stringable|string
     {
         $now = Carbon::now()->format('Y-m-d H:i:s');
@@ -49,9 +58,14 @@ class FinanceAssistant implements Agent, Conversational, HasProviderOptions, Has
         $userId = $this->user->id;
 
         $categories = Category::forUser($this->user->id)
+            ->withBudgetFor($userId)
             ->ordered()
             ->get()
-            ->map(fn (Category $c) => "[ID:{$c->id}] {$c->name} ({$c->type})".($c->budget_limit ? " — budget: {$c->budget_limit} SAR" : ''))
+            ->map(function (Category $c) {
+                $budget = $c->budgetLimitFor($this->user->id);
+
+                return "[ID:{$c->id}] {$c->name} ({$c->type})".($budget ? " — budget: {$budget} SAR" : '');
+            })
             ->implode("\n");
 
         return <<<PROMPT

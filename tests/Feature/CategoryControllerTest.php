@@ -112,9 +112,15 @@ class CategoryControllerTest extends TestCase
         ]);
 
         $response->assertRedirect();
+        // الحد ينحفظ للمستخدم نفسه، والصف المشترك ما يتغيّر
+        $this->assertDatabaseHas('category_budgets', [
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'budget_limit' => 750,
+        ]);
         $this->assertDatabaseHas('categories', [
             'id' => $category->id,
-            'budget_limit' => 750,
+            'budget_limit' => null,
         ]);
     }
 
@@ -203,6 +209,9 @@ class CategoryControllerTest extends TestCase
         $this->assertDatabaseHas('categories', [
             'name' => 'Groceries',
             'user_id' => $user->id,
+        ]);
+        $this->assertDatabaseHas('category_budgets', [
+            'user_id' => $user->id,
             'budget_limit' => 500.50,
         ]);
     }
@@ -221,8 +230,9 @@ class CategoryControllerTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $this->assertDatabaseHas('categories', [
-            'id' => $category->id,
+        $this->assertDatabaseHas('category_budgets', [
+            'user_id' => $user->id,
+            'category_id' => $category->id,
             'budget_limit' => 800.00,
         ]);
     }
@@ -241,8 +251,39 @@ class CategoryControllerTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $category->refresh();
-        $this->assertNull($category->budget_limit);
+        // مسح الحد يشيل صف المستخدم من الجدول
+        $this->assertDatabaseMissing('category_budgets', [
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+        ]);
+    }
+
+    public function test_budget_limit_on_shared_category_is_not_visible_to_other_users(): void
+    {
+        // انحدار: قبل، الحد كان ينكتب على الصف المشترك فيتغيّر عند الجميع
+        $shared = Category::factory()->systemDefault()->expense()->create();
+        $alice = User::factory()->create();
+        $bob = User::factory()->create();
+
+        $this->actingAs($alice)->put(route('categories.update', $shared), [
+            'budget_limit' => 900,
+        ])->assertRedirect();
+
+        // أليس تشوف حدها
+        $this->actingAs($alice)->get(route('categories.index'))->assertInertia(
+            fn ($page) => $page->where(
+                'categories',
+                fn ($cats) => collect($cats)->firstWhere('id', $shared->id)['budget_limit'] == 900
+            )
+        );
+
+        // بوب ما يشوف شي
+        $this->actingAs($bob)->get(route('categories.index'))->assertInertia(
+            fn ($page) => $page->where(
+                'categories',
+                fn ($cats) => collect($cats)->firstWhere('id', $shared->id)['budget_limit'] === null
+            )
+        );
     }
 
     public function test_budget_limit_rejects_negative_values(): void

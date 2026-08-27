@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Category;
+use App\Models\CategoryBudget;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -187,8 +188,10 @@ class DashboardControllerTest extends TestCase
     public function test_dashboard_includes_budget_limit_in_categories(): void
     {
         $user = User::factory()->create();
-        Category::factory()->forUser($user)->expense()->create([
-            'name' => 'Food',
+        $food = Category::factory()->forUser($user)->expense()->create(['name' => 'Food']);
+        CategoryBudget::create([
+            'user_id' => $user->id,
+            'category_id' => $food->id,
             'budget_limit' => 500.00,
         ]);
 
@@ -206,6 +209,10 @@ class DashboardControllerTest extends TestCase
         $foodCategory = Category::factory()->forUser($user)->expense()->create([
             'name' => 'Food',
             'color' => '#ef4444',
+        ]);
+        CategoryBudget::create([
+            'user_id' => $user->id,
+            'category_id' => $foodCategory->id,
             'budget_limit' => 1000.00,
         ]);
 

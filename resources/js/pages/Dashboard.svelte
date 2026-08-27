@@ -34,6 +34,7 @@
   import { t, getLocale, setLocale } from '@/lib/i18n.svelte';
   import type { TranslationKey } from '@/lib/translations';
   import { resolveCategoryMeta, sortFoodFirst } from '@/lib/categories';
+  import { startSpeechToText } from '@/lib/speech';
   import { localToday } from '@/lib/utils';
   import { toast } from 'svelte-sonner';
 
@@ -345,130 +346,64 @@
     return null;
   }
 
-  // عرف متغير عام برا الدالة عشان نحتفظ بنسخة التعرف النشطة ونقفلها لو كانت شغالة
-let activeRecognition: any = null;
+  // نستخدم نفس وحدة التفريغ الصوتي المشتركة مع صفحة المساعد،
+  // عشان سياسة الإشعارات تبقى واحدة: خطأ = توست، نجاح = صامت.
+  let speechHandle: { stop: () => void } | null = null;
 
-function startVoiceRecognition() {
-    if (typeof window === 'undefined') return;
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-        toast.error(tr('voice.not_supported', 'التعرف الصوتي غير مدعوم في هذا المتصفح', 'Voice recognition not supported'));
-        return;
+  function startVoiceRecognition() {
+    if (speechHandle) {
+      speechHandle.stop();
+      speechHandle = null;
+      isListening = false;
+      return;
     }
 
-    // نقرة ثانية على الميكروفون توقف الجلسة الحالية بدل ما تبدأ وحدة جديدة فوقها
-    if (activeRecognition) {
-        try {
-            activeRecognition.__cancelled = true;
-            activeRecognition.stop();
-        } catch (e) {}
-        activeRecognition = null;
-        isListening = false;
-        return;
-    }
-
-    const recognition = new SpeechRecognition();
-    activeRecognition = recognition; // حفظ المرجع
-
-    recognition.lang = currentLang === 'ar' ? 'ar-SA' : 'en-US';
-    recognition.interimResults = false;
-    recognition.continuous = false;
-    recognition.maxAlternatives = 1;
-
-    let voiceNotified = false;
-    let gotTranscript = false;
-
-    // الإشعار يظهر مرة واحدة فقط لكل جلسة، والنجاح يبقى صامت بدون أي إشعار
-    function notifyVoiceIssue(key: string, fallbackAr: string, fallbackEn: string) {
-        if (voiceNotified) return;
-        voiceNotified = true;
-        isListening = false;
-        toast.error(tr(key, fallbackAr, fallbackEn));
-    }
-
-    function notifyNoSpeech() {
-        notifyVoiceIssue('voice.no_speech', 'لم يتم التقاط الصوت، حاول مرة أخرى', 'No speech detected, please try again');
-    }
-
-    recognition.onstart = () => {
+    speechHandle = startSpeechToText({
+      onStart: () => {
         isListening = true;
         triggerHapticFeedback();
-    };
-
-    recognition.onend = () => {
+      },
+      onEnd: () => {
         isListening = false;
-        if (activeRecognition === recognition) {
-            activeRecognition = null;
-        }
-        // انتهت الجلسة بدون التقاط أي نص ← ننبه المستخدم (ما عدا الإيقاف اليدوي)
-        if (!gotTranscript && !(recognition as any).__cancelled) {
-            notifyNoSpeech();
-        }
-    };
-
-    recognition.onerror = (event: any) => {
-        // نتجاهل خطأ 'aborted' لأنه طبيعي لو وقفنا الجلسة يدوياً
-        if (event && event.error === 'aborted') return;
-        const err = event && event.error;
-        if (err === 'no-speech' || err === 'audio-capture') {
-            notifyNoSpeech();
-        } else if (err === 'not-allowed' || err === 'service-not-allowed') {
-            notifyVoiceIssue('voice.denied', 'تم رفض إذن الميكروفون، فعّله من إعدادات المتصفح', 'Microphone permission denied, enable it in your browser settings');
-        } else {
-            notifyVoiceIssue('voice.error', 'لم نتمكن من معالجة الصوت، حاول مرة أخرى', 'Could not process audio, try again');
-        }
-    };
-
-    recognition.onresult = (event: any) => {
-        const transcript = String(event?.results?.[0]?.[0]?.transcript ?? '').trim();
-        if (!transcript) return; // onend راح ينبه إن ما انلقط صوت
-
-        gotTranscript = true;
+        speechHandle = null;
+      },
+      onResult: (transcript) => {
         openAddDialog();
+
         const extractedAmount = parseAmountFromText(transcript);
         if (extractedAmount) {
-            formAmount = extractedAmount;
+          formAmount = extractedAmount;
         }
 
         const wordsInTranscript = cleanArabicSentence(transcript).split(' ');
-        let matchedCategory = categories.find((cat) => {
-            const catCleanName = cleanArabicSentence(cat.name);
-            const canonicalKey = getCanonicalCategoryKey(cat.name).replace('cat_', '');
-            const synonyms = (SYNONYM_MAP[canonicalKey] || []).map((s) => cleanArabicSentence(s));
-            return wordsInTranscript.some((word) =>
-                word.length > 1 && (
-                    catCleanName.includes(word) ||
-                    synonyms.some((syn) => syn.includes(word) || word.includes(syn))
-                )
-            );
+        const matchedCategory = categories.find((cat) => {
+          const catCleanName = cleanArabicSentence(cat.name);
+          const canonicalKey = getCanonicalCategoryKey(cat.name).replace('cat_', '');
+          const synonyms = (SYNONYM_MAP[canonicalKey] || []).map((syn) => cleanArabicSentence(syn));
+          return wordsInTranscript.some((word) =>
+            word.length > 1 && (
+              catCleanName.includes(word) ||
+              synonyms.some((syn) => syn.includes(word) || word.includes(syn))
+            )
+          );
         });
 
         if (matchedCategory) {
-            formCategoryId = matchedCategory.id;
-            const canonicalKey = getCanonicalCategoryKey(matchedCategory.name);
-            if (
-                matchedCategory.type === 'income' ||
-                canonicalKey.includes('salary') ||
-                canonicalKey.includes('freelance') ||
-                canonicalKey.includes('income')
-            ) {
-                formType = 'income';
-            } else {
-                formType = 'expense';
-            }
+          formCategoryId = matchedCategory.id;
+          const canonicalKey = getCanonicalCategoryKey(matchedCategory.name);
+          formType =
+            matchedCategory.type === 'income' ||
+            canonicalKey.includes('salary') ||
+            canonicalKey.includes('freelance') ||
+            canonicalKey.includes('income')
+              ? 'income'
+              : 'expense';
         }
 
         triggerHapticFeedback();
-    };
-
-    try {
-        recognition.start();
-    } catch {
-        activeRecognition = null;
-        notifyVoiceIssue('voice.error', 'لم نتمكن من معالجة الصوت، حاول مرة أخرى', 'Could not process audio, try again');
-    }
-}
+      },
+    });
+  }
 
   function handleSubmit() {
     if (!formAmount || !formCategoryId) {

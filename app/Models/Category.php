@@ -54,6 +54,29 @@ class Category extends Model
         return $this->hasMany(Transaction::class);
     }
 
+    public function budgets(): HasMany
+    {
+        return $this->hasMany(CategoryBudget::class);
+    }
+
+    /**
+     * حد الميزانية الخاص بهذا المستخدم. الفئات الافتراضية مشتركة، فالحد
+     * لازم يجي من category_budgets مو من عمود الفئة نفسها.
+     * تعتمد على relation محمّلة مسبقاً لتفادي N+1.
+     */
+    public function budgetLimitFor(?int $userId): ?float
+    {
+        if ($userId === null) {
+            return null;
+        }
+
+        $budget = $this->relationLoaded('budgets')
+            ? $this->budgets->firstWhere('user_id', $userId)
+            : $this->budgets()->where('user_id', $userId)->first();
+
+        return $budget ? (float) $budget->budget_limit : null;
+    }
+
     public function isSystemDefault(): bool
     {
         return $this->user_id === null;
@@ -77,6 +100,11 @@ class Category extends Model
     public function scopeIncome($query)
     {
         return $query->where('type', 'income');
+    }
+
+    public function scopeWithBudgetFor($query, ?int $userId)
+    {
+        return $query->with(['budgets' => fn ($q) => $q->where('user_id', $userId)]);
     }
 
     public function scopeOrdered($query)

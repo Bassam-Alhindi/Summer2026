@@ -93,10 +93,10 @@ class DashboardController extends Controller
         $expenseByCategory = Transaction::forUser($userId)
             ->expense()
             ->dateRange($from, $to)
-            ->with('category')
+            ->with(['category.budgets' => fn ($q) => $q->where('user_id', $userId)])
             ->get()
             ->groupBy(fn (Transaction $t) => $t->category?->name ?? 'أخرى')
-            ->map(function ($transactions, string $category) {
+            ->map(function ($transactions, string $category) use ($userId) {
                 $firstCat = $transactions->first()?->category;
 
                 return [
@@ -104,12 +104,13 @@ class DashboardController extends Controller
                     'category_id' => $firstCat?->id,
                     'amount' => (float) $transactions->sum('amount'),
                     'color' => $firstCat?->color ?? '#6b7280',
-                    'budget_limit' => $firstCat?->budget_limit ? (float) $firstCat->budget_limit : null,
+                    'budget_limit' => $firstCat?->budgetLimitFor($userId),
                 ];
             })
             ->values();
 
         $categories = Category::forUser($userId)
+            ->withBudgetFor($userId)
             ->ordered()
             ->get()
             ->map(fn (Category $c) => [
@@ -118,7 +119,7 @@ class DashboardController extends Controller
                 'type' => $c->type,
                 'color' => $c->color,
                 'icon' => $c->icon,
-                'budget_limit' => $c->budget_limit ? (float) $c->budget_limit : null,
+                'budget_limit' => $c->budgetLimitFor($userId),
             ]);
 
         return Inertia::render('Dashboard', [

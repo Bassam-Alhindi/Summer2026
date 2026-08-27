@@ -21,7 +21,7 @@ class ReportController extends Controller
             : Carbon::now()->endOfMonth()->endOfDay();
 
         $transactions = Transaction::forUser($request->user()->id)
-            ->with('category')
+            ->with(['category.budgets' => fn ($q) => $q->where('user_id', $request->user()->id)])
             ->dateRange($from, $to)
             ->get();
 
@@ -81,7 +81,7 @@ class ReportController extends Controller
                 'percentage' => $percentage,
                 'descriptions' => $descriptions,
                 'type' => $type,
-                'budget_limit' => $category->budget_limit ? (float) $category->budget_limit : null,
+                'budget_limit' => $category->budgetLimitFor($request->user()->id),
             ];
         }
 
