@@ -8,6 +8,7 @@
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
         <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="MyWallet" />
         <meta property="og:title" content="MyWallet | لكل ريال وجهة... ولكل هدف وصول" />
         <meta property="og:description" content="محفظتك الذكية لتتبع مصاريفك ودخلك بكل سهولة ووضوح — لكل ريال وجهة." />
         <meta property="og:image" content="https://mywallet-app.up.railway.app/og-banner.png" />
