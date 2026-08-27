@@ -477,7 +477,7 @@
                     placeholder={isArabic ? 'اكتب رسالتك أو استفسارك المالي...' : 'Type your message or financial question...'}
                     rows="1"
                     disabled={isStreaming}
-                    class="w-full resize-none bg-transparent px-4 py-3 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none disabled:opacity-50 max-h-32"
+                    class="w-full resize-none bg-transparent px-4 py-3 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none disabled:opacity-50 max-h-32"
                 ></textarea>
 
                 <div class="pe-2 shrink-0">

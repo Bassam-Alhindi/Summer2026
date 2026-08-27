@@ -294,8 +294,13 @@
     }
   }
 
+  // المصروفات كلها قابلة للتعديل، أما الدخل فبس الفئات اللي أضافها المستخدم
+  function isCategoryEditable(category: Category): boolean {
+    return category.type === 'expense' || category.user_id !== null;
+  }
+
   function handleCardClick(category: Category) {
-    if (category.type === 'income') return;
+    if (!isCategoryEditable(category)) return;
     openEditDialog(category);
   }
 
@@ -311,7 +316,7 @@
   }
 
   function openEditDialog(category: Category) {
-    if (category.type === 'income') return;
+    if (!isCategoryEditable(category)) return;
     editingCategory = category;
     formName = category.name;
     formType = category.type;
@@ -396,7 +401,7 @@
     router.delete(categoriesDestroy.url(category.id), {
       preserveScroll: true,
       onSuccess: () => {
-        toast.error(tr('categories.deletedSuccessfully', 'تم حذف الفئة بنجاح', 'Category deleted successfully'));
+        toast.success(tr('categories.deletedSuccessfully', 'تم حذف الفئة بنجاح', 'Category deleted successfully'));
       },
     });
   }
@@ -449,22 +454,23 @@
       {#each filteredCategories as category (category.id)}
         {@const catColor = getCategoryColor(category)}
         {@const IconComp = getCategoryIcon(category)}
+        {@const canEdit = isCategoryEditable(category)}
         <div
           animate:flip={{ duration: 250 }}
           in:fly={{ y: 15, duration: 200 }}
           out:scale={{ start: 0.95, duration: 150 }}
-          class="group relative flex items-center justify-between rounded-xl p-3.5 transition-all duration-300 {activeTab === 'expense' ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default'}"
+          class="group relative flex items-center justify-between rounded-xl p-3.5 transition-all duration-300 {canEdit ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default'}"
           style="
             background: radial-gradient(circle at top right, {catColor}14 0%, rgba(24, 24, 27, 0.65) 75%);
             border: 1px solid {catColor}28;
             box-shadow: 0 4px 16px 4px {catColor}18, inset 0 0 10px 2px {catColor}0D;
           "
           onclick={() => handleCardClick(category)}
-          role={activeTab === 'expense' ? 'button' : undefined}
-          tabindex={activeTab === 'expense' ? 0 : undefined}
-          onkeydown={(e) => { if (e.key === 'Enter' && activeTab === 'expense') handleCardClick(category); }}
+          role={canEdit ? 'button' : undefined}
+          tabindex={canEdit ? 0 : undefined}
+          onkeydown={(e) => { if (e.key === 'Enter' && canEdit) handleCardClick(category); }}
         >
-          {#if activeTab === 'expense'}
+          {#if canEdit}
             <div
               class="absolute top-2 start-2 flex size-5 items-center justify-center rounded-md bg-zinc-950/70 opacity-35 transition-all duration-200 group-hover:opacity-100 group-hover:scale-110"
               style="color: {catColor}; border: 1px solid {catColor}30;"
@@ -472,7 +478,7 @@
               <Pencil class="size-2.5" />
             </div>
           {/if}
-          <div class="min-w-0 flex-1 pr-2 rtl:pr-0 rtl:pl-2 {activeTab === 'expense' ? 'pt-2' : ''}">
+          <div class="min-w-0 flex-1 pr-2 rtl:pr-0 rtl:pl-2 {canEdit ? 'pt-2' : ''}">
             <p
               class="truncate text-base font-bold transition-all duration-300"
               style="color: {catColor}; text-shadow: 0 0 12px {catColor}35;"
@@ -483,7 +489,7 @@
           <div class="shrink-0">
             {#if IconComp}
               <div
-                class="flex size-9 items-center justify-center rounded-lg border bg-zinc-950/80 transition-all duration-300 {activeTab === 'expense' ? 'group-hover:scale-105' : ''}"
+                class="flex size-9 items-center justify-center rounded-lg border bg-zinc-950/80 transition-all duration-300 {canEdit ? 'group-hover:scale-105' : ''}"
                 style="
                   color: {catColor};
                   border-color: {catColor}30;
@@ -518,7 +524,7 @@
   <div
     in:fade={{ duration: 150 }}
     out:fade={{ duration: 120 }}
-    class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-hidden"
+    class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
     role="dialog"
     aria-modal="true"
     onclick={(e) => e.target === e.currentTarget && (isDialogOpen = false)}
@@ -526,7 +532,7 @@
     <div
       in:scale={{ duration: 200, start: 0.96 }}
       out:scale={{ duration: 150, start: 0.96 }}
-      class="relative w-full max-w-sm rounded-3xl bg-[#121212] p-5 space-y-4 text-white border border-white/10 transition-all duration-300 overflow-hidden"
+      class="relative w-full max-w-sm max-h-[90dvh] flex flex-col rounded-3xl bg-[#121212] p-5 space-y-4 text-white border border-white/10 transition-all duration-300 overflow-hidden"
       style="
         --accent: {formColor};
         box-shadow: 0 25px 50px -12px rgba(0,0,0,0.85), 0 0 30px 10px color-mix(in srgb, var(--accent) 30%, transparent);
@@ -556,7 +562,7 @@
         </button>
       </div>
 
-      <form class="flex flex-col gap-4 pt-3 relative z-10" autocomplete="off" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+      <form class="flex flex-col gap-4 pt-3 relative z-10 flex-1 min-h-0 overflow-y-auto" autocomplete="off" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
         {#if errorMessage}
           <div class="rounded-lg bg-red-950/40 p-2.5 text-xs font-semibold text-red-400 text-center border border-red-900/50">
             {errorMessage}

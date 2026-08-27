@@ -257,7 +257,9 @@
       for (const syn of synonyms) {
         const synAr = cleanArabicSentence(syn);
         const synEn = cleanEnglishText(syn);
-        if (cleanedAr === synAr || cleanedEn === synEn || cleanedAr.includes(synAr) || synAr.includes(cleanedAr)) {
+        // مطابقة تامة فقط: المطابقة الجزئية كانت تبلع فئات مخصصة مثل "راتب إضافي"
+        // داخل cat_salary فتختفي من القائمة بسبب إزالة التكرار.
+        if (cleanedAr === synAr || cleanedEn === synEn) {
           return `cat_${key}`;
         }
       }
@@ -350,62 +352,86 @@ let activeRecognition: any = null;
 function startVoiceRecognition() {
     if (typeof window === 'undefined') return;
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition) {
         toast.error(tr('voice.not_supported', 'التعرف الصوتي غير مدعوم في هذا المتصفح', 'Voice recognition not supported'));
         return;
     }
-    
-    // إذا كان فيه جلسة صوتية شغالـة، نوقفها أول عشان ما يتداخلون ويطلعون إشعارات مكررة
+
+    // نقرة ثانية على الميكروفون توقف الجلسة الحالية بدل ما تبدأ وحدة جديدة فوقها
     if (activeRecognition) {
         try {
+            activeRecognition.__cancelled = true;
             activeRecognition.stop();
         } catch (e) {}
+        activeRecognition = null;
+        isListening = false;
+        return;
     }
 
     const recognition = new SpeechRecognition();
     activeRecognition = recognition; // حفظ المرجع
-    
+
     recognition.lang = currentLang === 'ar' ? 'ar-SA' : 'en-US';
     recognition.interimResults = false;
-    let voiceErrorNotified = false;
-    
-    function notifyVoiceError() {
-        if (voiceErrorNotified) return;
-        voiceErrorNotified = true;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    let voiceNotified = false;
+    let gotTranscript = false;
+
+    // الإشعار يظهر مرة واحدة فقط لكل جلسة، والنجاح يبقى صامت بدون أي إشعار
+    function notifyVoiceIssue(key: string, fallbackAr: string, fallbackEn: string) {
+        if (voiceNotified) return;
+        voiceNotified = true;
         isListening = false;
-        // نضمن إن الإشعار يظهر مرة واحدة فقط بدون تكرار
-        toast.error(tr('voice.error', 'لم نتمكن من معالجة الصوت، حاول مرة أخرى', 'Could not process audio, try again'));
+        toast.error(tr(key, fallbackAr, fallbackEn));
     }
-    
+
+    function notifyNoSpeech() {
+        notifyVoiceIssue('voice.no_speech', 'لم يتم التقاط الصوت، حاول مرة أخرى', 'No speech detected, please try again');
+    }
+
     recognition.onstart = () => {
         isListening = true;
         triggerHapticFeedback();
     };
-    
+
     recognition.onend = () => {
         isListening = false;
         if (activeRecognition === recognition) {
             activeRecognition = null;
         }
+        // انتهت الجلسة بدون التقاط أي نص ← ننبه المستخدم (ما عدا الإيقاف اليدوي)
+        if (!gotTranscript && !(recognition as any).__cancelled) {
+            notifyNoSpeech();
+        }
     };
-    
+
     recognition.onerror = (event: any) => {
         // نتجاهل خطأ 'aborted' لأنه طبيعي لو وقفنا الجلسة يدوياً
         if (event && event.error === 'aborted') return;
-        notifyVoiceError();
+        const err = event && event.error;
+        if (err === 'no-speech' || err === 'audio-capture') {
+            notifyNoSpeech();
+        } else if (err === 'not-allowed' || err === 'service-not-allowed') {
+            notifyVoiceIssue('voice.denied', 'تم رفض إذن الميكروفون، فعّله من إعدادات المتصفح', 'Microphone permission denied, enable it in your browser settings');
+        } else {
+            notifyVoiceIssue('voice.error', 'لم نتمكن من معالجة الصوت، حاول مرة أخرى', 'Could not process audio, try again');
+        }
     };
-    
+
     recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        if (!transcript) return;
-        
+        const transcript = String(event?.results?.[0]?.[0]?.transcript ?? '').trim();
+        if (!transcript) return; // onend راح ينبه إن ما انلقط صوت
+
+        gotTranscript = true;
         openAddDialog();
         const extractedAmount = parseAmountFromText(transcript);
         if (extractedAmount) {
             formAmount = extractedAmount;
         }
-        
+
         const wordsInTranscript = cleanArabicSentence(transcript).split(' ');
         let matchedCategory = categories.find((cat) => {
             const catCleanName = cleanArabicSentence(cat.name);
@@ -418,7 +444,7 @@ function startVoiceRecognition() {
                 )
             );
         });
-        
+
         if (matchedCategory) {
             formCategoryId = matchedCategory.id;
             const canonicalKey = getCanonicalCategoryKey(matchedCategory.name);
@@ -433,14 +459,15 @@ function startVoiceRecognition() {
                 formType = 'expense';
             }
         }
-        
+
         triggerHapticFeedback();
     };
-    
+
     try {
         recognition.start();
     } catch {
-        notifyVoiceError();
+        activeRecognition = null;
+        notifyVoiceIssue('voice.error', 'لم نتمكن من معالجة الصوت، حاول مرة أخرى', 'Could not process audio, try again');
     }
 }
 

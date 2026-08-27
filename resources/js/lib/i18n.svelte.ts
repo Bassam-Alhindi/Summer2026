@@ -2,7 +2,7 @@ import { translations, type Language, type TranslationKey } from './translations
 
 const STORAGE_KEY = 'locale';
 
-const locale = $state<{ value: Language }>({ value: 'en' });
+const locale = $state<{ value: Language }>({ value: 'ar' });
 
 const setCookie = (name: string, value: string, days = 365): void => {
   if (typeof document === 'undefined') {
@@ -24,12 +24,13 @@ const applyDirection = (lang: Language): void => {
 };
 
 const getStoredLocale = (): Language => {
+  // Arabic is the default; English only applies when explicitly chosen.
   if (typeof window === 'undefined') {
-    return 'en';
+    return 'ar';
   }
 
   const stored = localStorage.getItem(STORAGE_KEY);
-  return stored === 'ar' ? 'ar' : 'en';
+  return stored === 'en' ? 'en' : 'ar';
 };
 
 export function initializeLocale(): void {

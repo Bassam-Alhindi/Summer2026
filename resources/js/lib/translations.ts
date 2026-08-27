@@ -203,6 +203,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     voice: {
       title: "Voice Add",
       error: "Could not process audio, try again",
+      no_speech: "No speech detected, please try again",
+      denied: "Microphone permission denied, enable it in your browser settings",
       not_supported: "Voice recognition not supported"
     },
 
@@ -462,6 +464,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     voice: {
       title: "إضافة صوتية",
       error: "لم نتمكن من معالجة الصوت، حاول مرة أخرى",
+      no_speech: "لم يتم التقاط الصوت، حاول مرة أخرى",
+      denied: "تم رفض إذن الميكروفون، فعّله من إعدادات المتصفح",
       not_supported: "التعرف الصوتي غير مدعوم في هذا المتصفح"
     },
 

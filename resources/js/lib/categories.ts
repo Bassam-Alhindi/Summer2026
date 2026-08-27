@@ -11,6 +11,16 @@ import Briefcase from 'lucide-svelte/icons/briefcase';
 import Banknote from 'lucide-svelte/icons/banknote';
 import Gift from 'lucide-svelte/icons/gift';
 import TrendingUp from 'lucide-svelte/icons/trending-up';
+import Laptop from 'lucide-svelte/icons/laptop';
+import CircleDollarSign from 'lucide-svelte/icons/circle-dollar-sign';
+import Plane from 'lucide-svelte/icons/plane';
+import Gamepad2 from 'lucide-svelte/icons/gamepad-2';
+import Dumbbell from 'lucide-svelte/icons/dumbbell';
+import PawPrint from 'lucide-svelte/icons/paw-print';
+import Baby from 'lucide-svelte/icons/baby';
+import Smartphone from 'lucide-svelte/icons/smartphone';
+import Wifi from 'lucide-svelte/icons/wifi';
+import Wrench from 'lucide-svelte/icons/wrench';
 
 // ألوان الفئات الافتراضية - تم التوحيد بناءً على شاشة الفئات
 export const defaultCategoryColors: Record<string, string> = {
@@ -145,12 +155,17 @@ export function getCategoryColor(name: string, customColor?: string): string {
     return `hsl(${hue}, 70%, 50%)`;
 }
 
+// لازم تغطي كل الأيقونات المتاحة في صفحة الفئات، وإلا صفحات التقارير والعمليات
+// ما تلقى الأيقونة اللي اختارها المستخدم وترجع للأيقونة الافتراضية العامة.
 const iconMap: Record<string, typeof Home> = {
     home: Home, film: Film, heart: Heart, 'graduation-cap': GraduationCap,
     receipt: Receipt, 'shopping-bag': ShoppingBag, car: Car,
     'utensils-crossed': UtensilsCrossed, briefcase: Briefcase,
     banknote: Banknote, gift: Gift, gifts: Gift, 'trending-up': TrendingUp,
     'more-horizontal': MoreHorizontal,
+    laptop: Laptop, 'circle-dollar-sign': CircleDollarSign, plane: Plane,
+    'gamepad-2': Gamepad2, dumbbell: Dumbbell, 'paw-print': PawPrint,
+    baby: Baby, smartphone: Smartphone, wifi: Wifi, wrench: Wrench,
 };
 
 export function getCategoryIcon(catName: string, iconName?: string) {

@@ -115,12 +115,30 @@ class DashboardController extends Controller
             'expenseByCategory' => $expenseByCategory,
             'categories' => $categories,
             'period' => $period,
-            'remainingDays' => max(1, Carbon::now()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1),
+            'remainingDays' => match ($period) {
+                'week', 'year' => max(1, (int) Carbon::now()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1),
+                default => $this->getCycleRemainingDays(Carbon::now()),
+            },
             'trends' => [
                 'income' => $incomeTrend,
                 'expenses' => $expenseTrend,
             ],
         ]);
+    }
+
+    /**
+     * الدورة المالية تبدأ يوم 26 من كل شهر ميلادي وتنتهي يوم 25 من الشهر التالي،
+     * فالأيام المتبقية تُحسب حتى نهاية الدورة الحالية لا حتى نهاية الشهر.
+     */
+    private function getCycleRemainingDays(Carbon $now): int
+    {
+        $today = $now->copy()->startOfDay();
+
+        $cycleEnd = $today->day >= 26
+            ? $today->copy()->startOfMonth()->addMonth()->day(25)
+            : $today->copy()->startOfMonth()->day(25);
+
+        return max(1, (int) $today->diffInDays($cycleEnd) + 1);
     }
 
     /**
