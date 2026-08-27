@@ -324,7 +324,7 @@ export const translations: Record<Language, TranslationDictionary> = {
       subtitle: "أموالك. رؤيتك. مستقبلك.",
       net_balance: "صافي الرصيد",
       daily_budget: "ميزانيتك لليوم عشان تقضي الشهر مرتاح",
-      welcome_back: "     أهلا بك     ,    ",
+      welcome_back: "أهلاً بك،",
       total_income: "إجمالي الدخل",
       total_expenses: "إجمالي المصاريف",
       view_all: "عرض الكل",

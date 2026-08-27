@@ -1,5 +1,5 @@
 /**
- * Renders resources/og/og-image.svg to public/og-image.png (1200x630) for
+ * Renders resources/og/og-image.svg to public/og-banner.png (1200x630) for
  * social link previews.
  *
  * The Arabic tagline needs real shaping, so the font is vendored in the repo
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const svgPath = resolve(root, 'resources/og/og-image.svg');
 const fontPath = resolve(root, 'resources/fonts/Cairo.ttf');
-const outPath = resolve(root, 'public/og-image.png');
+const outPath = resolve(root, 'public/og-banner.png');
 
 const WIDTH = 1200;
 const HEIGHT = 630;
@@ -26,10 +26,10 @@ const HEIGHT = 630;
 function bail(message) {
     console.error(`[og-image] ${message}`);
     if (existsSync(outPath)) {
-        console.error('[og-image] keeping the committed public/og-image.png and continuing');
+        console.error('[og-image] keeping the committed public/og-banner.png and continuing');
         process.exit(0);
     }
-    console.error('[og-image] no existing public/og-image.png to fall back to');
+    console.error('[og-image] no existing public/og-banner.png to fall back to');
     process.exit(1);
 }
 
@@ -55,7 +55,7 @@ try {
 
     const buf = png.asPng();
     writeFileSync(outPath, buf);
-    console.log(`[og-image] wrote public/og-image.png (${png.width}x${png.height}, ${(buf.length / 1024).toFixed(1)} KB)`);
+    console.log(`[og-image] wrote public/og-banner.png (${png.width}x${png.height}, ${(buf.length / 1024).toFixed(1)} KB)`);
 } catch (err) {
     bail(`render failed: ${err?.message ?? err}`);
 }

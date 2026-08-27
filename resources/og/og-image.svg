@@ -36,6 +36,6 @@
 
   <text x="600" y="378" text-anchor="middle" font-family="Cairo" font-size="92" font-weight="700" fill="#ffffff">MyWallet</text>
   <rect x="470" y="410" width="260" height="3" rx="1.5" fill="url(#rule)"/>
-  <text x="600" y="486" text-anchor="middle" font-family="Cairo" font-size="52" font-weight="600" fill="#67e8f9">لكل ريال وجهة</text>
-  <text x="600" y="552" text-anchor="middle" font-family="Cairo" font-size="30" font-weight="400" fill="#94a3b8">تطبيقك المالي الشخصي لإدارة المصاريف والميزانية</text>
+  <text x="600" y="486" text-anchor="middle" font-family="Cairo" font-size="44" font-weight="600" fill="#67e8f9">لكل ريال وجهة... ولكل هدف وصول</text>
+  <text x="600" y="552" text-anchor="middle" font-family="Cairo" font-size="30" font-weight="400" fill="#94a3b8">محفظتك الذكية لتتبع مصاريفك ودخلك بكل سهولة ووضوح</text>
 </svg>

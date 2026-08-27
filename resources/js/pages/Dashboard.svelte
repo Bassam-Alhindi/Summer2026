@@ -105,19 +105,12 @@
     cycleNetBalance: number;
   } = $props();
 
-  let selectedPeriod = $state(period || 'month');
   let currentLang = $state(getLocale());
   // الاسم يجي من قاعدة البيانات عبر auth.user المشترك في HandleInertiaRequests
   const userName = $derived((page.props as any)?.auth?.user?.name ?? '');
   const firstName = $derived(String(userName).trim().split(/\s+/)[0] ?? '');
 
   let isListening = $state(false);
-
-  $effect(() => {
-    if (period) {
-      selectedPeriod = period;
-    }
-  });
 
   // اليوم اللي تنتهي فيه الدورة (26) عشان نوضح إن الميزانية محسوبة لين الراتب يوم 27
   const cycleEndDay = $derived(cycleEndsOn ? Number(cycleEndsOn.slice(-2)) : 26);
@@ -148,17 +141,6 @@
       if (translated && translated !== key) return translated;
     } catch {}
     return currentLang === 'en' ? (fallbackEn || fallbackAr) : fallbackAr;
-  }
-
-  let periods = $derived([
-    { id: 'week', label: tr('period.week', 'هذا الأسبوع', 'This Week') },
-    { id: 'month', label: tr('period.month', 'هذا الشهر', 'This Month') },
-    { id: 'year', label: tr('period.year', 'هذه السنة', 'This Year') }
-  ]);
-
-  function changePeriod(pId: string) {
-    selectedPeriod = pId;
-    router.get(dashboard.url(), { period: pId }, { preserveState: true });
   }
 
   let isDialogOpen = $state(false);
@@ -534,23 +516,20 @@ function startVoiceRecognition() {
 <AppHead title={tr('dashboard.title', 'محفظتي', 'My Wallet')} />
 
 <div class="flex flex-1 flex-col gap-5 p-4 pb-36 sm:p-6 max-w-lg mx-auto w-full">
-  <!-- ترحيب باسم المستخدم (زجاجي مع توهج سماوي/زمردي) -->
+  <!-- ترحيب مصغّر: وميض على الاسم وهالة تتنفس -->
   {#if firstName}
     <div
-      in:fly={{ y: -8, duration: 300 }}
-      class="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-xl shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)]"
+      dir="auto"
+      in:fly={{ y: -6, duration: 280 }}
+      class="relative inline-flex max-w-full items-center gap-1.5 self-start rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 backdrop-blur-xl"
     >
-      <div class="pointer-events-none absolute -top-10 -start-6 size-28 rounded-full bg-cyan-400/20 blur-3xl"></div>
-      <div class="pointer-events-none absolute -bottom-12 -end-6 size-28 rounded-full bg-emerald-400/20 blur-3xl"></div>
-      <div class="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/50 to-transparent"></div>
+      <span aria-hidden="true" class="greeting-aura pointer-events-none absolute -inset-1.5 rounded-full bg-gradient-to-r from-cyan-400/25 via-sky-300/10 to-emerald-400/25 blur-lg"></span>
 
-      <p class="relative z-10 truncate text-sm font-black tracking-tight">
-        <span class="text-white/70">{tr('dashboard.welcome_back', 'أهلاً بعودتك،', 'Welcome back,')}</span>
-        <span
-          class="bg-gradient-to-r from-cyan-300 via-emerald-300 to-cyan-300 bg-clip-text text-transparent"
-          style="filter: drop-shadow(0 0 10px rgba(34,211,238,0.35));"
-        >{firstName}</span><span class="text-white/70">! 👋</span>
-      </p>
+      <span class="relative z-10 flex items-center gap-1.5 truncate text-[12px] leading-none tracking-tight">
+        <span class="shrink-0 font-semibold text-white/50">{tr('dashboard.welcome_back', 'أهلاً بك،', 'Welcome back,')}</span>
+        <bdi class="greeting-name inline-block truncate font-extrabold">{firstName}</bdi>
+        <span class="greeting-wave shrink-0 text-[11px] leading-none">👋</span>
+      </span>
     </div>
   {/if}
 
@@ -587,20 +566,6 @@ function startVoiceRecognition() {
       <LogOut class="size-3.5 {currentLang === 'ar' ? 'scale-x-[-1]' : ''}" />
     </Link>
     </div>
-  </div>
-
-  <!-- الأزرار الزمنية -->
-  <div class="p-1 rounded-2xl bg-muted/50 border border-border/40 grid grid-cols-3 gap-1">
-    {#each periods as p}
-      {@const isActive = selectedPeriod === p.id}
-      <button
-        type="button"
-        onclick={() => changePeriod(p.id)}
-        class="py-2 rounded-xl text-xs font-bold transition-all duration-200 text-center {isActive ? 'bg-card text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'}"
-      >
-        {p.label}
-      </button>
-    {/each}
   </div>
 
   <!-- بطاقة الرصيد والمبالغ -->
@@ -746,13 +711,14 @@ function startVoiceRecognition() {
 
 <!-- شريط الإضافة الزجاجي والسفلي -->
 <div class="fixed bottom-16 inset-x-0 z-40 max-w-lg mx-auto px-4 flex items-center justify-center pointer-events-none">
-  <div class="flex items-center gap-2 p-1.5 rounded-full bg-[#121215]/80 border border-white/10 shadow-2xl backdrop-blur-xl pointer-events-auto">
+  <div class="dock relative flex items-center gap-2 p-1.5 rounded-full bg-[#121215]/65 border border-white/[0.08] shadow-[0_18px_50px_-16px_rgba(0,0,0,0.95)] pointer-events-auto">
+    <span aria-hidden="true" class="dock-aura pointer-events-none absolute -inset-2.5 rounded-full bg-primary/20 blur-xl"></span>
     <!-- زر الإضافة الصوتية -->
     <button
       type="button"
       onclick={startVoiceRecognition}
       title={tr('voice.title', 'إضافة صوتیة', 'Voice Add')}
-      class="relative size-11 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all cursor-pointer active:scale-95 shrink-0 {isListening ? 'border-rose-500 bg-rose-500/20 text-rose-400' : 'text-white/80 hover:text-white'}"
+      class="dock-mic relative z-10 size-11 rounded-full bg-white/5 hover:bg-white/[0.12] border border-white/10 flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95 shrink-0 {isListening ? 'border-rose-500 bg-rose-500/20 text-rose-400' : 'text-white/80 hover:text-white'}"
     >
       <Mic class="size-5 {isListening ? 'animate-pulse' : ''}" />
       {#if isListening}
@@ -763,13 +729,13 @@ function startVoiceRecognition() {
       {/if}
     </button>
 
-    <div class="h-5 w-px bg-white/10 my-auto"></div>
+    <div class="relative z-10 h-5 w-px bg-white/10 my-auto"></div>
 
     <!-- زر إضافة معاملة -->
     <button
       type="button"
       onclick={openAddDialog}
-      class="h-11 px-5 rounded-full bg-primary text-primary-foreground font-bold text-xs shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+      class="relative z-10 h-11 px-5 rounded-full bg-primary text-primary-foreground font-bold text-xs shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
     >
       <Plus class="size-4 stroke-[2.5]" />
       <span>{tr('dashboard.add_transaction', 'إضافة معاملة', 'Add Transaction')}</span>
@@ -790,52 +756,6 @@ function startVoiceRecognition() {
   </Link>
 </div>
 
-<!-- نافذة إضافة معاملة سريعة -->
-<!-- شريط الإضافة الزجاجي والسفلي -->
-<div class="fixed bottom-16 inset-x-0 z-40 max-w-lg mx-auto px-4 flex items-center justify-center pointer-events-none">
-  <div class="flex items-center gap-2 p-1.5 rounded-full bg-[#121215]/80 border border-white/10 shadow-2xl backdrop-blur-xl pointer-events-auto">
-    <!-- زر الإضافة الصوتية -->
-    <button
-      type="button"
-      onclick={startVoiceRecognition}
-      title={tr('voice.title', 'إضافة صوتية', 'Voice Add')}
-      class="relative size-11 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all cursor-pointer active:scale-95 shrink-0 {isListening ? 'border-rose-500 bg-rose-500/20 text-rose-400' : 'text-white/80 hover:text-white'}"
-    >
-      <Mic class="size-5 {isListening ? 'animate-pulse' : ''}" />
-      {#if isListening}
-        <span class="absolute top-0.5 right-0.5 flex size-3">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full size-3 bg-rose-500"></span>
-        </span>
-      {/if}
-    </button>
-
-    <div class="h-5 w-px bg-white/10 my-auto"></div>
-
-    <!-- زر إضافة معاملة -->
-    <button
-      type="button"
-      onclick={openAddDialog}
-      class="h-11 px-5 rounded-full bg-primary text-primary-foreground font-bold text-xs shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
-    >
-      <Plus class="size-4 stroke-[2.5]" />
-      <span>{tr('dashboard.add_transaction', 'إضافة معاملة', 'Add Transaction')}</span>
-    </button>
-  </div>
-</div>
-
-<!-- شريط التنقل السفلي -->
-<div class="fixed bottom-0 inset-x-0 z-40 bg-[#09090b]/90 backdrop-blur-xl border-t border-white/10 px-6 py-2.5 max-w-lg mx-auto flex items-center justify-around">
-  <Link href={dashboard()} class="relative flex flex-col items-center gap-1 text-primary transition-all">
-    <span class="absolute -top-2 size-1.5 rounded-full bg-primary shadow-[0_0_8px_#3b82f6]"></span>
-    <LayoutDashboard class="size-5" />
-    <span class="text-[10px] font-bold">{tr('nav.home', 'الرئيسية', 'Home')}</span>
-  </Link>
-  <Link href="/transactions" class="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-all">
-    <Receipt class="size-5" />
-    <span class="text-[10px] font-medium">{tr('nav.transactions', 'المعاملات', 'Transactions')}</span>
-  </Link>
-</div>
 
 <!-- نافذة إضافة معاملة سريعة -->
 {#if isDialogOpen}
@@ -1029,6 +949,123 @@ function startVoiceRecognition() {
 {/if}
 
 <style>
+  /* ---------- بادج الترحيب ---------- */
+
+  /* وميض ضوء يعبر حروف الاسم */
+  @keyframes greetingShimmer {
+    0% {
+      background-position: 180% 50%;
+    }
+    55%, 100% {
+      background-position: -80% 50%;
+    }
+  }
+
+  .greeting-name {
+    background-image: linear-gradient(
+      100deg,
+      #a5f3fc 0%,
+      #99f6e4 34%,
+      #ffffff 48%,
+      #a7f3d0 62%,
+      #a5f3fc 100%
+    );
+    background-size: 240% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    letter-spacing: -0.01em;
+    animation: greetingShimmer 2.4s ease-in-out infinite;
+  }
+
+  /* هالة تتنفس حول البادج */
+  @keyframes greetingAura {
+    0%, 100% {
+      opacity: 0.35;
+      transform: scale(0.97);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.04);
+    }
+  }
+
+  .greeting-aura {
+    animation: greetingAura 4.5s ease-in-out infinite;
+  }
+
+  .greeting-wave {
+    filter: saturate(0.85);
+    opacity: 0.85;
+    transform: translateY(-0.5px);
+  }
+
+  /* ---------- الشريط العائم السفلي ---------- */
+
+  .dock {
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+  }
+
+  /* حد ثابت مضاء من فوق - بدون وميض متحرك عشان يختلف عن بادج الاسم */
+  .dock::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 9999px;
+    padding: 1px;
+    background-image: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.28) 0%,
+      rgba(255, 255, 255, 0.08) 45%,
+      rgba(255, 255, 255, 0.03) 100%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* هالة هادئة جداً، أبطأ من نبض البادج عشان ما يتزامنون */
+  @keyframes dockAura {
+    0%, 100% {
+      opacity: 0.28;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .dock-aura {
+    animation: dockAura 7s ease-in-out infinite;
+  }
+
+  /* تفاعل عند المرور فقط - محايد بدون ألوان البادج */
+  .dock-mic:hover {
+    box-shadow: 0 0 16px -6px rgba(255, 255, 255, 0.45);
+    transform: translateY(-1px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .greeting-name,
+    .greeting-aura,
+    .dock-aura {
+      animation: none;
+    }
+    .greeting-name {
+      background-position: 50% 50%;
+    }
+    .greeting-aura,
+    .dock-aura {
+      opacity: 0.45;
+    }
+  }
+
   @keyframes glowPulseBorder {
     0%, 100% {
       box-shadow: 0 0 6px var(--glow-color), inset 0 0 3px var(--glow-color);
