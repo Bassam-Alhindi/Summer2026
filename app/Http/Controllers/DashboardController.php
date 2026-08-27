@@ -47,11 +47,6 @@ class DashboardController extends Controller
             ->expense()
             ->sum('amount');
 
-        $spentToday = Transaction::forUser($userId)
-            ->expense()
-            ->whereDate('transaction_date', Carbon::today())
-            ->sum('amount');
-
         $periodNetBalance = $totalIncome - $totalExpenses;
         $netBalance = $allTimeIncome - $allTimeExpenses;
         $savingsRate = (int) round(($periodNetBalance / max($totalIncome, 1)) * 100);
@@ -120,7 +115,6 @@ class DashboardController extends Controller
             'expenseByCategory' => $expenseByCategory,
             'categories' => $categories,
             'period' => $period,
-            'spentToday' => (float) $spentToday,
             'cycleEndsOn' => $this->getCycleEnd(Carbon::now())->toDateString(),
             'remainingDays' => match ($period) {
                 'week', 'year' => max(1, (int) Carbon::now()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1),

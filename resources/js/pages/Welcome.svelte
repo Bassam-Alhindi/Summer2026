@@ -107,13 +107,13 @@
                 <h1 class="mt-5 text-3xl font-black leading-snug tracking-tight text-white">
                     {isArabic ? 'لكل ريال وجهة...' : 'Every Cent Has a Purpose...'} <br />
                     <span class="bg-gradient-to-r from-violet-200 via-slate-100 to-cyan-200 bg-clip-text text-transparent">
-                        {isArabic ? 'تتبّع مصاريفك بوضوح تام' : 'Track Expenses With Full Clarity'}
+                        {isArabic ? 'ولكل قرار اثر' : 'And Every Decision Leaves a Mark'}
                     </span>
                 </h1>
 
                 <p class="mt-3 text-xs leading-relaxed text-slate-400 max-w-xs font-normal">
                     {isArabic 
-                        ? 'منظومة عصرية تمنحك السيطرة الكاملة على ميزانيتك اليومية والتزاماتك بدون أي تعقيد.' 
+                        ? 'منظومة عصرية تمنحك السيطرة الكاملة على ميزانيتك لليومية والتزاماتك بدون أي تعقيد.' 
                         : 'A modern toolkit designed to give you total control over your daily budget and finances without hassle.'}
                 </p>
             </section>

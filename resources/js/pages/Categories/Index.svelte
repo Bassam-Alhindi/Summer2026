@@ -16,6 +16,7 @@
   import { Input } from '@/components/ui/input';
   import { Label } from '@/components/ui/label';
   import { t } from '@/lib/i18n.svelte';
+  import { sortFoodFirst } from '@/lib/categories';
   import { router } from '@inertiajs/svelte';
   import { toast } from 'svelte-sonner';
   import Home from 'lucide-svelte/icons/home';
@@ -218,7 +219,7 @@
   let activeTab = $state<'expense' | 'income'>('expense');
 
   let filteredCategories = $derived(
-    categories
+    sortFoodFirst<Category>(categories)
       .filter((c) => c.type === activeTab)
       .filter((c) => {
         const info = getCategoryInfo(c.name);

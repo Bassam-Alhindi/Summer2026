@@ -122,6 +122,37 @@ const dictionaryArToEn: Record<string, string> = {
     'دخل آخر': 'Other'
 };
 
+// "أكل ومشروبات" لازم تطلع أول خيار في كل قوائم اختيار الفئات.
+// نطابق بالاسم مباشرة بدل ما نعتمد على SYNONYM_MAP، لأن مطابقة المرادفات
+// تتغير مع الوقت وتكسر الترتيب بدون ما ننتبه.
+const FOOD_ALIASES = [
+    'food & drinks', 'food and drinks', 'food&drinks', 'food_drinks',
+    'food & dining', 'food', 'groceries',
+    'اكل وشرب', 'اكل و شرب', 'اكل ومشروبات', 'اكل و مشروبات',
+    'الطعام', 'طعام', 'طعام ومشروبات', 'المقاضي', 'مقاضي',
+];
+
+function normalizeCategoryName(name?: string | null): string {
+    return String(name ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[ً-ْ]/g, '')            // التشكيل
+        .replace(/[أإآ]/g, 'ا') // أ إ آ -> ا
+        .replace(/ة/g, 'ه')                // ة -> ه
+        .replace(/\s+/g, ' ');
+}
+
+export function isFoodCategory(name?: string | null): boolean {
+    const target = normalizeCategoryName(name);
+    if (!target) return false;
+    return FOOD_ALIASES.some((alias) => normalizeCategoryName(alias) === target);
+}
+
+/** يرجّع نسخة جديدة مرتبة وفئة الأكل أول وحدة، وبقية الترتيب كما هو. */
+export function sortFoodFirst<T extends { name?: string | null }>(list: T[]): T[] {
+    return [...list].sort((a, b) => Number(isFoodCategory(b.name)) - Number(isFoodCategory(a.name)));
+}
+
 export function translateCategory(name: string, locale: string): string {
     if (!name) return name;
     const key = name.trim().toLowerCase();

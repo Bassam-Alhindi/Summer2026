@@ -7,6 +7,7 @@
     import { useForm } from '@inertiajs/svelte';
     import { t } from '@/lib/i18n.svelte';
     import { localToday } from '@/lib/utils';
+    import { sortFoodFirst } from '@/lib/categories';
     import transactions from '@/routes/transactions';
     import { toast } from 'svelte-sonner';
     import ChevronUp from 'lucide-svelte/icons/chevron-up';
@@ -44,32 +45,8 @@
         description: '',
     });
 
-    // "أكل وشرب" تكون أول خيار في الإضافة السريعة لأنها الأكثر استخداماً.
-    // الأسماء تجي بالعربي أو الإنجليزي وبأشكال ألف مختلفة، فنوحدها قبل المقارنة.
-    const FOOD_ALIASES = [
-        'food & drinks', 'food and drinks', 'food&drinks', 'food_drinks',
-        'food & dining', 'food', 'groceries',
-        'اكل وشرب', 'اكل و شرب', 'الطعام', 'طعام', 'طعام ومشروبات', 'المقاضي', 'مقاضي',
-    ];
-
-    function normalizeCategoryName(name: string): string {
-        return String(name ?? '')
-            .trim()
-            .toLowerCase()
-            .replace(/[أإآ]/g, 'ا') // أ إ آ -> ا
-            .replace(/ة/g, 'ه')                  // ة -> ه
-            .replace(/\s+/g, ' ');
-    }
-
-    function isFoodCategory(name: string): boolean {
-        return FOOD_ALIASES.some((alias) => normalizeCategoryName(alias) === normalizeCategoryName(name));
-    }
-
     const availableCategories = $derived(
-        categories
-            .filter((c) => c.type === form.type)
-            // الترتيب ثابت في JS الحديث فبقية الفئات تحافظ على ترتيبها
-            .sort((a, b) => Number(isFoodCategory(b.name)) - Number(isFoodCategory(a.name)))
+        sortFoodFirst(categories.filter((c) => c.type === form.type))
     );
 
     function adjustAmount(step: number) {

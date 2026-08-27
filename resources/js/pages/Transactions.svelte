@@ -20,7 +20,7 @@
     import AppHead from '@/components/AppHead.svelte';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent } from '@/components/ui/card';
-    import { resolveCategoryMeta } from '@/lib/categories';
+    import { resolveCategoryMeta, sortFoodFirst } from '@/lib/categories';
     import { getLocale, t } from '@/lib/i18n.svelte';
     import { cn } from '@/lib/utils';
 
@@ -127,7 +127,7 @@
             result.push(cat);
         }
 
-        return result;
+        return sortFoodFirst(result);
     });
 
     let typeTabs = $derived.by(() => {
