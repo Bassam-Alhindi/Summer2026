@@ -41,7 +41,8 @@ export const translations: Record<Language, TranslationDictionary> = {
       transactions: "Transactions",
       reports: "Reports",
       categories: "Categories",
-      ai: "AI"
+      ai: "AI",
+      logout: "Log out"
     },
 
     // 3. Dashboard Page
@@ -296,7 +297,8 @@ export const translations: Record<Language, TranslationDictionary> = {
       transactions: "المعاملات",
       reports: "التقارير",
       categories: "الفئات",
-      ai: "المساعد"
+      ai: "المساعد",
+      logout: "تسجيل الخروج"
     },
 
     // 3. Dashboard Page
@@ -312,7 +314,7 @@ export const translations: Record<Language, TranslationDictionary> = {
       subtitle: "أموالك. رؤيتك. مستقبلك.",
       net_balance: "صافي الرصيد",
       daily_budget: "الميزانية اليومية المقترحة",
-      welcome_back: "أهلاً بعودتك،",
+      welcome_back: " اهلا بك, ",
       total_income: "إجمالي الدخل",
       total_expenses: "إجمالي المصاريف",
       view_all: "عرض الكل",

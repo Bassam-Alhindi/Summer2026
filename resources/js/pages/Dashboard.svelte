@@ -14,6 +14,8 @@
   import AppHead from '@/components/AppHead.svelte';
   import { page } from '@inertiajs/svelte';
   import { router, Link } from '@inertiajs/svelte';
+  import LogOut from 'lucide-svelte/icons/log-out';
+  import { logout } from '@/routes';
   import { fade, scale, fly } from 'svelte/transition';
   import {
     Plus,
@@ -548,6 +550,7 @@ function startVoiceRecognition() {
       <h1 class="text-2xl font-black tracking-tight text-foreground">{tr('dashboard.title', 'محفظتي', 'My Wallet')}</h1>
       <p class="text-xs text-muted-foreground mt-0.5 font-medium">{tr('dashboard.subtitle', 'اعرف كل ريال فين راح، وتطمن على جيبك', 'Manage smartly and keep track of your budget')}</p>
     </div>
+    <div class="flex items-center gap-1.5 shrink-0">
     <button
       type="button"
       onclick={toggleLanguage}
@@ -561,6 +564,19 @@ function startVoiceRecognition() {
         <path d="M15.5 22l3-7 3 7M16.5 19.5h4" stroke-width="1.5" />
       </svg>
     </button>
+
+    <!-- الشريط الجانبي مخفي على الجوال، فنحط تسجيل الخروج هنا عشان يكون بمتناول اليد -->
+    <Link
+      href={logout()}
+      as="button"
+      data-test="dashboard-logout-button"
+      aria-label={tr('nav.logout', 'تسجيل الخروج', 'Log out')}
+      title={tr('nav.logout', 'تسجيل الخروج', 'Log out')}
+      class="flex items-center justify-center size-8 rounded-xl bg-muted/20 hover:bg-rose-500/10 border border-border/30 backdrop-blur-xs text-muted-foreground hover:text-rose-400 transition-all active:scale-95 cursor-pointer shrink-0"
+    >
+      <LogOut class="size-3.5 {currentLang === 'ar' ? 'scale-x-[-1]' : ''}" />
+    </Link>
+    </div>
   </div>
 
   <!-- الأزرار الزمنية -->
