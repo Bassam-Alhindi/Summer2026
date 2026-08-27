@@ -416,7 +416,7 @@
         {t('categories.title')}
       </h1>
       <p class="mt-1 text-xs text-zinc-400 sm:text-sm">
-        {tr('categories.subtitle', 'أعطِ كل ريال هويته التي يستحقها', 'Give every unit of your money the identity it deserves')}
+        {tr('categories.subtitle', 'خل كل ريال ينفق في مكانه, لأن القيمة تبدأ من حسن الاختيار', 'Give every unit of your money the identity it deserves')}
       </p>
     </div>
     <Button onclick={openAddDialog} size="sm" class="rounded-xl">

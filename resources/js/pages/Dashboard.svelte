@@ -12,8 +12,9 @@
 
 <script lang="ts">
   import AppHead from '@/components/AppHead.svelte';
+  import { page } from '@inertiajs/svelte';
   import { router, Link } from '@inertiajs/svelte';
-  import { fade, scale } from 'svelte/transition';
+  import { fade, scale, fly } from 'svelte/transition';
   import {
     Plus,
     ArrowUpRight,
@@ -100,6 +101,10 @@
 
   let selectedPeriod = $state(period || 'month');
   let currentLang = $state(getLocale());
+  // الاسم يجي من قاعدة البيانات عبر auth.user المشترك في HandleInertiaRequests
+  const userName = $derived((page.props as any)?.auth?.user?.name ?? '');
+  const firstName = $derived(String(userName).trim().split(/\s+/)[0] ?? '');
+
   let isListening = $state(false);
 
   $effect(() => {
@@ -517,6 +522,26 @@ function startVoiceRecognition() {
 <AppHead title={tr('dashboard.title', 'محفظتي', 'My Wallet')} />
 
 <div class="flex flex-1 flex-col gap-5 p-4 pb-36 sm:p-6 max-w-lg mx-auto w-full">
+  <!-- ترحيب باسم المستخدم (زجاجي مع توهج سماوي/زمردي) -->
+  {#if firstName}
+    <div
+      in:fly={{ y: -8, duration: 300 }}
+      class="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-xl shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)]"
+    >
+      <div class="pointer-events-none absolute -top-10 -start-6 size-28 rounded-full bg-cyan-400/20 blur-3xl"></div>
+      <div class="pointer-events-none absolute -bottom-12 -end-6 size-28 rounded-full bg-emerald-400/20 blur-3xl"></div>
+      <div class="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/50 to-transparent"></div>
+
+      <p class="relative z-10 truncate text-sm font-black tracking-tight">
+        <span class="text-white/70">{tr('dashboard.welcome_back', 'أهلاً بعودتك،', 'Welcome back,')}</span>
+        <span
+          class="bg-gradient-to-r from-cyan-300 via-emerald-300 to-cyan-300 bg-clip-text text-transparent"
+          style="filter: drop-shadow(0 0 10px rgba(34,211,238,0.35));"
+        >{firstName}</span><span class="text-white/70">! 👋</span>
+      </p>
+    </div>
+  {/if}
+
   <!-- الهيدر والعنوان -->
   <div class="flex items-center justify-between gap-2">
     <div>
@@ -859,7 +884,7 @@ function startVoiceRecognition() {
               required
               onfocus={() => (isAmountFocused = true)}
               onblur={() => (isAmountFocused = false)}
-              class="h-11 w-full rounded-xl border border-white/10 bg-[#1a1a1a] ps-3.5 pe-12 text-start font-mono text-base font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-all focus:ring-2 focus:ring-white/10"
+              class="h-11 w-full rounded-xl border border-white/10 bg-[#1a1a1a] ps-3.5 pe-12 text-start font-mono text-base font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-all focus:ring-2 focus:ring-white/10 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
 
             <!-- أزرار (+50 / -50) -->

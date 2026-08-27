@@ -3,7 +3,7 @@
     import LayoutGrid from 'lucide-svelte/icons/layout-grid';
     import Receipt from 'lucide-svelte/icons/receipt';
     import BarChart3 from 'lucide-svelte/icons/bar-chart-3';
-    import Sparkles from 'lucide-svelte/icons/sparkles';
+    import Bot from 'lucide-svelte/icons/bot';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
     import LanguageSwitcher from '@/components/LanguageSwitcher.svelte';
@@ -49,7 +49,7 @@
         {
             title: t('nav.ai'),
             href: aiAssistant(),
-            icon: Sparkles,
+            icon: Bot,
         },
     ]);
 </script>

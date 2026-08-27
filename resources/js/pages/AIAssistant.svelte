@@ -14,7 +14,6 @@
 <script lang="ts">
     import AppHead from '@/components/AppHead.svelte';
     import { Button } from '@/components/ui/button';
-    import Sparkles from 'lucide-svelte/icons/sparkles';
     import Send from 'lucide-svelte/icons/send';
     import Trash2 from 'lucide-svelte/icons/trash-2';
     import Square from 'lucide-svelte/icons/square';
@@ -102,14 +101,23 @@
         }
     });
 
-    function scrollToBottom() {
-        if (chatContainer) {
-            requestAnimationFrame(() => {
-                if (chatContainer) {
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-            });
-        }
+    // نتابع القاع فقط لو المستخدم أصلاً قريب منه، عشان ما نقاطع قراءته
+    // لو كان راجع فوق يقرأ رسالة قديمة أثناء البث.
+    let stickToBottom = $state(true);
+
+    function handleChatScroll() {
+        if (!chatContainer) return;
+        const distance = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
+        stickToBottom = distance < 120;
+    }
+
+    function scrollToBottom(force = false) {
+        if (!chatContainer) return;
+        if (!force && !stickToBottom) return;
+        requestAnimationFrame(() => {
+            if (!chatContainer) return;
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        });
     }
 
     function autoResize() {
@@ -163,7 +171,9 @@
             isStreaming: true,
         };
         messages = [...messages, assistantMsg];
-        scrollToBottom();
+        // إرسال رسالة جديدة يرجّعنا للقاع دائماً
+        stickToBottom = true;
+        scrollToBottom(true);
 
         isStreaming = true;
         abortController = new AbortController();
@@ -318,15 +328,16 @@
     <!-- هيدر الصفحة بتصميم متناسق مع بقية الفئات -->
     <div class="flex items-center justify-between gap-3 px-1">
         <div class="flex items-center gap-3 min-w-0">
-            <div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm border border-primary/20">
-                <Sparkles class="size-5" />
+            <div class="relative flex size-11 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-cyan-300 border border-white/10 shadow-[0_0_18px_-4px_rgba(34,211,238,0.55)]">
+                <span class="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400/15 to-emerald-400/10"></span>
+                <Bot class="relative size-5" />
             </div>
             <div class="flex flex-col min-w-0">
                 <h1 class="text-xl font-bold tracking-tight sm:text-2xl truncate">
                     {t('ai.title')}
                 </h1>
                 <p class="text-xs text-muted-foreground mt-0.5 truncate">
-                    {isArabic ? 'المساعد الشخصي لإدارة مصاريفك وتنظيم ميزانيتك' : 'Personal assistant to manage and track your expenses'}
+                    {isArabic ? 'اسأل… وخذ قرارك بذكاء' : 'Personal assistant to manage and track your expenses'}
                 </p>
             </div>
         </div>
@@ -355,11 +366,15 @@
     </div>
 
     <!-- كارت المحادثة الرئيسي -->
-    <div class="flex flex-1 flex-col rounded-3xl border border-border/60 bg-card shadow-sm overflow-hidden min-h-0">
+    <div class="relative flex flex-1 flex-col rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-[0_20px_60px_-25px_rgba(0,0,0,0.85)] overflow-hidden min-h-0">
+        <span class="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/45 to-transparent"></span>
+        <span class="pointer-events-none absolute -top-16 -start-10 size-40 rounded-full bg-cyan-500/10 blur-3xl"></span>
+        <span class="pointer-events-none absolute -bottom-16 -end-10 size-40 rounded-full bg-emerald-500/10 blur-3xl"></span>
         <!-- شريط المحادثات -->
         <div
             bind:this={chatContainer}
-            class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 scroll-smooth"
+            onscroll={handleChatScroll}
+            class="relative z-10 flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 scroll-smooth"
             dir={isArabic ? 'rtl' : 'ltr'}
         >
             {#each messages as msg (msg.id)}
@@ -374,8 +389,9 @@
                     </div>
                 {:else}
                     <div class="flex items-start gap-3">
-                        <div class="size-8 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 mt-1 shadow-sm">
-                            <Bot class="size-4" />
+                        <div class="relative size-8 rounded-full bg-zinc-950 text-cyan-300 border border-white/10 flex items-center justify-center shrink-0 mt-1 shadow-[0_0_14px_-4px_rgba(34,211,238,0.6)]">
+                            <span class="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400/15 to-emerald-400/10"></span>
+                            <Bot class="relative size-4" />
                         </div>
                         <div class="max-w-[88%] sm:max-w-[80%] space-y-2.5">
                             {#if msg.toolCalls && msg.toolCalls.length > 0}
@@ -467,8 +483,9 @@
         {/if}
 
         <!-- منطقة الإدخال السفلى -->
-        <div class="p-3 bg-card border-t border-border/50">
-            <div class="relative flex items-center bg-muted/30 rounded-2xl border border-border/60 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+        <div class="relative z-10 p-3 border-t border-white/10 bg-white/[0.02] backdrop-blur-xl">
+            <div class="group relative flex items-center rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-xl transition-all duration-300 focus-within:border-cyan-300/50 focus-within:shadow-[0_0_26px_-6px_rgba(34,211,238,0.5)] focus-within:-translate-y-0.5">
+                <span class="pointer-events-none absolute inset-x-8 -top-px h-px bg-gradient-to-r from-transparent via-cyan-300/0 to-transparent transition-all duration-300 group-focus-within:via-cyan-300/60"></span>
                 <textarea
                     bind:this={textarea}
                     bind:value={inputValue}

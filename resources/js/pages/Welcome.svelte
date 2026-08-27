@@ -125,7 +125,7 @@
                         <div class="animate-shimmer absolute inset-0 bg-[length:200%_100%] bg-gradient-to-r from-violet-600 via-cyan-400 to-violet-600 opacity-90"></div>
                         
                         <div class="relative flex h-12.5 w-full items-center justify-center gap-2 rounded-[15px] bg-[#0b0b14]/90 backdrop-blur-2xl px-4 text-xs font-extrabold text-white">
-                            <span>{isLoggedIn ? (isArabic ? 'لوحة التحكم' : 'Dashboard') : (isArabic ? 'ابدأ الآن' : 'Get Started')}</span>
+                            <span>{isLoggedIn ? (isArabic ? 'تتبع مصاريفك الآن' : 'Track your expenses now') : (isArabic ? 'تتبع مصاريفك الآن' : 'Track your expenses now')}</span>
                             <ArrowLeft class="size-4 text-cyan-400 transition-transform rtl:rotate-0 rotate-180" />
                         </div>
                     </div>

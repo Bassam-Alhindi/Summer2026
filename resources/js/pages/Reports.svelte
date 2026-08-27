@@ -110,7 +110,10 @@
   function handleCategoryClick(catId: number | string, fromDonut = false, e?: MouseEvent) {
     if (e) e.stopPropagation();
     if (String(selectedCategoryId) === String(catId)) {
+      // إلغاء التحديد يرجّع العرض لـ"الكل"؛ لازم نصفّر الـhover كمان
+      // وإلا يظل المؤشر فوق البطاقة فتبقى الفئة محددة بصرياً.
       selectedCategoryId = null;
+      hoveredCategoryId = null;
     } else {
       selectedCategoryId = catId;
     }
@@ -263,7 +266,7 @@
       {currentLocale === 'en' ? 'Reports' : 'التقارير'}
     </h1>
     <p class="text-xs text-muted-foreground mt-0.5">
-      {currentLocale === 'en' ? 'Period expenses and details' : 'معرفة كل ريال فين انصرف وفي أي تاريخ'}
+      {currentLocale === 'en' ? 'Period expenses and details' : 'أرقامك تحكي الكثير'}
     </p>
   </div>
 

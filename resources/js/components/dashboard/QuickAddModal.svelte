@@ -243,7 +243,7 @@
                         step="0.01"
                         required
                         autofocus
-                        class="pe-10"
+                        class="pe-10 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
 
                     <div

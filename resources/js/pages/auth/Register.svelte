@@ -16,7 +16,7 @@
     import { Spinner } from '@/components/ui/spinner';
     import { login } from '@/routes';
     import { store } from '@/routes/register';
-    import { ArrowRight, AlertCircle } from 'lucide-svelte';
+    import { ArrowRight } from 'lucide-svelte';
 
     let { passwordRules }: { passwordRules?: string } = $props();
 
@@ -74,13 +74,6 @@
         >
             {#snippet children({ errors, processing })}
                 
-                {#if Object.keys(errors).length > 0}
-                    <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs text-rose-300 backdrop-blur-md flex items-center gap-2.5">
-                        <AlertCircle class="size-4 shrink-0 text-rose-400" />
-                        <span>Please correct the errors in the form below.</span>
-                    </div>
-                {/if}
-
                 <div class="grid gap-4">
                     
                     <!-- Name -->

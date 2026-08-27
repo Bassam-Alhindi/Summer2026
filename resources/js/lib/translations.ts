@@ -57,6 +57,7 @@ export const translations: Record<Language, TranslationDictionary> = {
       subtitle: "Manage smartly and keep track of your budget",
       net_balance: "Net Balance",
       daily_budget: "Suggested Daily Budget",
+      welcome_back: "Welcome back,",
       total_income: "Total Income",
       total_expenses: "Total Expenses",
       view_all: "View All",
@@ -257,14 +258,7 @@ export const translations: Record<Language, TranslationDictionary> = {
       featureReports: "Reports & Analytics",
       featureReportsDesc: "Clear visual insights into exactly where your money goes.",
       featurePrivacy: "Full Privacy & Secure Data",
-      featurePrivacyDesc: "Your data is encrypted, securely stored, and private to you.",
-      mockWelcome: "Welcome Ahmed",
-      mockNetBalance: "Net Balance",
-      mockDailyBudget: "Daily Budget",
-      mockTodaySpent: "Today's Spending",
-      mockAdd: "Add",
-      mockIncome: "Income",
-      mockExpense: "Expense"
+      featurePrivacyDesc: "Your data is encrypted, securely stored, and private to you."
     }
   },
 
@@ -315,9 +309,10 @@ export const translations: Record<Language, TranslationDictionary> = {
       recentTransactions: "أحدث المعاملات",
       viewAll: "عرض الكل",
       quickAdd: "إضافة سريعة",
-      subtitle: "إدارة ذكية وتتبع لميزانيتك بكل سهولة",
+      subtitle: "أموالك. رؤيتك. مستقبلك.",
       net_balance: "صافي الرصيد",
       daily_budget: "الميزانية اليومية المقترحة",
+      welcome_back: "أهلاً بعودتك،",
       total_income: "إجمالي الدخل",
       total_expenses: "إجمالي المصاريف",
       view_all: "عرض الكل",
@@ -329,7 +324,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     // 4. Transactions Page & Actions
     transactions: {
       title: "المعاملات",
-      subtitle: "تتبع مصاريفك ودخلك بدقة",
+      subtitle: "كل حركة مالية في متناولك ",
       all: "الكل",
       expense: "المصروفات",
       income: "الدخل",
@@ -400,7 +395,7 @@ export const translations: Record<Language, TranslationDictionary> = {
       type: "النوع",
       icon: "الأيقونة",
       color: "اللون",
-      subtitle: "أعطِ كل ريال هويته التي يستحقها",
+      subtitle: "خل كل ريال ينفق في مكانه, لأن القيمة تبدأ من حسن الاختيار",
       deleteConfirm: "هل أنت متأكد من حذف هذه الفئة؟",
       systemDefaultHint: "فئة افتراضية بالنظام",
       categoryType: "نوع الفئة",
@@ -518,14 +513,7 @@ export const translations: Record<Language, TranslationDictionary> = {
       featureReports: "تقارير وتحليلات",
       featureReportsDesc: "رؤى بصرية واضحة تُظهر لك أين تذهب أموالك بالضبط.",
       featurePrivacy: "أمان وخصوصية تامة",
-      featurePrivacyDesc: "بياناتك مشفّرة ومحفوظة بأمان ولا يطّلع عليها أحد.",
-      mockWelcome: "مرحباً أحمد",
-      mockNetBalance: "صافي الرصيد",
-      mockDailyBudget: "الميزانية اليومية",
-      mockTodaySpent: "مصروفات اليوم",
-      mockAdd: "إضافة",
-      mockIncome: "دخل",
-      mockExpense: "مصروف"
+      featurePrivacyDesc: "بياناتك مشفّرة ومحفوظة بأمان ولا يطّلع عليها أحد."
     }
   }
 };

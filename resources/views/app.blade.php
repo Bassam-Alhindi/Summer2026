@@ -7,14 +7,16 @@
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
-        <meta property="og:type" content="website">
-        <meta property="og:title" content="MyWallet | لكل ريال وجهة">
-        <meta property="og:description" content="تتبع مصاريفك ودخلك بذكاء — A smart expense tracker giving every riyal a purpose.">
-        <meta property="og:image" content="{{ asset('logo.png') }}">
-        <meta name="twitter:card" content="summary_large_image">
-        <meta name="twitter:title" content="MyWallet | لكل ريال وجهة">
-        <meta name="twitter:description" content="تتبع مصاريفك ودخلك بذكاء — A smart expense tracker giving every riyal a purpose.">
-        <meta name="twitter:image" content="{{ asset('logo.png') }}">
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="MyWallet | لكل ريال وجهة" />
+        <meta property="og:description" content="تطبيقك المالي الشخصي لإدارة المصاريف والميزانية" />
+        <meta property="og:image" content="{{ asset('og-image.png') }}" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="MyWallet | لكل ريال وجهة" />
+        <meta name="twitter:description" content="تطبيقك المالي الشخصي لإدارة المصاريف والميزانية" />
+        <meta name="twitter:image" content="{{ asset('og-image.png') }}" />
 
         @fonts
 
