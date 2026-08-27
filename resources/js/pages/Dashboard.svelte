@@ -90,7 +90,8 @@
     expenseByCategory = [],
     period = 'month',
     remainingDays = 30,
-    cycleEndsOn = ''
+    cycleEndsOn = '',
+    cycleNetBalance = 0
   }: {
     netBalance: number;
     totalIncome: number;
@@ -101,6 +102,7 @@
     period: string;
     remainingDays: number;
     cycleEndsOn: string;
+    cycleNetBalance: number;
   } = $props();
 
   let selectedPeriod = $state(period || 'month');
@@ -121,14 +123,13 @@
   const cycleEndDay = $derived(cycleEndsOn ? Number(cycleEndsOn.slice(-2)) : 26);
   const payDay = $derived(cycleEndDay + 1);
 
+  // مبني على دورة الراتب لحالها، فما يتغير لما تبدّل الأسبوع/الشهر/السنة
   let dailyBudget = $derived.by(() => {
-    const periodNetBalance = totalIncome - totalExpenses;
-
-    if (periodNetBalance <= 0 || remainingDays <= 0) {
+    if (cycleNetBalance <= 0 || remainingDays <= 0) {
       return 0;
     }
 
-    return periodNetBalance / remainingDays;
+    return cycleNetBalance / remainingDays;
   });
 
   function toggleLanguage() {
@@ -642,7 +643,7 @@ function startVoiceRecognition() {
 
         <div class="relative z-10 flex shrink-0 items-baseline gap-1.5" dir="ltr">
           <span class="text-lg font-black tabular-nums leading-none tracking-tight text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]">{budgetParts[0]}{#if budgetParts[1]}<span class="text-[11px] font-bold text-amber-300/50">.{budgetParts[1]}</span>{/if}</span>
-          <span class="text-[10px] font-bold leading-none text-amber-200/45">{tr('common.currency', '⃁', 'SAR')}</span>
+          <span class="text-sm font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
         </div>
       </div>
       <div class="h-px bg-white/10 w-full"></div>

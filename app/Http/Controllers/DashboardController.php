@@ -47,6 +47,21 @@ class DashboardController extends Controller
             ->expense()
             ->sum('amount');
 
+        // الميزانية اليومية مربوطة بدورة الراتب (27 -> 26) وما تتأثر بفلتر
+        // الأسبوع/الشهر/السنة، فنحسب مجاميعها على نافذة الدورة لحالها.
+        $cycleStart = $this->getCycleStart(Carbon::now());
+        $cycleEnd = $this->getCycleEnd(Carbon::now());
+
+        $cycleIncome = Transaction::forUser($userId)
+            ->income()
+            ->dateRange($cycleStart, $cycleEnd)
+            ->sum('amount');
+
+        $cycleExpenses = Transaction::forUser($userId)
+            ->expense()
+            ->dateRange($cycleStart, $cycleEnd)
+            ->sum('amount');
+
         $periodNetBalance = $totalIncome - $totalExpenses;
         $netBalance = $allTimeIncome - $allTimeExpenses;
         $savingsRate = (int) round(($periodNetBalance / max($totalIncome, 1)) * 100);
@@ -115,11 +130,9 @@ class DashboardController extends Controller
             'expenseByCategory' => $expenseByCategory,
             'categories' => $categories,
             'period' => $period,
-            'cycleEndsOn' => $this->getCycleEnd(Carbon::now())->toDateString(),
-            'remainingDays' => match ($period) {
-                'week', 'year' => max(1, (int) Carbon::now()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1),
-                default => $this->getCycleRemainingDays(Carbon::now()),
-            },
+            'cycleEndsOn' => $cycleEnd->toDateString(),
+            'cycleNetBalance' => (float) ($cycleIncome - $cycleExpenses),
+            'remainingDays' => $this->getCycleRemainingDays(Carbon::now()),
             'trends' => [
                 'income' => $incomeTrend,
                 'expenses' => $expenseTrend,
@@ -132,6 +145,15 @@ class DashboardController extends Controller
      * الدورة تبدأ 27 وتنتهي 26 من الشهر اللي بعده، والأيام المتبقية تُحسب
      * حتى نهاية الدورة الحالية لا حتى نهاية الشهر الميلادي.
      */
+    private function getCycleStart(Carbon $now): Carbon
+    {
+        $today = $now->copy()->startOfDay();
+
+        return $today->day >= 27
+            ? $today->copy()->startOfMonth()->day(27)
+            : $today->copy()->startOfMonth()->subMonth()->day(27);
+    }
+
     private function getCycleEnd(Carbon $now): Carbon
     {
         $today = $now->copy()->startOfDay();
