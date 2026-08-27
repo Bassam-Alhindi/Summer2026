@@ -47,6 +47,11 @@ class DashboardController extends Controller
             ->expense()
             ->sum('amount');
 
+        $spentToday = Transaction::forUser($userId)
+            ->expense()
+            ->whereDate('transaction_date', Carbon::today())
+            ->sum('amount');
+
         $periodNetBalance = $totalIncome - $totalExpenses;
         $netBalance = $allTimeIncome - $allTimeExpenses;
         $savingsRate = (int) round(($periodNetBalance / max($totalIncome, 1)) * 100);
@@ -115,6 +120,8 @@ class DashboardController extends Controller
             'expenseByCategory' => $expenseByCategory,
             'categories' => $categories,
             'period' => $period,
+            'spentToday' => (float) $spentToday,
+            'cycleEndsOn' => $this->getCycleEnd(Carbon::now())->toDateString(),
             'remainingDays' => match ($period) {
                 'week', 'year' => max(1, (int) Carbon::now()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1),
                 default => $this->getCycleRemainingDays(Carbon::now()),
@@ -127,18 +134,24 @@ class DashboardController extends Controller
     }
 
     /**
-     * الدورة المالية تبدأ يوم 26 من كل شهر ميلادي وتنتهي يوم 25 من الشهر التالي،
-     * فالأيام المتبقية تُحسب حتى نهاية الدورة الحالية لا حتى نهاية الشهر.
+     * الراتب ينزل يوم 27، فالفلوس لازم تكفي لين 26 (آخر يوم قبل الراتب).
+     * الدورة تبدأ 27 وتنتهي 26 من الشهر اللي بعده، والأيام المتبقية تُحسب
+     * حتى نهاية الدورة الحالية لا حتى نهاية الشهر الميلادي.
      */
+    private function getCycleEnd(Carbon $now): Carbon
+    {
+        $today = $now->copy()->startOfDay();
+
+        return $today->day >= 27
+            ? $today->copy()->startOfMonth()->addMonth()->day(26)
+            : $today->copy()->startOfMonth()->day(26);
+    }
+
     private function getCycleRemainingDays(Carbon $now): int
     {
         $today = $now->copy()->startOfDay();
 
-        $cycleEnd = $today->day >= 26
-            ? $today->copy()->startOfMonth()->addMonth()->day(25)
-            : $today->copy()->startOfMonth()->day(25);
-
-        return max(1, (int) $today->diffInDays($cycleEnd) + 1);
+        return max(1, (int) $today->diffInDays($this->getCycleEnd($now)) + 1);
     }
 
     /**

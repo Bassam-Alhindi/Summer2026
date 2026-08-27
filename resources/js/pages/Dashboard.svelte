@@ -89,7 +89,9 @@
     categories = [],
     expenseByCategory = [],
     period = 'month',
-    remainingDays = 30
+    remainingDays = 30,
+    spentToday = 0,
+    cycleEndsOn = ''
   }: {
     netBalance: number;
     totalIncome: number;
@@ -99,6 +101,8 @@
     expenseByCategory: ExpenseCategoryData[];
     period: string;
     remainingDays: number;
+    spentToday: number;
+    cycleEndsOn: string;
   } = $props();
 
   let selectedPeriod = $state(period || 'month');
@@ -115,6 +119,10 @@
     }
   });
 
+  // اليوم اللي تنتهي فيه الدورة (26) عشان نوضح إن الميزانية محسوبة لين الراتب يوم 27
+  const cycleEndDay = $derived(cycleEndsOn ? Number(cycleEndsOn.slice(-2)) : 26);
+  const payDay = $derived(cycleEndDay + 1);
+
   let dailyBudget = $derived.by(() => {
     const periodNetBalance = totalIncome - totalExpenses;
 
@@ -123,6 +131,31 @@
     }
 
     return periodNetBalance / remainingDays;
+  });
+
+  const spentTodayPct = $derived(dailyBudget > 0 ? Math.min(100, (spentToday / dailyBudget) * 100) : 0);
+  const leftToday = $derived(Math.max(0, dailyBudget - spentToday));
+  const isOverToday = $derived(dailyBudget > 0 && spentToday > dailyBudget);
+  const isCloseToday = $derived(!isOverToday && spentTodayPct >= 70);
+
+  // نبرة مطمّنة: نمدحه وهو ضمن الحد، وننبهه بلطف لو تعدّاه
+  const budgetTone = $derived(isOverToday ? 'over' : isCloseToday ? 'close' : 'good');
+
+  const budgetMessage = $derived.by(() => {
+    if (isOverToday) return tr('budget.msg_over', 'تعدّيت ميزانية اليوم، عوّضها بكرة وما فيها شي', "You're over today's amount - balance it out tomorrow");
+    if (isCloseToday) return tr('budget.msg_close', 'قربت من حد اليوم، خفّف شوي', "You're close to today's limit");
+    if (spentToday > 0) return tr('budget.msg_going', 'ماشي على الطريق الصح', "You're on track");
+    return tr('budget.msg_fresh', 'ابدأ يومك مرتاح، هذا نصيبك لليوم', 'Start your day easy - this is yours to spend');
+  });
+
+  // صيغة الجمع العربية للأيام
+  const remainingDaysLabel = $derived.by(() => {
+    const n = remainingDays;
+    if (currentLang !== 'ar') return n === 1 ? '1 day left' : `${n} days left`;
+    if (n === 1) return 'باقي يوم واحد';
+    if (n === 2) return 'باقي يومين';
+    if (n <= 10) return `باقي ${n} أيام`;
+    return `باقي ${n} يوم`;
   });
 
   function toggleLanguage() {
@@ -613,17 +646,80 @@ function startVoiceRecognition() {
     <div class="h-px bg-white/10 w-full"></div>
 
     {#if dailyBudget > 0}
-      <div class="flex items-center justify-between px-1">
-        <div class="flex items-center gap-1.5">
-          <div class="size-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24]"></div>
-          <span class="text-[11px] font-semibold text-white/60">{tr('dashboard.daily_budget', 'الميزانية اليومية المقترحة', 'Suggested Daily Budget')}</span>
-        </div>
-        <div class="flex items-baseline gap-1">
-          <span class="text-sm font-black tabular-nums text-amber-400">{formatNumber(dailyBudget)}</span>
-          <span class="text-[11px] font-bold text-white/50">{tr('common.currency', '⃁', 'SAR')}</span>
+      {@const toneText = budgetTone === 'over' ? 'text-rose-300' : budgetTone === 'close' ? 'text-amber-300' : 'text-emerald-300'}
+      {@const toneBar = budgetTone === 'over' ? 'bg-rose-400' : budgetTone === 'close' ? 'bg-amber-400' : 'bg-emerald-400'}
+      {@const toneDot = budgetTone === 'over' ? 'bg-rose-400 shadow-[0_0_8px_#fb7185]' : budgetTone === 'close' ? 'bg-amber-400 shadow-[0_0_8px_#fbbf24]' : 'bg-emerald-400 shadow-[0_0_8px_#34d399]'}
+
+      <div
+        in:fly={{ y: 8, duration: 300 }}
+        class="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl"
+      >
+        <div class="pointer-events-none absolute -top-16 -end-10 size-40 rounded-full bg-emerald-400/10 blur-3xl"></div>
+        <div class="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/40 to-transparent"></div>
+
+        <div class="relative z-10 flex flex-col gap-3">
+          <!-- العنوان + الأيام المتبقية -->
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="size-2 shrink-0 rounded-full {toneDot}"></span>
+              <span class="truncate text-[11px] font-bold text-white/70">
+                {tr('budget.title', 'ميزانيتك اليوم', 'Your budget for today')}
+              </span>
+            </div>
+            <span class="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-bold text-white/60 tabular-nums">
+              {remainingDaysLabel}
+            </span>
+          </div>
+
+          <!-- المبلغ اليومي -->
+          <div class="flex items-end justify-between gap-3">
+            <div class="flex items-baseline gap-1.5 min-w-0">
+              <span class="text-3xl font-black tabular-nums tracking-tight {toneText}">{formatNumber(dailyBudget)}</span>
+              <span class="text-sm font-bold text-white/50">{tr('common.currency', '⃁', 'SAR')}</span>
+            </div>
+            {#if spentToday > 0}
+              <div class="flex flex-col items-end shrink-0 leading-tight">
+                <span class="text-[10px] font-semibold text-white/45">
+                  {isOverToday
+                    ? tr('budget.over_by', 'تجاوزت بـ', 'over by')
+                    : tr('budget.left_today', 'باقي لك اليوم', 'left today')}
+                </span>
+                <span class="text-sm font-black tabular-nums {toneText}">
+                  {formatNumber(isOverToday ? spentToday - dailyBudget : leftToday)}
+                </span>
+              </div>
+            {/if}
+          </div>
+
+          <!-- شريط استهلاك اليوم -->
+          {#if spentToday > 0}
+            <div class="flex flex-col gap-1.5">
+              <div class="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  class="h-full rounded-full {toneBar} transition-all duration-500 ease-out"
+                  style="width: {Math.max(4, spentTodayPct)}%"
+                ></div>
+              </div>
+              <span class="text-[10px] font-semibold text-white/45 tabular-nums">
+                {tr('budget.spent_of', 'صرفت', 'Spent')}
+                {formatNumber(spentToday)} {tr('common.currency', '⃁', 'SAR')}
+                {tr('budget.of', 'من', 'of')}
+                {formatNumber(dailyBudget)}
+              </span>
+            </div>
+          {/if}
+
+          <!-- رسالة مطمّنة + توضيح إن الحساب لين الراتب -->
+          <div class="flex items-center justify-between gap-2 border-t border-white/[0.07] pt-2.5">
+            <span class="truncate text-[11px] font-semibold {toneText}">{budgetMessage}</span>
+            <span class="shrink-0 text-[10px] font-medium text-white/40 tabular-nums">
+              {currentLang === 'ar'
+                ? `محسوبة لين ${cycleEndDay} · الراتب ${payDay}`
+                : `through the ${cycleEndDay}th · payday ${payDay}th`}
+            </span>
+          </div>
         </div>
       </div>
-      <div class="h-px bg-white/10 w-full"></div>
     {/if}
 
     <div class="grid grid-cols-2 gap-4">

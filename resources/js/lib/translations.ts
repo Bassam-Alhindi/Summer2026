@@ -35,6 +35,19 @@ export const translations: Record<Language, TranslationDictionary> = {
     },
 
     // 2. Bottom Navigation Bar
+    // Daily budget card
+    budget: {
+      title: "Your budget for today",
+      left_today: "left today",
+      over_by: "over by",
+      spent_of: "Spent",
+      of: "of",
+      msg_fresh: "Start your day easy - this is yours to spend",
+      msg_going: "You're on track",
+      msg_close: "You're close to today's limit",
+      msg_over: "You're over today's amount - balance it out tomorrow"
+    },
+
     nav: {
       home: "Home",
       dashboard: "My Wallet",
@@ -291,6 +304,19 @@ export const translations: Record<Language, TranslationDictionary> = {
     },
 
     // 2. Bottom Navigation Bar
+    // كرت الميزانية اليومية
+    budget: {
+      title: "ميزانيتك اليوم",
+      left_today: "باقي لك اليوم",
+      over_by: "تجاوزت بـ",
+      spent_of: "صرفت",
+      of: "من",
+      msg_fresh: "ابدأ يومك مرتاح، هذا نصيبك لليوم",
+      msg_going: "ماشي على الطريق الصح",
+      msg_close: "قربت من حد اليوم، خفّف شوي",
+      msg_over: "تعدّيت ميزانية اليوم، عوّضها بكرة وما فيها شي"
+    },
+
     nav: {
       home: "الرئيسية",
       dashboard: "الرئيسية",
@@ -313,7 +339,7 @@ export const translations: Record<Language, TranslationDictionary> = {
       quickAdd: "إضافة سريعة",
       subtitle: "أموالك. رؤيتك. مستقبلك.",
       net_balance: "صافي الرصيد",
-      daily_budget: "الميزانية اليومية المقترحة",
+      daily_budget: "ميزانيتك لليوم عشان تقضي الشهر مرتاح",
       welcome_back: " اهلا بك, ",
       total_income: "إجمالي الدخل",
       total_expenses: "إجمالي المصاريف",
