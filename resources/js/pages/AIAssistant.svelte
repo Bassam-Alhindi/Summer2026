@@ -172,6 +172,10 @@
             abortController = null;
         }
         resetChat();
+        // resetChat يرجّع العدّاد إلى 1، فمعرّفات قديمة في المجموعة تمنع
+        // انفجاراً مستقبلياً لو تكرّر نفس الرقم.
+        firedLoveIds.clear();
+        hearts = [];
         chat.messages = [{
             id: nextMessageId(),
             role: 'assistant',
@@ -353,6 +357,98 @@
     }
 
     let toolExpanded = $state<Record<string, boolean>>({});
+
+    // ===================== انفجار القلوب =====================
+    // الرسالة المضبوطة في البرومبت هي "احبك واعشقك يقلبي😘❤️. بسام"، فمطابقة
+    // نصية حرفية ما تنفع. ننظّف الإيموجي والتشكيل واختلاف الألف ثم نطابق
+    // "احبك واعشقك" + "بسام"، فيمسك الصيغتين.
+    const LOVE_HEAD = 'احبك واعشقك';
+    const LOVE_TAIL = 'بسام';
+
+    function normalizeArabic(value: string): string {
+        return value
+            .replace(/[ً-ْـ]/g, '')
+            .replace(/[أإآٱ]/g, 'ا')
+            .replace(/ى/g, 'ي')
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function isLoveMessage(content: string): boolean {
+        const normalized = normalizeArabic(content);
+
+        return normalized.includes(LOVE_HEAD) && normalized.includes(LOVE_TAIL);
+    }
+
+    type Heart = {
+        id: number;
+        emoji: string;
+        left: number;
+        delay: number;
+        duration: number;
+        drift: number;
+        scale: number;
+        rotate: number;
+    };
+
+    const HEART_EMOJIS = ['❤️', '💕', '💖', '✨'];
+    const HEART_COUNT = 18;
+
+    let hearts = $state<Heart[]>([]);
+    let heartSeq = 0;
+    let heartTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // كل رسالة تشتغل مرة وحدة فقط. عند العودة للصفحة نبذر المعرّفات الموجودة
+    // مسبقاً حتى ما تنفجر القلوب من جديد لرسالة قديمة.
+    const firedLoveIds = new Set<number>();
+
+    for (const m of chat.messages) {
+        firedLoveIds.add(m.id);
+    }
+
+    function prefersReducedMotion(): boolean {
+        return typeof window !== 'undefined'
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+
+    function launchHearts() {
+        if (prefersReducedMotion()) return;
+
+        const batch: Heart[] = Array.from({ length: HEART_COUNT }, () => ({
+            id: heartSeq++,
+            emoji: HEART_EMOJIS[Math.floor(Math.random() * HEART_EMOJIS.length)],
+            left: 4 + Math.random() * 92,
+            delay: Math.random() * 900,
+            duration: 3200 + Math.random() * 1800,
+            drift: -60 + Math.random() * 120,
+            scale: 0.75 + Math.random() * 0.7,
+            rotate: -28 + Math.random() * 56,
+        }));
+
+        hearts = [...hearts, ...batch];
+
+        // ننظّف العقد بعد ما تخلص أطول قلب، عشان ما تتراكم في الـ DOM.
+        if (heartTimer) clearTimeout(heartTimer);
+        heartTimer = setTimeout(() => {
+            hearts = [];
+            heartTimer = null;
+        }, 5400);
+    }
+
+    $effect(() => {
+        for (const msg of chat.messages) {
+            if (msg.role !== 'assistant' || firedLoveIds.has(msg.id)) continue;
+            if (!isLoveMessage(msg.content)) continue;
+
+            firedLoveIds.add(msg.id);
+            launchHearts();
+        }
+    });
+
+    onDestroy(() => {
+        if (heartTimer) clearTimeout(heartTimer);
+    });
 </script>
 
 <AppHead title={t('ai.title')} />
@@ -577,7 +673,70 @@
     </div>
 </div>
 
+<!-- ===== طبقة القلوب: فوق كل شيء، ما تستقبل نقرات، وتُفرّغ بعد الانتهاء ===== -->
+{#if hearts.length > 0}
+    <div class="heart-layer" aria-hidden="true">
+        {#each hearts as heart (heart.id)}
+            <span
+                class="heart"
+                style="left: {heart.left}%; animation-delay: {heart.delay}ms; animation-duration: {heart.duration}ms; --drift: {heart.drift}px; --scale: {heart.scale}; --rot: {heart.rotate}deg;"
+            >{heart.emoji}</span>
+        {/each}
+    </div>
+{/if}
+
 <style>
+    /* ===================== انفجار القلوب ===================== */
+    .heart-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        overflow: hidden;
+        pointer-events: none;
+        /* طبقة مركّبة مستقلة حتى ما تعيد بقية الصفحة الرسم مع كل إطار */
+        contain: strict;
+    }
+
+    .heart {
+        position: absolute;
+        bottom: -3rem;
+        font-size: 1.5rem;
+        line-height: 1;
+        opacity: 0;
+        /* transform + opacity فقط: الحركة تصير على الـ GPU بلا reflow */
+        will-change: transform, opacity;
+        animation-name: heart-rise;
+        animation-timing-function: cubic-bezier(0.35, 0.15, 0.3, 1);
+        animation-fill-mode: forwards;
+        animation-iteration-count: 1;
+    }
+
+    @keyframes heart-rise {
+        0% {
+            opacity: 0;
+            transform: translate3d(0, 0, 0) scale(calc(var(--scale) * 0.5)) rotate(0deg);
+        }
+        12% {
+            opacity: 1;
+        }
+        75% {
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+            transform: translate3d(var(--drift), -100vh, 0) scale(var(--scale)) rotate(var(--rot));
+        }
+    }
+
+    /* من يفضّل تقليل الحركة ما يشوف شيء أصلاً - launchHearts يخرج مبكراً */
+    @media (prefers-reduced-motion: reduce) {
+        .heart {
+            animation: none;
+            display: none;
+        }
+    }
+
+
     .prose-content :global(p) {
         margin: 0.3em 0;
     }
