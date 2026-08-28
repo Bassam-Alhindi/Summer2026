@@ -2,6 +2,7 @@
   import AppHead from '@/components/AppHead.svelte';
   import { router } from '@inertiajs/svelte';
   import { Calendar, ChevronDown, Check } from 'lucide-svelte';
+  import DatePicker from '@/components/DatePicker.svelte';
   import { getLocale } from '@/lib/i18n.svelte';
   import { getCategoryColor, getCategoryIcon, translateCategory } from '@/lib/categories';
 
@@ -229,6 +230,19 @@
     router.get('/reports', { from: fromDate, to: toDate }, { preserveState: true, preserveScroll: true });
   }
 
+  // اختيار طرف يتجاوز الطرف الآخر يسحب الآخر معه بدل أن يترك مدى مقلوباً.
+  function clampRangeFromStart(picked: string) {
+    if (toDate && picked > toDate) {
+      toDate = picked;
+    }
+  }
+
+  function clampRangeFromEnd(picked: string) {
+    if (fromDate && picked < fromDate) {
+      fromDate = picked;
+    }
+  }
+
   function selectOption(id: string) {
     selectedPeriod = id;
     isopen = false;
@@ -306,14 +320,25 @@
 
     {#if selectedPeriod === 'custom'}
       <div class="flex flex-col gap-2.5 pt-2">
-        <div class="flex flex-col sm:flex-row items-center gap-2">
-          <div class="flex flex-1 items-center justify-between w-full bg-muted/40 p-2.5 px-3 rounded-2xl border border-border/30">
-            <span class="text-xs text-muted-foreground font-semibold">{currentLocale === 'en' ? 'From:' : 'من:'}</span>
-            <input type="date" bind:value={fromDate} class="bg-transparent text-xs font-bold text-foreground border-0 focus:outline-none" />
+        <!-- منتقيان مضغوطان بدل نافذة التقويم العملاقة الفاتحة التي يفتحها <input type="date"> -->
+        <div class="flex items-start gap-2">
+          <div class="flex flex-1 min-w-0 flex-col gap-1">
+            <span class="px-0.5 text-[11px] font-bold text-muted-foreground">{currentLocale === 'en' ? 'From' : 'من'}</span>
+            <DatePicker
+              bind:value={fromDate}
+              align="start"
+              ariaLabel={currentLocale === 'en' ? 'From date' : 'من تاريخ'}
+              onselect={clampRangeFromStart}
+            />
           </div>
-          <div class="flex flex-1 items-center justify-between w-full bg-muted/40 p-2.5 px-3 rounded-2xl border border-border/30">
-            <span class="text-xs text-muted-foreground font-semibold">{currentLocale === 'en' ? 'To:' : 'إلى:'}</span>
-            <input type="date" bind:value={toDate} class="bg-transparent text-xs font-bold text-foreground border-0 focus:outline-none" />
+          <div class="flex flex-1 min-w-0 flex-col gap-1">
+            <span class="px-0.5 text-[11px] font-bold text-muted-foreground">{currentLocale === 'en' ? 'To' : 'إلى'}</span>
+            <DatePicker
+              bind:value={toDate}
+              align="end"
+              ariaLabel={currentLocale === 'en' ? 'To date' : 'إلى تاريخ'}
+              onselect={clampRangeFromEnd}
+            />
           </div>
         </div>
         <button type="button" onclick={() => applyFilter(fromDate, toDate)} class="h-11 w-full rounded-2xl bg-primary text-primary-foreground font-bold text-xs shadow-md">
@@ -333,7 +358,7 @@
     </div>
   {:else}
     <!-- رسم الدونات الدائري -->
-    <div id="donut-chart-container" class="p-6 rounded-3xl bg-card border border-border/60 shadow-sm flex flex-col items-center gap-4">
+    <div id="donut-chart-container" class="p-6 rounded-3xl bg-card border border-border/60 shadow-sm flex flex-col items-center gap-4 outline-none select-none focus:outline-none focus-visible:outline-none">
       <div class="flex items-center justify-between w-full">
         <h2 class="text-xs font-bold text-foreground">{currentLocale === 'en' ? 'Details' : 'التفاصيل'}</h2>
         {#if selectedCategoryId !== null}
@@ -344,8 +369,8 @@
       </div>
 
       <div class="relative size-60 sm:size-64 flex items-center justify-center my-2">
-        <svg class="size-full -rotate-90 transform" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r={RADIUS} fill="transparent" stroke="currentColor" stroke-width="10" class="text-muted/15 cursor-pointer" onclick={() => (selectedCategoryId = null)} />
+        <svg class="size-full -rotate-90 transform outline-none select-none focus:outline-none focus-visible:outline-none" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r={RADIUS} fill="transparent" stroke="currentColor" stroke-width="10" class="text-muted/15 cursor-pointer outline-none focus:outline-none focus-visible:outline-none" onclick={() => (selectedCategoryId = null)} />
           {#each donutSegments as segment}
             {@const isActive = String(activeCategoryId) === String(segment.id)}
             {@const isAnyActive = activeCategoryId !== null}
@@ -361,7 +386,7 @@
                 stroke-dashoffset={segment.strokeDashoffset}
                 stroke-linecap={isActive ? 'round' : 'butt'}
                 style="transition: all 0.25s ease-in-out;"
-                class="cursor-pointer origin-center {isAnyActive && !isActive ? 'opacity-25' : 'opacity-100'}"
+                class="cursor-pointer origin-center outline-none select-none focus:outline-none focus-visible:outline-none {isAnyActive && !isActive ? 'opacity-25' : 'opacity-100'}"
                 onclick={(e) => handleCategoryClick(segment.id, true, e)}
                 onmouseenter={() => (hoveredCategoryId = segment.id)}
                 onmouseleave={() => (hoveredCategoryId = null)}
@@ -558,3 +583,15 @@
     </div>
   {/if}
 </div>
+
+<style>
+  /* النقر على شريحة يمنحها التركيز، والمتصفح يرسم إطاراً أبيض حول مربع الـSVG كاملاً.
+     الشرائح تبرز أصلاً بالتكبير والتعتيم، فلا حاجة لإطار المتصفح. */
+  #donut-chart-container:focus,
+  #donut-chart-container:focus-visible,
+  #donut-chart-container :global(:focus),
+  #donut-chart-container :global(:focus-visible) {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+</style>
