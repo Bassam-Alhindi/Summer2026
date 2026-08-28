@@ -14,7 +14,9 @@ class ListTransactions implements Tool
 {
     public function description(): Stringable|string
     {
-        return 'List and search transactions with optional filters. Use this to query transactions before updating or deleting.';
+        return 'List and search transactions with optional filters. Use this to query transactions before updating or deleting. '
+            .'The response includes a `totals` object with exact income, expense and net sums computed over every matching '
+            .'transaction - always read totals from there instead of adding up the returned rows.';
     }
 
     public function handle(Request $request): Stringable|string
@@ -50,11 +52,24 @@ class ListTransactions implements Tool
             $query->where('description', 'like', '%'.$request['search'].'%');
         }
 
+        // المجاميع تُحسب على كل الصفوف المطابقة قبل تطبيق الحد، لأن النموذج
+        // كان يجمع الصفوف المقصوصة يدوياً فيطلع بأرقام غلط.
+        $matchedCount = (clone $query)->count();
+        $sumIncome = (float) (clone $query)->where('type', 'income')->sum('amount');
+        $sumExpenses = (float) (clone $query)->where('type', 'expense')->sum('amount');
+
         $limit = min($request['limit'] ?? 20, 100);
         $transactions = $query->latest('transaction_date')->limit($limit)->get();
 
         return json_encode([
             'count' => $transactions->count(),
+            'matched_count' => $matchedCount,
+            'truncated' => $matchedCount > $transactions->count(),
+            'totals' => [
+                'total_income' => round($sumIncome, 2),
+                'total_expenses' => round($sumExpenses, 2),
+                'net_balance' => round($sumIncome - $sumExpenses, 2),
+            ],
             'transactions' => $transactions->map(fn ($t) => [
                 'id' => $t->id,
                 'type' => $t->type,

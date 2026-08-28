@@ -230,7 +230,7 @@ class DashboardControllerTest extends TestCase
         );
     }
 
-    public function test_dashboard_net_balance_is_lifetime_while_period_totals_are_filtered(): void
+    public function test_dashboard_net_balance_equals_period_income_minus_expenses(): void
     {
         $user = User::factory()->create();
         $incomeCategory = Category::factory()->forUser($user)->income()->create();
@@ -256,22 +256,31 @@ class DashboardControllerTest extends TestCase
             'transaction_date' => now()->subMonth(),
         ]);
 
-        $lifetimeNetBalance = 5000 + 400 - 1500 - 800; // 3100
-
+        // The net balance card sits directly under the period income and expense
+        // cards, so it has to be the difference between those two numbers. The
+        // out-of-period transactions above must not leak into it.
         $response = $this->actingAs($user)->get(route('dashboard'));
 
         $response->assertInertia(
             fn ($page) => $page
                 ->where('totalIncome', 5000)
                 ->where('totalExpenses', 1500)
-                ->where('netBalance', $lifetimeNetBalance)
+                ->where('netBalance', 3500)
                 ->where('savingsRate', 70)
         );
 
-        // The lifetime net balance stays fixed regardless of the active period filter.
+        // The invariant has to hold whichever period filter is active.
         foreach (['week', 'month', 'year'] as $period) {
-            $response = $this->actingAs($user)->get(route('dashboard', ['period' => $period]));
-            $response->assertInertia(fn ($page) => $page->where('netBalance', $lifetimeNetBalance));
+            $props = $this->actingAs($user)
+                ->get(route('dashboard', ['period' => $period]))
+                ->viewData('page')['props'];
+
+            $this->assertEqualsWithDelta(
+                $props['totalIncome'] - $props['totalExpenses'],
+                $props['netBalance'],
+                0.001,
+                "netBalance must equal totalIncome - totalExpenses for period [{$period}]",
+            );
         }
     }
 

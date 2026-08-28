@@ -39,14 +39,6 @@ class DashboardController extends Controller
             ->dateRange($prevFrom, $prevTo)
             ->sum('amount');
 
-        $allTimeIncome = Transaction::forUser($userId)
-            ->income()
-            ->sum('amount');
-
-        $allTimeExpenses = Transaction::forUser($userId)
-            ->expense()
-            ->sum('amount');
-
         // الميزانية اليومية مربوطة بدورة الراتب (27 -> 26) وما تتأثر بفلتر
         // الأسبوع/الشهر/السنة، فنحسب مجاميعها على نافذة الدورة لحالها.
         $cycleStart = $this->getCycleStart(Carbon::now());
@@ -62,8 +54,10 @@ class DashboardController extends Controller
             ->dateRange($cycleStart, $cycleEnd)
             ->sum('amount');
 
-        $periodNetBalance = $totalIncome - $totalExpenses;
-        $netBalance = $allTimeIncome - $allTimeExpenses;
+        // صافي الرصيد لازم يطابق البطاقتين المعروضتين فوقه (دخل الفترة ناقص
+        // مصروفها). قبل كذا كان يُحسب على كل الوقت فيطلع رقم ما يوافق الطرح.
+        $netBalance = $totalIncome - $totalExpenses;
+        $periodNetBalance = $netBalance;
         $savingsRate = (int) round(($periodNetBalance / max($totalIncome, 1)) * 100);
 
         $incomeTrend = $this->calculateTrend($totalIncome, $prevIncome);
