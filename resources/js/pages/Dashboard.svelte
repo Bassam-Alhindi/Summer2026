@@ -22,8 +22,10 @@
     ArrowUpRight,
     ArrowDownRight,
     ChevronLeft,
+    ChevronRight,
     ChevronUp,   
     ChevronDown,  
+    Calendar,
     Wallet,
     X,
     Receipt,
@@ -35,7 +37,7 @@
   import type { TranslationKey } from '@/lib/translations';
   import { resolveCategoryMeta, sortFoodFirst } from '@/lib/categories';
   import { startSpeechToText } from '@/lib/speech';
-  import { localToday } from '@/lib/utils';
+  import { localToday, localDateString } from '@/lib/utils';
   import { toast } from 'svelte-sonner';
 
 
@@ -150,6 +152,9 @@
   let formCategoryId = $state<number | null>(null);
   let formDescription = $state('');
   let formDate = $state(localToday());
+  let isDatePickerOpen = $state(false);
+  let pickerYear = $state(new Date().getFullYear());
+  let pickerMonth = $state(new Date().getMonth());
   let errorMessage = $state<string | null>(null);
   let isSubmitting = $state(false);
 
@@ -299,6 +304,7 @@
     formType = 'expense';
     formDescription = '';
     formDate = localToday();
+    isDatePickerOpen = false;
     errorMessage = null;
     const targetDefaultKey = 'cat_food';
     const found = categories.find((c) => getCanonicalCategoryKey(c.name) === targetDefaultKey);
@@ -323,6 +329,15 @@
     if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
       try {
         navigator.vibrate([20, 40, 20]);
+      } catch {}
+    }
+  }
+
+  // نبضة مميزة عند حفظ معاملة جديدة بنجاح
+  function triggerHaptic() {
+    if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([40, 30, 40]);
       } catch {}
     }
   }
@@ -424,7 +439,7 @@
       {
         preserveScroll: true,
         onSuccess: () => {
-          triggerHapticFeedback();
+          triggerHaptic();
           isDialogOpen = false;
           isSubmitting = false;
           // Toast is handled by backend flash session - no duplicate here
@@ -437,8 +452,88 @@
     );
   }
 
+  const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+  const MONTHS_SHORT_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const MONTHS_LONG_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const WEEKDAYS_AR = ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'];
+  const WEEKDAYS_EN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  // 'YYYY-MM-DD' يُبنى بمكوّنات محلية: new Date('2026-08-28') يُفسَّر كـ UTC ويقفز يوماً للخلف
+  // في المناطق الزمنية السالبة.
+  function parseLocalDate(value: string): Date | null {
+    const parts = (value ?? '').split('-').map(Number);
+    if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+    const [year, month, day] = parts;
+    const parsed = new Date(year, month - 1, day);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function daysBetweenToday(target: Date): number {
+    const now = new Date();
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const targetMidnight = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+    return Math.round((todayMidnight.getTime() - targetMidnight.getTime()) / 86400000);
+  }
+
+  // النص المختصر داخل زر التاريخ: اليوم / أمس / غداً / ٢٨ أغسطس
+  const dateTriggerLabel = $derived.by(() => {
+    const target = parseLocalDate(formDate);
+    if (!target) return formDate;
+    const isEn = currentLang === 'en';
+    const diffDays = daysBetweenToday(target);
+    if (diffDays === 0) return isEn ? 'Today' : 'اليوم';
+    if (diffDays === 1) return isEn ? 'Yesterday' : 'أمس';
+    if (diffDays === -1) return isEn ? 'Tomorrow' : 'غداً';
+    const month = isEn ? MONTHS_SHORT_EN[target.getMonth()] : MONTHS_AR[target.getMonth()];
+    return `${target.getDate()} ${month}`;
+  });
+
+  const pickerMonthLabel = $derived(
+    `${currentLang === 'en' ? MONTHS_LONG_EN[pickerMonth] : MONTHS_AR[pickerMonth]} ${pickerYear}`
+  );
+
+  const weekdayLabels = $derived(currentLang === 'en' ? WEEKDAYS_EN : WEEKDAYS_AR);
+
+  // خانات الشهر: فراغات قبل أول يوم ثم أيام الشهر
+  const calendarCells = $derived.by(() => {
+    const leading = new Date(pickerYear, pickerMonth, 1).getDay();
+    const daysInMonth = new Date(pickerYear, pickerMonth + 1, 0).getDate();
+    const cells: (number | null)[] = [];
+    for (let i = 0; i < leading; i++) cells.push(null);
+    for (let day = 1; day <= daysInMonth; day++) cells.push(day);
+    return cells;
+  });
+
+  function toggleDatePicker() {
+    if (isDatePickerOpen) {
+      isDatePickerOpen = false;
+      return;
+    }
+    const current = parseLocalDate(formDate) ?? new Date();
+    pickerYear = current.getFullYear();
+    pickerMonth = current.getMonth();
+    isDatePickerOpen = true;
+  }
+
+  function shiftPickerMonth(delta: number) {
+    const shifted = new Date(pickerYear, pickerMonth + delta, 1);
+    pickerYear = shifted.getFullYear();
+    pickerMonth = shifted.getMonth();
+  }
+
+  function selectPickerDay(day: number) {
+    formDate = localDateString(new Date(pickerYear, pickerMonth, day));
+    isDatePickerOpen = false;
+  }
+
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && isDialogOpen) {
+    if (event.key !== 'Escape') return;
+    // التقويم يُغلق أولاً حتى لا تُغلق النافذة كلها بضغطة واحدة
+    if (isDatePickerOpen) {
+      isDatePickerOpen = false;
+      return;
+    }
+    if (isDialogOpen) {
       isDialogOpen = false;
     }
   }
@@ -849,16 +944,119 @@
           </div>
         </div>
 
-        <!-- الوصف (تم تعديله إلى text-base لمنع الزوم) -->
-        <div class="flex flex-col gap-1.5">
-          <label for="tx-desc" class="text-xs font-bold text-white/80">{tr('transaction.description_optional', 'الوصف (اختياري)', 'Description (Optional)')}</label>
-          <input
-            id="tx-desc"
-            type="text"
-            bind:value={formDescription}
-            placeholder={tr('transaction.description_placeholder', 'عن ماذا كانت هذه المعاملة؟', 'What is this for?')}
-            class="h-10 w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-3 text-base font-medium text-white placeholder:text-white/20 placeholder:text-xs focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all"
-          />
+        <!-- الوصف والتاريخ (text-base على حقل النص لمنع زوم iOS عند التركيز) -->
+        <div class="flex items-end gap-2">
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <label for="tx-desc" class="text-[11px] font-bold text-white/80">{tr('transaction.description_optional', 'الوصف (اختياري)', 'Description (Optional)')}</label>
+            <input
+              id="tx-desc"
+              type="text"
+              bind:value={formDescription}
+              placeholder={tr('transaction.description_placeholder', 'عن ماذا كانت هذه المعاملة؟', 'What is this for?')}
+              class="h-10 w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-2.5 text-base font-medium text-white placeholder:text-white/20 placeholder:text-[11px] focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all"
+            />
+          </div>
+          <div class="relative flex w-28 shrink-0 flex-col gap-1">
+            <label for="tx-date" class="text-[11px] font-bold text-white/80">{tr('transaction.date', 'التاريخ', 'Date')}</label>
+            <button
+              id="tx-date"
+              type="button"
+              onclick={toggleDatePicker}
+              aria-haspopup="dialog"
+              aria-expanded={isDatePickerOpen}
+              class="flex h-10 w-full cursor-pointer items-center justify-between gap-1.5 rounded-xl border bg-[#1a1a1a] px-2.5 text-xs font-semibold text-white transition-all active:scale-[0.98] focus:outline-none focus:ring-1 focus:ring-white/20 {isDatePickerOpen ? 'border-white/30 ring-1 ring-white/20' : 'border-white/10 hover:border-white/25'}"
+            >
+              <span class="truncate">{dateTriggerLabel}</span>
+              <Calendar class="size-3.5 shrink-0 text-white/50" />
+            </button>
+
+            {#if isDatePickerOpen}
+              <!-- طبقة شفافة للإغلاق عند النقر خارج التقويم -->
+              <button
+                type="button"
+                tabindex="-1"
+                aria-label={tr('common.close', 'إغلاق', 'Close')}
+                class="fixed inset-0 z-40 cursor-default"
+                onclick={() => (isDatePickerOpen = false)}
+              ></button>
+
+              <!-- يفتح للأعلى ليبقى داخل حدود النافذة (النافذة overflow-hidden) -->
+              <div
+                in:scale={{ duration: 120, start: 0.95 }}
+                out:scale={{ duration: 100, start: 0.95 }}
+                class="absolute bottom-full end-0 z-50 mb-2 w-[228px] rounded-2xl border border-white/10 bg-[#1a1a1a] p-2.5 shadow-2xl shadow-black/70 [color-scheme:dark]"
+                role="dialog"
+                aria-label={tr('transaction.date', 'التاريخ', 'Date')}
+              >
+                <div class="mb-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onclick={() => shiftPickerMonth(-1)}
+                    aria-label={tr('common.previous', 'السابق', 'Previous')}
+                    class="grid size-6 cursor-pointer place-items-center rounded-lg text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    {#if currentLang === 'ar'}
+                      <ChevronRight class="size-3.5" />
+                    {:else}
+                      <ChevronLeft class="size-3.5" />
+                    {/if}
+                  </button>
+                  <span class="text-[11px] font-bold text-white/90">{pickerMonthLabel}</span>
+                  <button
+                    type="button"
+                    onclick={() => shiftPickerMonth(1)}
+                    aria-label={tr('common.next', 'التالي', 'Next')}
+                    class="grid size-6 cursor-pointer place-items-center rounded-lg text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    {#if currentLang === 'ar'}
+                      <ChevronLeft class="size-3.5" />
+                    {:else}
+                      <ChevronRight class="size-3.5" />
+                    {/if}
+                  </button>
+                </div>
+
+                <div class="mb-1 grid grid-cols-7 gap-0.5">
+                  {#each weekdayLabels as weekday, i (i)}
+                    <div class="grid h-6 place-items-center text-[9px] font-bold text-white/35">{weekday}</div>
+                  {/each}
+                </div>
+
+                <div class="grid grid-cols-7 gap-0.5">
+                  {#each calendarCells as day, i (i)}
+                    {#if day === null}
+                      <div class="h-7"></div>
+                    {:else}
+                      {@const iso = localDateString(new Date(pickerYear, pickerMonth, day))}
+                      {@const isSelected = iso === formDate}
+                      {@const isToday = iso === localToday()}
+                      <button
+                        type="button"
+                        onclick={() => selectPickerDay(day)}
+                        aria-current={isSelected ? 'date' : undefined}
+                        class="grid h-7 cursor-pointer place-items-center rounded-lg text-[11px] font-semibold tabular-nums transition-all active:scale-90 {isSelected ? 'text-black' : 'text-white/70 hover:bg-white/10 hover:text-white'}"
+                        style={isSelected
+                          ? 'background: var(--accent); color: #000;'
+                          : isToday
+                            ? 'box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); color: #fff;'
+                            : ''}
+                      >
+                        {day}
+                      </button>
+                    {/if}
+                  {/each}
+                </div>
+
+                <button
+                  type="button"
+                  onclick={() => { formDate = localToday(); isDatePickerOpen = false; }}
+                  class="mt-2 h-7 w-full cursor-pointer rounded-lg border border-white/10 text-[10px] font-bold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  {tr('transaction.today', 'اليوم', 'Today')}
+                </button>
+              </div>
+            {/if}
+          </div>
         </div>
 
         <!-- أزرار الإجراءات -->
