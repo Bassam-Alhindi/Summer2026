@@ -265,8 +265,8 @@
     </div>
 
     <!-- مرشحا الفئة والتاريخ جنباً إلى جنب -->
-    <div class="flex items-start gap-2">
-        <div class="relative flex-1 min-w-0 z-30">
+    <div class="flex flex-wrap items-start gap-2">
+        <div class="relative z-30 min-w-0 flex-1 basis-40">
             <button
                 type="button"
                 onclick={() => (isCategoryDropdownOpen = !isCategoryDropdownOpen)}
@@ -375,7 +375,7 @@
         <!-- مرشح التاريخ: نفس منتقي "الإضافة السريعة"، بعرض مضغوط -->
         <DatePicker
             bind:value={dateFilter}
-            class="w-32 shrink-0"
+            class="min-w-0 flex-1 basis-28 sm:w-32 sm:flex-none sm:basis-auto"
             triggerClass="h-11 rounded-2xl bg-card text-xs sm:text-sm"
             placeholder={t('transactions.date')}
             ariaLabel={t('transactions.date')}
