@@ -48,6 +48,56 @@ class AssistantContextTest extends TestCase
         $this->assertStringContainsString('net balance 95 SAR', $prompt);
     }
 
+    public function test_prompt_carries_the_strict_grounding_rules(): void
+    {
+        $user = User::factory()->create();
+        $this->seedLedger($user);
+
+        $prompt = (string) (new FinanceAssistant(user: $user))->instructions();
+
+        $this->assertStringContainsString('You are a strict financial assistant.', $prompt);
+        $this->assertStringContainsString(
+            'NEVER estimate, calculate'.'
+'.'outside the data, or hallucinate numbers.',
+            $prompt,
+        );
+        $this->assertStringContainsString('THE ONLY SOURCE OF TRUTH', $prompt);
+        $this->assertStringContainsString('Never estimate, approximate, extrapolate', $prompt);
+    }
+
+    public function test_prompt_enforces_a_single_scope_per_answer(): void
+    {
+        $user = User::factory()->create();
+        $this->seedLedger($user);
+
+        $prompt = (string) (new FinanceAssistant(user: $user))->instructions();
+
+        $this->assertStringContainsString('ONE SCOPE PER ANSWER', $prompt);
+        $this->assertStringContainsString('DEFAULT SCOPE', $prompt);
+        $this->assertStringContainsString(
+            'Never place a second number in parentheses',
+            $prompt,
+        );
+        // The all-time block must be explicitly gated behind the user asking for it.
+        $this->assertStringContainsString(
+            'ONLY when the user explicitly says "all time"',
+            $prompt,
+        );
+    }
+
+    public function test_prompt_enforces_short_direct_replies(): void
+    {
+        $user = User::factory()->create();
+        $this->seedLedger($user);
+
+        $prompt = (string) (new FinanceAssistant(user: $user))->instructions();
+
+        $this->assertStringContainsString('SHORT AND DIRECT', $prompt);
+        $this->assertStringContainsString('ONE sentence.', $prompt);
+        $this->assertStringContainsString('Ban filler openers and closers', $prompt);
+        $this->assertStringContainsString('No unsolicited advice', $prompt);
+    }
+
     public function test_prompt_excludes_soft_deleted_transactions(): void
     {
         $user = User::factory()->create();

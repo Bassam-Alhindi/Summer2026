@@ -29,34 +29,29 @@
     import { t, getLocale, isRTL } from '@/lib/i18n.svelte';
     import { renderMarkdown } from '@/lib/markdown';
     import { startSpeechToText } from '@/lib/speech';
+    import { onDestroy } from 'svelte';
+    import {
+        chat,
+        nextMessageId,
+        resetChat,
+        settleStreamingMessages,
+        type ChatMessage,
+        type ChatToolCall,
+    } from '@/lib/chat-session.svelte';
 
-    type ToolCall = {
-        id: string;
-        name: string;
-        arguments: Record<string, any>;
-        result?: string;
-        ok?: boolean;
-        summary?: string;
-    };
-
-    type Message = {
-        id: number;
-        role: 'user' | 'assistant';
-        content: string;
-        toolCalls?: ToolCall[];
-        isStreaming?: boolean;
-    };
+    type ToolCall = ChatToolCall;
+    type Message = ChatMessage;
 
     type QuickAction = {
         label: string;
         prompt: string;
     };
 
-    let messages: Message[] = $state([]);
+    // المحادثة تعيش في موديول خارج المكوّن، فتنجو من تنقّل Inertia وتُمسح
+    // مع أي إعادة تحميل كاملة. لا localStorage ولا قاعدة بيانات.
     let inputValue = $state('');
     let isStreaming = $state(false);
     let abortController = $state<AbortController | null>(null);
-    let nextId = $state(1);
     let chatContainer: HTMLDivElement | null = $state(null);
     let textarea: HTMLTextAreaElement | null = $state(null);
 
@@ -120,10 +115,18 @@
             : 'Hello! I\'m your smart financial assistant. I can help you track expenses, add new transactions, or analyze your spending habits. How can I help you today?';
     }
 
+    // رجعنا للصفحة والبث كان شغّال وقت ما طلعنا: نطفي العلامة العالقة.
+    settleStreamingMessages();
+
+    onDestroy(() => {
+        abortController?.abort();
+        abortController = null;
+    });
+
     $effect(() => {
-        if (messages.length === 0) {
-            messages = [{
-                id: nextId++,
+        if (chat.messages.length === 0) {
+            chat.messages = [{
+                id: nextMessageId(),
                 role: 'assistant',
                 content: getWelcomeMessage(),
             }];
@@ -168,8 +171,9 @@
             abortController.abort();
             abortController = null;
         }
-        messages = [{
-            id: nextId++,
+        resetChat();
+        chat.messages = [{
+            id: nextMessageId(),
             role: 'assistant',
             content: getWelcomeMessage(),
         }];
@@ -186,20 +190,20 @@
         }
 
         const userMsg: Message = {
-            id: nextId++,
+            id: nextMessageId(),
             role: 'user',
             content,
         };
-        messages = [...messages, userMsg];
+        chat.messages = [...chat.messages, userMsg];
 
         const assistantMsg: Message = {
-            id: nextId++,
+            id: nextMessageId(),
             role: 'assistant',
             content: '',
             toolCalls: [],
             isStreaming: true,
         };
-        messages = [...messages, assistantMsg];
+        chat.messages = [...chat.messages, assistantMsg];
         // إرسال رسالة جديدة يرجّعنا للقاع دائماً
         stickToBottom = true;
         scrollToBottom(true);
@@ -207,7 +211,7 @@
         isStreaming = true;
         abortController = new AbortController();
 
-        const history = messages
+        const history = chat.messages
             .filter((m) => m.id !== assistantMsg.id && !m.isStreaming)
             .slice(-20)
             .map((m) => ({ role: m.role, content: m.content }));
@@ -258,14 +262,14 @@
                         const event = JSON.parse(data);
 
                         if (event.type === 'text') {
-                            messages = messages.map((m) =>
+                            chat.messages = chat.messages.map((m) =>
                                 m.id === assistantMsg.id
                                     ? { ...m, content: m.content + event.delta }
                                     : m
                             );
                             scrollToBottom();
                         } else if (event.type === 'tool_call') {
-                            messages = messages.map((m) =>
+                            chat.messages = chat.messages.map((m) =>
                                 m.id === assistantMsg.id
                                     ? {
                                           ...m,
@@ -282,7 +286,7 @@
                             );
                             scrollToBottom();
                         } else if (event.type === 'tool_result') {
-                            messages = messages.map((m) =>
+                            chat.messages = chat.messages.map((m) =>
                                 m.id === assistantMsg.id
                                     ? {
                                           ...m,
@@ -296,7 +300,7 @@
                             );
                             scrollToBottom();
                         } else if (event.type === 'error') {
-                            messages = messages.map((m) =>
+                            chat.messages = chat.messages.map((m) =>
                                 m.id === assistantMsg.id
                                     ? { ...m, content: m.content + `\n\n❌ ${event.message}`, isStreaming: false }
                                     : m
@@ -308,7 +312,7 @@
         } catch (err: any) {
             if (err.name !== 'AbortError') {
                 const serverMsg = err?.message && err.status ? err.message : '';
-                messages = messages.map((m) =>
+                chat.messages = chat.messages.map((m) =>
                     m.id === assistantMsg.id
                         ? {
                               ...m,
@@ -321,7 +325,7 @@
                 );
             }
         } finally {
-            messages = messages.map((m) =>
+            chat.messages = chat.messages.map((m) =>
                 m.id === assistantMsg.id ? { ...m, isStreaming: false } : m
             );
             isStreaming = false;
@@ -406,7 +410,7 @@
             class="relative z-10 flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 scroll-smooth"
             dir={isArabic ? 'rtl' : 'ltr'}
         >
-            {#each messages as msg (msg.id)}
+            {#each chat.messages as msg (msg.id)}
                 {#if msg.role === 'user'}
                     <div class="flex justify-end items-end gap-2">
                         <div class="max-w-[85%] sm:max-w-[75%] rounded-3xl rounded-br-sm bg-primary text-primary-foreground px-4 py-3 text-xs sm:text-sm leading-relaxed shadow-sm font-medium">
@@ -491,7 +495,7 @@
         </div>
 
         <!-- اقتراحات البدء السريع -->
-        {#if messages.length <= 1}
+        {#if chat.messages.length <= 1}
             <div class="px-4 pb-3 pt-1 border-t border-border/30 bg-muted/10">
                 <p class="text-[11px] font-bold text-muted-foreground mb-2 px-1">
                     {isArabic ? 'اقتراحات سريعة:' : 'Quick suggestions:'}
