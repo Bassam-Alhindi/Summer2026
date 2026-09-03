@@ -492,43 +492,65 @@
 
     <!-- الترقيم (Pagination) -->
     {#if transactionsProp.last_page > 1}
-        <div class="flex items-center justify-between pt-1">
+        <!-- Laravel دايمًا يرجّع رابط "السابق" أول عنصر و"التالي" آخر عنصر،
+             فنعتمد على الموقع بدل مطابقة نص الليبل اللي يتغير مع لغة الخادم. -->
+        {@const previousLink = transactionsProp.links[0]}
+        {@const nextLink = transactionsProp.links[transactionsProp.links.length - 1]}
+        {@const pageLinks = transactionsProp.links.slice(1, -1)}
+        <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-1">
             <p class="text-xs font-semibold text-muted-foreground">
-                {transactionsProp.from}–{transactionsProp.to} / {transactionsProp.total}
+                {t('transactions.pagination.showing')}
+                <span dir="ltr" class="tabular-nums">{transactionsProp.from ?? 0}–{transactionsProp.to ?? 0}</span>
+                {t('transactions.pagination.of')}
+                <span dir="ltr" class="tabular-nums">{transactionsProp.total}</span>
             </p>
-            <div class="flex items-center gap-1">
-                {#each transactionsProp.links as link}
-                    {#if link.label.includes('Previous') || link.label.includes('السابق') || link.label.includes('&laquo;')}
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            class="size-8 rounded-xl transition-transform active:scale-90 border-border/50"
-                            disabled={!link.url}
-                            onclick={() => link.url && goToPage(link.url)}
-                        >
-                            <ChevronLeft class="size-4 rtl:rotate-180" />
-                        </Button>
-                    {:else if link.label.includes('Next') || link.label.includes('التالي') || link.label.includes('&raquo;')}
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            class="size-8 rounded-xl transition-transform active:scale-90 border-border/50"
-                            disabled={!link.url}
-                            onclick={() => link.url && goToPage(link.url)}
-                        >
-                            <ChevronRight class="size-4 rtl:rotate-180" />
-                        </Button>
-                    {:else}
+            <div class="flex max-w-full items-center gap-1 overflow-x-auto">
+                <Button
+                    variant="outline"
+                    size="icon"
+                    class="size-8 shrink-0 rounded-xl transition-transform active:scale-90 border-border/50"
+                    aria-label={t('transactions.pagination.previous')}
+                    title={t('transactions.pagination.previous')}
+                    disabled={!previousLink?.url}
+                    onclick={() => previousLink?.url && goToPage(previousLink.url)}
+                >
+                    <ChevronLeft class="size-4 rtl:rotate-180" />
+                </Button>
+
+                {#each pageLinks as link}
+                    {#if link.url}
                         <Button
                             variant={link.active ? 'default' : 'outline'}
                             size="icon"
-                            class="size-8 rounded-xl text-xs font-bold transition-transform active:scale-90 border-border/50"
+                            class="size-8 shrink-0 rounded-xl text-xs font-bold tabular-nums transition-transform active:scale-90 border-border/50"
+                            aria-label="{t('transactions.pagination.page')} {link.label}"
+                            aria-current={link.active ? 'page' : undefined}
                             onclick={() => link.url && goToPage(link.url)}
                         >
-                            {@html link.label}
+                            {link.label}
                         </Button>
+                    {:else}
+                        <!-- فاصل الصفحات (…) ما له رابط، فما ينفع يطلع زر قابل للضغط. -->
+                        <span
+                            aria-hidden="true"
+                            class="flex size-8 shrink-0 select-none items-center justify-center text-xs font-bold text-muted-foreground"
+                        >
+                            …
+                        </span>
                     {/if}
                 {/each}
+
+                <Button
+                    variant="outline"
+                    size="icon"
+                    class="size-8 shrink-0 rounded-xl transition-transform active:scale-90 border-border/50"
+                    aria-label={t('transactions.pagination.next')}
+                    title={t('transactions.pagination.next')}
+                    disabled={!nextLink?.url}
+                    onclick={() => nextLink?.url && goToPage(nextLink.url)}
+                >
+                    <ChevronRight class="size-4 rtl:rotate-180" />
+                </Button>
             </div>
         </div>
     {/if}

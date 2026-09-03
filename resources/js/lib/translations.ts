@@ -95,7 +95,14 @@ export const translations: Record<Language, TranslationDictionary> = {
       deleteConfirm: "Are you sure you want to delete this transaction?",
       deleteError: "An error occurred while deleting the transaction",
       emptyHint: "No recorded transactions match the selected filters.",
-      deleteTitle: "Delete transaction"
+      deleteTitle: "Delete transaction",
+      pagination: {
+        previous: "Previous page",
+        next: "Next page",
+        showing: "Showing",
+        of: "of",
+        page: "Page"
+      }
     },
 
     // 5. Reports & Analytics Page
@@ -363,7 +370,14 @@ export const translations: Record<Language, TranslationDictionary> = {
       deleteConfirm: "هل أنت متأكد من حذف هذه المعاملة؟",
       deleteError: "حدث خطأ أثناء حذف المعاملة",
       emptyHint: "لم تقم بتسجيل أي معاملات تطابق الخيارات المختارة.",
-      deleteTitle: "حذف المعاملة"
+      deleteTitle: "حذف المعاملة",
+      pagination: {
+        previous: "الصفحة السابقة",
+        next: "الصفحة التالية",
+        showing: "عرض",
+        of: "من",
+        page: "صفحة"
+      }
     },
 
     // 5. Reports & Analytics Page

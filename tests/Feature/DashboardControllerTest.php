@@ -230,7 +230,7 @@ class DashboardControllerTest extends TestCase
         );
     }
 
-    public function test_dashboard_net_balance_equals_period_income_minus_expenses(): void
+    public function test_dashboard_net_balance_is_cumulative_across_all_time(): void
     {
         $user = User::factory()->create();
         $incomeCategory = Category::factory()->forUser($user)->income()->create();
@@ -246,7 +246,8 @@ class DashboardControllerTest extends TestCase
             'transaction_date' => now(),
         ]);
 
-        // Previous month transactions (excluded from the current period, included in lifetime).
+        // Previous month transactions: outside the current period, but still part
+        // of the lifetime balance.
         Transaction::factory()->forUser($user)->forCategory($incomeCategory)->income()->create([
             'amount' => 400,
             'transaction_date' => now()->subMonth(),
@@ -256,30 +257,29 @@ class DashboardControllerTest extends TestCase
             'transaction_date' => now()->subMonth(),
         ]);
 
-        // The net balance card sits directly under the period income and expense
-        // cards, so it has to be the difference between those two numbers. The
-        // out-of-period transactions above must not leak into it.
+        // The income and expense cards stay scoped to the selected period, while
+        // the net balance card is the all-time total and must not reset monthly.
         $response = $this->actingAs($user)->get(route('dashboard'));
 
         $response->assertInertia(
             fn ($page) => $page
                 ->where('totalIncome', 5000)
                 ->where('totalExpenses', 1500)
-                ->where('netBalance', 3500)
+                ->where('netBalance', 3100)
                 ->where('savingsRate', 70)
         );
 
-        // The invariant has to hold whichever period filter is active.
+        // The cumulative balance is the same whichever period filter is active.
         foreach (['week', 'month', 'year'] as $period) {
             $props = $this->actingAs($user)
                 ->get(route('dashboard', ['period' => $period]))
                 ->viewData('page')['props'];
 
             $this->assertEqualsWithDelta(
-                $props['totalIncome'] - $props['totalExpenses'],
+                3100,
                 $props['netBalance'],
                 0.001,
-                "netBalance must equal totalIncome - totalExpenses for period [{$period}]",
+                "netBalance must be the all-time total for period [{$period}]",
             );
         }
     }

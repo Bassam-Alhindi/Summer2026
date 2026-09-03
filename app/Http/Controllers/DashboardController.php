@@ -54,10 +54,22 @@ class DashboardController extends Controller
             ->dateRange($cycleStart, $cycleEnd)
             ->sum('amount');
 
-        // صافي الرصيد لازم يطابق البطاقتين المعروضتين فوقه (دخل الفترة ناقص
-        // مصروفها). قبل كذا كان يُحسب على كل الوقت فيطلع رقم ما يوافق الطرح.
-        $netBalance = $totalIncome - $totalExpenses;
-        $periodNetBalance = $netBalance;
+        // صافي الرصيد تراكمي على كل الوقت (كل الدخل ناقص كل المصروفات) وما
+        // يتصفّر مع بداية كل فترة، عشان يعكس رصيد المستخدم الفعلي لا رصيد
+        // الشهر الحالي فقط.
+        $lifetimeIncome = Transaction::forUser($userId)
+            ->income()
+            ->sum('amount');
+
+        $lifetimeExpenses = Transaction::forUser($userId)
+            ->expense()
+            ->sum('amount');
+
+        $netBalance = $lifetimeIncome - $lifetimeExpenses;
+
+        // نسبة الادخار تبقى مربوطة بالفترة المختارة عشان توافق بطاقتي الدخل
+        // والمصروف المعروضتين فوقها.
+        $periodNetBalance = $totalIncome - $totalExpenses;
         $savingsRate = (int) round(($periodNetBalance / max($totalIncome, 1)) * 100);
 
         $incomeTrend = $this->calculateTrend($totalIncome, $prevIncome);
