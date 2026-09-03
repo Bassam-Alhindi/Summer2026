@@ -14,7 +14,6 @@
 <script lang="ts">
     import AppHead from '@/components/AppHead.svelte';
     import { Button } from '@/components/ui/button';
-    import Sparkles from 'lucide-svelte/icons/sparkles';
     import Send from 'lucide-svelte/icons/send';
     import Trash2 from 'lucide-svelte/icons/trash-2';
     import Square from 'lucide-svelte/icons/square';
@@ -25,39 +24,63 @@
     import X from 'lucide-svelte/icons/x';
     import MessageSquarePlus from 'lucide-svelte/icons/message-square-plus';
     import Bot from 'lucide-svelte/icons/bot';
+    import Mic from 'lucide-svelte/icons/mic';
     import User from 'lucide-svelte/icons/user';
     import { t, getLocale, isRTL } from '@/lib/i18n.svelte';
     import { renderMarkdown } from '@/lib/markdown';
+    import { startSpeechToText } from '@/lib/speech';
+    import { onDestroy } from 'svelte';
+    import {
+        chat,
+        nextMessageId,
+        resetChat,
+        settleStreamingMessages,
+        type ChatMessage,
+        type ChatToolCall,
+    } from '@/lib/chat-session.svelte';
 
-    type ToolCall = {
-        id: string;
-        name: string;
-        arguments: Record<string, any>;
-        result?: string;
-        ok?: boolean;
-        summary?: string;
-    };
-
-    type Message = {
-        id: number;
-        role: 'user' | 'assistant';
-        content: string;
-        toolCalls?: ToolCall[];
-        isStreaming?: boolean;
-    };
+    type ToolCall = ChatToolCall;
+    type Message = ChatMessage;
 
     type QuickAction = {
         label: string;
         prompt: string;
     };
 
-    let messages: Message[] = $state([]);
+    // المحادثة تعيش في موديول خارج المكوّن، فتنجو من تنقّل Inertia وتُمسح
+    // مع أي إعادة تحميل كاملة. لا localStorage ولا قاعدة بيانات.
     let inputValue = $state('');
     let isStreaming = $state(false);
     let abortController = $state<AbortController | null>(null);
-    let nextId = $state(1);
     let chatContainer: HTMLDivElement | null = $state(null);
     let textarea: HTMLTextAreaElement | null = $state(null);
+
+    // إدخال صوتي: النص يروح للمربع عشان المستخدم يراجعه قبل الإرسال
+    let isListening = $state(false);
+    let speechHandle: { stop: () => void } | null = null;
+
+    function toggleVoiceInput() {
+        if (speechHandle) {
+            speechHandle.stop();
+            speechHandle = null;
+            isListening = false;
+            return;
+        }
+
+        speechHandle = startSpeechToText({
+            onStart: () => (isListening = true),
+            onEnd: () => {
+                isListening = false;
+                speechHandle = null;
+            },
+            onResult: (transcript) => {
+                // نضيف للنص الموجود بدل ما نمسحه، وما نرسل تلقائياً
+                inputValue = inputValue.trim() ? `${inputValue.trim()} ${transcript}` : transcript;
+                textarea?.focus();
+                autoResize();
+            },
+        });
+    }
 
     let currentLang = $derived(getLocale());
     let isArabic = $derived(currentLang === 'ar');
@@ -92,24 +115,41 @@
             : 'Hello! I\'m your smart financial assistant. I can help you track expenses, add new transactions, or analyze your spending habits. How can I help you today?';
     }
 
+    // رجعنا للصفحة والبث كان شغّال وقت ما طلعنا: نطفي العلامة العالقة.
+    settleStreamingMessages();
+
+    onDestroy(() => {
+        abortController?.abort();
+        abortController = null;
+    });
+
     $effect(() => {
-        if (messages.length === 0) {
-            messages = [{
-                id: nextId++,
+        if (chat.messages.length === 0) {
+            chat.messages = [{
+                id: nextMessageId(),
                 role: 'assistant',
                 content: getWelcomeMessage(),
             }];
         }
     });
 
-    function scrollToBottom() {
-        if (chatContainer) {
-            requestAnimationFrame(() => {
-                if (chatContainer) {
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-            });
-        }
+    // نتابع القاع فقط لو المستخدم أصلاً قريب منه، عشان ما نقاطع قراءته
+    // لو كان راجع فوق يقرأ رسالة قديمة أثناء البث.
+    let stickToBottom = $state(true);
+
+    function handleChatScroll() {
+        if (!chatContainer) return;
+        const distance = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
+        stickToBottom = distance < 120;
+    }
+
+    function scrollToBottom(force = false) {
+        if (!chatContainer) return;
+        if (!force && !stickToBottom) return;
+        requestAnimationFrame(() => {
+            if (!chatContainer) return;
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        });
     }
 
     function autoResize() {
@@ -131,8 +171,13 @@
             abortController.abort();
             abortController = null;
         }
-        messages = [{
-            id: nextId++,
+        resetChat();
+        // resetChat يرجّع العدّاد إلى 1، فمعرّفات قديمة في المجموعة تمنع
+        // انفجاراً مستقبلياً لو تكرّر نفس الرقم.
+        firedLoveIds.clear();
+        hearts = [];
+        chat.messages = [{
+            id: nextMessageId(),
             role: 'assistant',
             content: getWelcomeMessage(),
         }];
@@ -149,26 +194,28 @@
         }
 
         const userMsg: Message = {
-            id: nextId++,
+            id: nextMessageId(),
             role: 'user',
             content,
         };
-        messages = [...messages, userMsg];
+        chat.messages = [...chat.messages, userMsg];
 
         const assistantMsg: Message = {
-            id: nextId++,
+            id: nextMessageId(),
             role: 'assistant',
             content: '',
             toolCalls: [],
             isStreaming: true,
         };
-        messages = [...messages, assistantMsg];
-        scrollToBottom();
+        chat.messages = [...chat.messages, assistantMsg];
+        // إرسال رسالة جديدة يرجّعنا للقاع دائماً
+        stickToBottom = true;
+        scrollToBottom(true);
 
         isStreaming = true;
         abortController = new AbortController();
 
-        const history = messages
+        const history = chat.messages
             .filter((m) => m.id !== assistantMsg.id && !m.isStreaming)
             .slice(-20)
             .map((m) => ({ role: m.role, content: m.content }));
@@ -219,14 +266,14 @@
                         const event = JSON.parse(data);
 
                         if (event.type === 'text') {
-                            messages = messages.map((m) =>
+                            chat.messages = chat.messages.map((m) =>
                                 m.id === assistantMsg.id
                                     ? { ...m, content: m.content + event.delta }
                                     : m
                             );
                             scrollToBottom();
                         } else if (event.type === 'tool_call') {
-                            messages = messages.map((m) =>
+                            chat.messages = chat.messages.map((m) =>
                                 m.id === assistantMsg.id
                                     ? {
                                           ...m,
@@ -243,7 +290,7 @@
                             );
                             scrollToBottom();
                         } else if (event.type === 'tool_result') {
-                            messages = messages.map((m) =>
+                            chat.messages = chat.messages.map((m) =>
                                 m.id === assistantMsg.id
                                     ? {
                                           ...m,
@@ -257,7 +304,7 @@
                             );
                             scrollToBottom();
                         } else if (event.type === 'error') {
-                            messages = messages.map((m) =>
+                            chat.messages = chat.messages.map((m) =>
                                 m.id === assistantMsg.id
                                     ? { ...m, content: m.content + `\n\n❌ ${event.message}`, isStreaming: false }
                                     : m
@@ -269,7 +316,7 @@
         } catch (err: any) {
             if (err.name !== 'AbortError') {
                 const serverMsg = err?.message && err.status ? err.message : '';
-                messages = messages.map((m) =>
+                chat.messages = chat.messages.map((m) =>
                     m.id === assistantMsg.id
                         ? {
                               ...m,
@@ -282,7 +329,7 @@
                 );
             }
         } finally {
-            messages = messages.map((m) =>
+            chat.messages = chat.messages.map((m) =>
                 m.id === assistantMsg.id ? { ...m, isStreaming: false } : m
             );
             isStreaming = false;
@@ -310,6 +357,98 @@
     }
 
     let toolExpanded = $state<Record<string, boolean>>({});
+
+    // ===================== انفجار القلوب =====================
+    // الرسالة المضبوطة في البرومبت هي "احبك واعشقك يقلبي😘❤️. بسام"، فمطابقة
+    // نصية حرفية ما تنفع. ننظّف الإيموجي والتشكيل واختلاف الألف ثم نطابق
+    // "احبك واعشقك" + "بسام"، فيمسك الصيغتين.
+    const LOVE_HEAD = 'احبك واعشقك';
+    const LOVE_TAIL = 'بسام';
+
+    function normalizeArabic(value: string): string {
+        return value
+            .replace(/[ً-ْـ]/g, '')
+            .replace(/[أإآٱ]/g, 'ا')
+            .replace(/ى/g, 'ي')
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function isLoveMessage(content: string): boolean {
+        const normalized = normalizeArabic(content);
+
+        return normalized.includes(LOVE_HEAD) && normalized.includes(LOVE_TAIL);
+    }
+
+    type Heart = {
+        id: number;
+        emoji: string;
+        left: number;
+        delay: number;
+        duration: number;
+        drift: number;
+        scale: number;
+        rotate: number;
+    };
+
+    const HEART_EMOJIS = ['❤️', '💕', '💖', '💗', '💓', '💘', '🥰'];
+    const HEART_COUNT = 50; // رفعت العدد من 18 إلى 50 لزيادة الكثافة
+
+    let hearts = $state<Heart[]>([]);
+    let heartSeq = 0;
+    let heartTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // كل رسالة تشتغل مرة وحدة فقط. عند العودة للصفحة نبذر المعرّفات الموجودة
+    // مسبقاً حتى ما تنفجر القلوب من جديد لرسالة قديمة.
+    const firedLoveIds = new Set<number>();
+
+    for (const m of chat.messages) {
+        firedLoveIds.add(m.id);
+    }
+
+    function prefersReducedMotion(): boolean {
+        return typeof window !== 'undefined'
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+
+    function launchHearts() {
+        if (prefersReducedMotion()) return;
+
+        const batch: Heart[] = Array.from({ length: HEART_COUNT }, () => ({
+            id: heartSeq++,
+            emoji: HEART_EMOJIS[Math.floor(Math.random() * HEART_EMOJIS.length)],
+            left: 4 + Math.random() * 92,
+            delay: Math.random() * 900,
+            duration: 3200 + Math.random() * 1800,
+            drift: -60 + Math.random() * 120,
+            scale: 0.75 + Math.random() * 0.7,
+            rotate: -28 + Math.random() * 56,
+        }));
+
+        hearts = [...hearts, ...batch];
+
+        // ننظّف العقد بعد ما تخلص أطول قلب، عشان ما تتراكم في الـ DOM.
+        if (heartTimer) clearTimeout(heartTimer);
+        heartTimer = setTimeout(() => {
+            hearts = [];
+            heartTimer = null;
+        }, 5400);
+    }
+
+    $effect(() => {
+        for (const msg of chat.messages) {
+            if (msg.role !== 'assistant' || firedLoveIds.has(msg.id)) continue;
+            if (!isLoveMessage(msg.content)) continue;
+
+            firedLoveIds.add(msg.id);
+            launchHearts();
+        }
+    });
+
+    onDestroy(() => {
+        if (heartTimer) clearTimeout(heartTimer);
+    });
 </script>
 
 <AppHead title={t('ai.title')} />
@@ -318,15 +457,16 @@
     <!-- هيدر الصفحة بتصميم متناسق مع بقية الفئات -->
     <div class="flex items-center justify-between gap-3 px-1">
         <div class="flex items-center gap-3 min-w-0">
-            <div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm border border-primary/20">
-                <Sparkles class="size-5" />
+            <div class="relative flex size-11 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-cyan-300 border border-white/10 shadow-[0_0_18px_-4px_rgba(34,211,238,0.55)]">
+                <span class="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400/15 to-emerald-400/10"></span>
+                <Bot class="relative size-5" />
             </div>
             <div class="flex flex-col min-w-0">
                 <h1 class="text-xl font-bold tracking-tight sm:text-2xl truncate">
                     {t('ai.title')}
                 </h1>
                 <p class="text-xs text-muted-foreground mt-0.5 truncate">
-                    {isArabic ? 'المساعد الشخصي لإدارة مصاريفك وتنظيم ميزانيتك' : 'Personal assistant to manage and track your expenses'}
+                    {isArabic ? 'اسأل… وخذ قرارك بذكاء' : 'Personal assistant to manage and track your expenses'}
                 </p>
             </div>
         </div>
@@ -355,14 +495,18 @@
     </div>
 
     <!-- كارت المحادثة الرئيسي -->
-    <div class="flex flex-1 flex-col rounded-3xl border border-border/60 bg-card shadow-sm overflow-hidden min-h-0">
+    <div class="relative flex flex-1 flex-col rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-2xl shadow-[0_20px_60px_-25px_rgba(0,0,0,0.85)] overflow-hidden min-h-0">
+        <span class="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/45 to-transparent"></span>
+        <span class="pointer-events-none absolute -top-16 -start-10 size-40 rounded-full bg-cyan-500/10 blur-3xl"></span>
+        <span class="pointer-events-none absolute -bottom-16 -end-10 size-40 rounded-full bg-emerald-500/10 blur-3xl"></span>
         <!-- شريط المحادثات -->
         <div
             bind:this={chatContainer}
-            class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 scroll-smooth"
+            onscroll={handleChatScroll}
+            class="relative z-10 flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 scroll-smooth"
             dir={isArabic ? 'rtl' : 'ltr'}
         >
-            {#each messages as msg (msg.id)}
+            {#each chat.messages as msg (msg.id)}
                 {#if msg.role === 'user'}
                     <div class="flex justify-end items-end gap-2">
                         <div class="max-w-[85%] sm:max-w-[75%] rounded-3xl rounded-br-sm bg-primary text-primary-foreground px-4 py-3 text-xs sm:text-sm leading-relaxed shadow-sm font-medium">
@@ -374,8 +518,9 @@
                     </div>
                 {:else}
                     <div class="flex items-start gap-3">
-                        <div class="size-8 rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 mt-1 shadow-sm">
-                            <Bot class="size-4" />
+                        <div class="relative size-8 rounded-full bg-zinc-950 text-cyan-300 border border-white/10 flex items-center justify-center shrink-0 mt-1 shadow-[0_0_14px_-4px_rgba(34,211,238,0.6)]">
+                            <span class="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400/15 to-emerald-400/10"></span>
+                            <Bot class="relative size-4" />
                         </div>
                         <div class="max-w-[88%] sm:max-w-[80%] space-y-2.5">
                             {#if msg.toolCalls && msg.toolCalls.length > 0}
@@ -446,7 +591,7 @@
         </div>
 
         <!-- اقتراحات البدء السريع -->
-        {#if messages.length <= 1}
+        {#if chat.messages.length <= 1}
             <div class="px-4 pb-3 pt-1 border-t border-border/30 bg-muted/10">
                 <p class="text-[11px] font-bold text-muted-foreground mb-2 px-1">
                     {isArabic ? 'اقتراحات سريعة:' : 'Quick suggestions:'}
@@ -467,8 +612,9 @@
         {/if}
 
         <!-- منطقة الإدخال السفلى -->
-        <div class="p-3 bg-card border-t border-border/50">
-            <div class="relative flex items-center bg-muted/30 rounded-2xl border border-border/60 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+        <div class="relative z-10 p-3 border-t border-white/10 bg-white/[0.02] backdrop-blur-xl">
+            <div class="group relative flex items-center rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-xl transition-all duration-300 focus-within:border-cyan-300/50 focus-within:shadow-[0_0_26px_-6px_rgba(34,211,238,0.5)] focus-within:-translate-y-0.5">
+                <span class="pointer-events-none absolute inset-x-8 -top-px h-px bg-gradient-to-r from-transparent via-cyan-300/0 to-transparent transition-all duration-300 group-focus-within:via-cyan-300/60"></span>
                 <textarea
                     bind:this={textarea}
                     bind:value={inputValue}
@@ -477,8 +623,29 @@
                     placeholder={isArabic ? 'اكتب رسالتك أو استفسارك المالي...' : 'Type your message or financial question...'}
                     rows="1"
                     disabled={isStreaming}
-                    class="w-full resize-none bg-transparent px-4 py-3 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none disabled:opacity-50 max-h-32"
+                    class="w-full resize-none bg-transparent px-4 py-3 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none disabled:opacity-50 max-h-32"
                 ></textarea>
+
+                <!-- زر الميك: يفرّغ الصوت داخل المربع للمراجعة قبل الإرسال -->
+                <div class="ps-2 shrink-0">
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        disabled={isStreaming}
+                        onclick={toggleVoiceInput}
+                        aria-label={isArabic ? 'إدخال صوتي' : 'Voice input'}
+                        title={isArabic ? 'إدخال صوتي' : 'Voice input'}
+                        class="relative size-9 rounded-xl transition-all duration-200 disabled:opacity-40 {isListening ? 'bg-rose-500/15 text-rose-400 hover:bg-rose-500/20' : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.06]'}"
+                    >
+                        <Mic class="size-4 {isListening ? 'animate-pulse' : ''}" />
+                        {#if isListening}
+                            <span class="absolute -top-0.5 -end-0.5 flex size-2.5">
+                                <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75"></span>
+                                <span class="relative inline-flex size-2.5 rounded-full bg-rose-500"></span>
+                            </span>
+                        {/if}
+                    </Button>
+                </div>
 
                 <div class="pe-2 shrink-0">
                     {#if isStreaming}
@@ -497,7 +664,7 @@
                             onclick={() => sendMessage()}
                             disabled={!inputValue.trim()}
                         >
-                            <Send class="size-4 {isRTL() ? 'rotate-180' : ''}" />
+                            <Send class="size-4 {isRTL() ? 'scale-x-[-1]' : ''}" />
                         </Button>
                     {/if}
                 </div>
@@ -506,7 +673,71 @@
     </div>
 </div>
 
+<!-- ===== طبقة القلوب: فوق كل شيء، ما تستقبل نقرات، وتُفرّغ بعد الانتهاء ===== -->
+{#if hearts.length > 0}
+    <div class="heart-layer" aria-hidden="true">
+        {#each hearts as heart (heart.id)}
+            <span
+                class="heart"
+                style="left: {heart.left}%; animation-delay: {heart.delay}ms; animation-duration: {heart.duration}ms; --drift: {heart.drift}px; --scale: {heart.scale}; --rot: {heart.rotate}deg;"
+            >{heart.emoji}</span>
+        {/each}
+    </div>
+{/if}
+
 <style>
+    /* ===================== انفجار القلوب ===================== */
+    .heart-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        overflow: hidden;
+        pointer-events: none;
+        /* طبقة مركّبة مستقلة حتى ما تعيد بقية الصفحة الرسم مع كل إطار */
+        contain: strict;
+    }
+
+    .heart {
+        position: absolute;
+        bottom: -3rem;
+        font-size: 1.5rem;
+        line-height: 1;
+        opacity: 0;
+        /* transform + opacity فقط، بلا will-change ولا translateZ: مع 100 قلب
+           التلميحين يجبران 100 طبقة تركيب دفعة وحدة وينزّلان الإطارات للنص.
+           المتصفح أصلاً يرقّي المتحرّك بنفسه طول مدة الأنيميشن. */
+        animation-name: heart-rise;
+        animation-timing-function: cubic-bezier(0.35, 0.15, 0.3, 1);
+        animation-fill-mode: forwards;
+        animation-iteration-count: 1;
+    }
+
+    @keyframes heart-rise {
+        0% {
+            opacity: 0;
+            transform: translate3d(0, 0, 0) scale(calc(var(--scale) * 0.5)) rotate(0deg);
+        }
+        12% {
+            opacity: 1;
+        }
+        75% {
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+            transform: translate3d(var(--drift), -100vh, 0) scale(var(--scale)) rotate(var(--rot));
+        }
+    }
+
+    /* من يفضّل تقليل الحركة ما يشوف شيء أصلاً - launchHearts يخرج مبكراً */
+    @media (prefers-reduced-motion: reduce) {
+        .heart {
+            animation: none;
+            display: none;
+        }
+    }
+
+
     .prose-content :global(p) {
         margin: 0.3em 0;
     }

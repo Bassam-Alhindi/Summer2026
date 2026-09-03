@@ -11,9 +11,9 @@ export function initializeFlashToast(): void {
             return;
         }
 
-        // إلغاء إشعارات الحذف لجعل العملية صامتة (Silent Deletion)
-        const isDeleteMessage = data.message.includes('حذف') || data.message.toLowerCase().includes('delete');
-        if (isDeleteMessage) {
+        // الحذف عملية صامتة. الفلتر كان يفحص كلمة "حذف"/"delete" داخل النص،
+        // فيبلع أي إشعار يذكر الحذف بأي لغة. صار السيرفر يعلّمها صراحة.
+        if (data.silent) {
             return;
         }
 

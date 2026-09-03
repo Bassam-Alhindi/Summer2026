@@ -18,9 +18,10 @@
     import { fade, slide, fly, scale } from 'svelte/transition';
     import { toast } from 'svelte-sonner';
     import AppHead from '@/components/AppHead.svelte';
+    import DatePicker from '@/components/DatePicker.svelte';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent } from '@/components/ui/card';
-    import { resolveCategoryMeta } from '@/lib/categories';
+    import { resolveCategoryMeta, sortFoodFirst } from '@/lib/categories';
     import { getLocale, t } from '@/lib/i18n.svelte';
     import { cn } from '@/lib/utils';
 
@@ -72,6 +73,9 @@
     let typeFilter = $state(filters.type || 'all');
     let categoryFilter = $state(filters.category_id || 'all');
     let isCategoryDropdownOpen = $state(false);
+
+    // مرشح التاريخ: يوم واحد يُرسل كـ from/to لنفس التاريخ.
+    let dateFilter = $state(filters.from || '');
 
     let availableCategories = $derived.by(() => {
         const seenIds = new Set<number>();
@@ -127,7 +131,7 @@
             result.push(cat);
         }
 
-        return result;
+        return sortFoodFirst(result);
     });
 
     let typeTabs = $derived.by(() => {
@@ -144,6 +148,8 @@
             {
                 type: typeFilter === 'all' ? '' : typeFilter,
                 category_id: categoryFilter === 'all' ? '' : categoryFilter,
+                from: dateFilter,
+                to: dateFilter,
             },
             { preserveState: true, only: ['transactions'] }
         );
@@ -258,111 +264,124 @@
         {/each}
     </div>
 
-    <!-- قائمة اختيار الفئات -->
-    <div class="relative w-full z-30">
-        <button
-            type="button"
-            onclick={() => (isCategoryDropdownOpen = !isCategoryDropdownOpen)}
-            class={cn(
-                "w-full flex items-center justify-between h-11 px-4 rounded-2xl bg-card border border-border/50 text-sm font-medium transition-all duration-200 hover:bg-muted/30 active:scale-[0.99]",
-                isCategoryDropdownOpen && "ring-2 ring-primary/20 bg-card border-primary/40 shadow-sm"
-            )}
-        >
-            <div class="flex items-center gap-2.5 truncate">
-                {#if currentSelectedCategory}
-                    {@const selMeta = resolveCategoryMeta(currentSelectedCategory.name ?? '', currentSelectedCategory.color, currentSelectedCategory.icon)}
-                    {@const SelectedIcon = selMeta.icon}
-                    <div
-                        class="size-6 rounded-lg flex items-center justify-center shrink-0 border"
-                        style="background-color: color-mix(in srgb, {selMeta.color} 15%, transparent); color: {selMeta.color}; border-color: color-mix(in srgb, {selMeta.color} 30%, transparent);"
-                    >
-                        <SelectedIcon class="size-3.5" />
-                    </div>
-                    <span class="font-bold text-foreground text-xs sm:text-sm truncate">
-                        {getLocale() === 'ar' ? selMeta.ar : selMeta.en}
-                    </span>
-                {:else}
-                    <div class="size-6 rounded-lg bg-muted/80 text-muted-foreground flex items-center justify-center shrink-0 border border-border/40">
-                        <Filter class="size-3.5" />
-                    </div>
-                    <span class="text-muted-foreground text-xs sm:text-sm font-medium">
-                        {t('transactions.selectCategory')}
-                    </span>
-                {/if}
-            </div>
-
-            <ChevronDown
-                class={cn(
-                    "size-4 text-muted-foreground transition-transform duration-300 shrink-0",
-                    isCategoryDropdownOpen && "rotate-180 text-foreground"
-                )}
-            />
-        </button>
-
-        {#if isCategoryDropdownOpen}
+    <!-- مرشحا الفئة والتاريخ جنباً إلى جنب -->
+    <div class="flex flex-wrap items-start gap-2">
+        <div class="relative z-30 min-w-0 flex-1 basis-40">
             <button
                 type="button"
-                aria-label="Close"
-                transition:fade={{ duration: 100 }}
-                onclick={() => (isCategoryDropdownOpen = false)}
-                class="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
-            ></button>
-
-            <div
-                transition:fly={{ y: -6, duration: 150 }}
-                class="absolute top-full start-0 end-0 mt-2 z-50 bg-popover text-popover-foreground rounded-2xl p-1.5 shadow-2xl border border-border/60 max-h-60 overflow-y-auto space-y-1"
+                onclick={() => (isCategoryDropdownOpen = !isCategoryDropdownOpen)}
+                class={cn(
+                    "w-full flex items-center justify-between h-11 px-4 rounded-2xl bg-card border border-border/50 text-sm font-medium transition-all duration-200 hover:bg-muted/30 active:scale-[0.99]",
+                    isCategoryDropdownOpen && "ring-2 ring-primary/20 bg-card border-primary/40 shadow-sm"
+                )}
             >
-                <button
-                    type="button"
-                    onclick={() => selectCategory('all')}
-                    class={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors",
-                        categoryFilter === 'all'
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : "text-foreground hover:bg-muted/60"
-                    )}
-                >
-                    <div class="flex items-center gap-2.5">
-                        <div class="size-6 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0 border border-border/40">
+                <div class="flex items-center gap-2.5 truncate">
+                    {#if currentSelectedCategory}
+                        {@const selMeta = resolveCategoryMeta(currentSelectedCategory.name ?? '', currentSelectedCategory.color, currentSelectedCategory.icon)}
+                        {@const SelectedIcon = selMeta.icon}
+                        <div
+                            class="size-6 rounded-lg flex items-center justify-center shrink-0 border"
+                            style="background-color: color-mix(in srgb, {selMeta.color} 15%, transparent); color: {selMeta.color}; border-color: color-mix(in srgb, {selMeta.color} 30%, transparent);"
+                        >
+                            <SelectedIcon class="size-3.5" />
+                        </div>
+                        <span class="font-bold text-foreground text-xs sm:text-sm truncate">
+                            {getLocale() === 'ar' ? selMeta.ar : selMeta.en}
+                        </span>
+                    {:else}
+                        <div class="size-6 rounded-lg bg-muted/80 text-muted-foreground flex items-center justify-center shrink-0 border border-border/40">
                             <Filter class="size-3.5" />
                         </div>
-                        <span>{t('transactions.selectCategory')}</span>
-                    </div>
-                    {#if categoryFilter === 'all'}
-                        <Check class="size-4 text-primary" />
+                        <span class="text-muted-foreground text-xs sm:text-sm font-medium">
+                            {t('transactions.selectCategory')}
+                        </span>
                     {/if}
-                </button>
+                </div>
 
-                {#each availableCategories as cat}
-                    {@const catMeta = resolveCategoryMeta(cat.name ?? '', cat.color, cat.icon)}
-                    {@const CatIcon = catMeta.icon}
-                    {@const isSelected = String(categoryFilter) === String(cat.id)}
+                <ChevronDown
+                    class={cn(
+                        "size-4 text-muted-foreground transition-transform duration-300 shrink-0",
+                        isCategoryDropdownOpen && "rotate-180 text-foreground"
+                    )}
+                />
+            </button>
+
+            {#if isCategoryDropdownOpen}
+                <button
+                    type="button"
+                    aria-label="Close"
+                    transition:fade={{ duration: 100 }}
+                    onclick={() => (isCategoryDropdownOpen = false)}
+                    class="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
+                ></button>
+
+                <div
+                    transition:fly={{ y: -6, duration: 150 }}
+                    class="absolute top-full start-0 end-0 mt-2 z-50 bg-popover text-popover-foreground rounded-2xl p-1.5 shadow-2xl border border-border/60 max-h-60 overflow-y-auto space-y-1"
+                >
                     <button
                         type="button"
-                        onclick={() => selectCategory(String(cat.id))}
+                        onclick={() => selectCategory('all')}
                         class={cn(
-                            "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors",
-                            isSelected
+                            "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors",
+                            categoryFilter === 'all'
                                 ? "bg-primary/10 text-primary border border-primary/20"
                                 : "text-foreground hover:bg-muted/60"
                         )}
                     >
-                        <div class="flex items-center gap-2.5 truncate">
-                            <div
-                                class="size-6 rounded-lg flex items-center justify-center shrink-0 border"
-                                style="background-color: color-mix(in srgb, {catMeta.color} 15%, transparent); color: {catMeta.color}; border-color: color-mix(in srgb, {catMeta.color} 30%, transparent);"
-                            >
-                                <CatIcon class="size-3.5" />
+                        <div class="flex items-center gap-2.5">
+                            <div class="size-6 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0 border border-border/40">
+                                <Filter class="size-3.5" />
                             </div>
-                            <span class="truncate font-bold">{getLocale() === 'ar' ? catMeta.ar : catMeta.en}</span>
+                            <span>{t('transactions.selectCategory')}</span>
                         </div>
-                        {#if isSelected}
+                        {#if categoryFilter === 'all'}
                             <Check class="size-4 text-primary" />
                         {/if}
                     </button>
-                {/each}
-            </div>
-        {/if}
+
+                    {#each availableCategories as cat}
+                        {@const catMeta = resolveCategoryMeta(cat.name ?? '', cat.color, cat.icon)}
+                        {@const CatIcon = catMeta.icon}
+                        {@const isSelected = String(categoryFilter) === String(cat.id)}
+                        <button
+                            type="button"
+                            onclick={() => selectCategory(String(cat.id))}
+                            class={cn(
+                                "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors",
+                                isSelected
+                                    ? "bg-primary/10 text-primary border border-primary/20"
+                                    : "text-foreground hover:bg-muted/60"
+                            )}
+                        >
+                            <div class="flex items-center gap-2.5 truncate">
+                                <div
+                                    class="size-6 rounded-lg flex items-center justify-center shrink-0 border"
+                                    style="background-color: color-mix(in srgb, {catMeta.color} 15%, transparent); color: {catMeta.color}; border-color: color-mix(in srgb, {catMeta.color} 30%, transparent);"
+                                >
+                                    <CatIcon class="size-3.5" />
+                                </div>
+                                <span class="truncate font-bold">{getLocale() === 'ar' ? catMeta.ar : catMeta.en}</span>
+                            </div>
+                            {#if isSelected}
+                                <Check class="size-4 text-primary" />
+                            {/if}
+                        </button>
+                    {/each}
+                </div>
+            {/if}
+        </div>
+
+        <!-- مرشح التاريخ: نفس منتقي "الإضافة السريعة"، بعرض مضغوط -->
+        <DatePicker
+            bind:value={dateFilter}
+            class="min-w-0 flex-1 basis-28 sm:w-32 sm:flex-none sm:basis-auto"
+            triggerClass="h-11 rounded-2xl bg-card text-xs sm:text-sm"
+            placeholder={t('transactions.date')}
+            ariaLabel={t('transactions.date')}
+            clearable
+            onselect={applyFilters}
+        />
     </div>
 
     <!-- قائمة المعاملات -->
@@ -473,11 +492,11 @@
 
     <!-- الترقيم (Pagination) -->
     {#if transactionsProp.last_page > 1}
-        <div class="flex flex-row items-center justify-between gap-2 pt-1">
-            <p class="shrink-0 text-xs font-semibold text-muted-foreground">
+        <div class="flex items-center justify-between pt-1">
+            <p class="text-xs font-semibold text-muted-foreground">
                 {transactionsProp.from}–{transactionsProp.to} / {transactionsProp.total}
             </p>
-            <div class="flex flex-row items-center gap-2 rtl:flex-row-reverse">
+            <div class="flex items-center gap-1">
                 {#each transactionsProp.links as link}
                     {#if link.label.includes('Previous') || link.label.includes('السابق') || link.label.includes('&laquo;')}
                         <Button

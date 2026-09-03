@@ -7,6 +7,7 @@
     import { useForm } from '@inertiajs/svelte';
     import { t } from '@/lib/i18n.svelte';
     import { localToday } from '@/lib/utils';
+    import { sortFoodFirst } from '@/lib/categories';
     import transactions from '@/routes/transactions';
     import { toast } from 'svelte-sonner';
     import ChevronUp from 'lucide-svelte/icons/chevron-up';
@@ -45,7 +46,7 @@
     });
 
     const availableCategories = $derived(
-        categories.filter((c) => c.type === form.type)
+        sortFoodFirst(categories.filter((c) => c.type === form.type))
     );
 
     function adjustAmount(step: number) {
@@ -243,7 +244,7 @@
                         step="0.01"
                         required
                         autofocus
-                        class="pe-10"
+                        class="pe-10 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
 
                     <div

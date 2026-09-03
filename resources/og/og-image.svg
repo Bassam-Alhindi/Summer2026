@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#07070b"/>
+      <stop offset="0.55" stop-color="#0b0d14"/>
+      <stop offset="1" stop-color="#05050a"/>
+    </linearGradient>
+    <radialGradient id="glowCyan" cx="0" cy="0" r="1"
+      gradientTransform="translate(210 150) scale(520)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowEmerald" cx="0" cy="0" r="1"
+      gradientTransform="translate(1010 560) scale(520)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#34d399" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#34d399" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#22d3ee" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#34d399" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glowCyan)"/>
+  <rect width="1200" height="630" fill="url(#glowEmerald)"/>
+  <rect x="24" y="24" width="1152" height="582" rx="34" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="2"/>
+
+  <!-- wallet mark (same paths as favicon.svg), centred at 600,196 -->
+  <g transform="translate(600 196) scale(4.2) translate(-12 -12)"
+     fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/>
+    <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>
+  </g>
+
+  <text x="600" y="378" text-anchor="middle" font-family="Cairo" font-size="92" font-weight="700" fill="#ffffff">MyWallet</text>
+  <rect x="470" y="410" width="260" height="3" rx="1.5" fill="url(#rule)"/>
+  <text x="600" y="486" text-anchor="middle" font-family="Cairo" font-size="44" font-weight="600" fill="#67e8f9">لكل ريال وجهة... ولكل هدف وصول</text>
+  <text x="600" y="552" text-anchor="middle" font-family="Cairo" font-size="30" font-weight="400" fill="#94a3b8">محفظتك الذكية لتتبع مصاريفك ودخلك بكل سهولة ووضوح</text>
+</svg>

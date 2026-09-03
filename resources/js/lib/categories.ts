@@ -11,6 +11,16 @@ import Briefcase from 'lucide-svelte/icons/briefcase';
 import Banknote from 'lucide-svelte/icons/banknote';
 import Gift from 'lucide-svelte/icons/gift';
 import TrendingUp from 'lucide-svelte/icons/trending-up';
+import Laptop from 'lucide-svelte/icons/laptop';
+import CircleDollarSign from 'lucide-svelte/icons/circle-dollar-sign';
+import Plane from 'lucide-svelte/icons/plane';
+import Gamepad2 from 'lucide-svelte/icons/gamepad-2';
+import Dumbbell from 'lucide-svelte/icons/dumbbell';
+import PawPrint from 'lucide-svelte/icons/paw-print';
+import Baby from 'lucide-svelte/icons/baby';
+import Smartphone from 'lucide-svelte/icons/smartphone';
+import Wifi from 'lucide-svelte/icons/wifi';
+import Wrench from 'lucide-svelte/icons/wrench';
 
 // ألوان الفئات الافتراضية - تم التوحيد بناءً على شاشة الفئات
 export const defaultCategoryColors: Record<string, string> = {
@@ -112,6 +122,37 @@ const dictionaryArToEn: Record<string, string> = {
     'دخل آخر': 'Other'
 };
 
+// "أكل ومشروبات" لازم تطلع أول خيار في كل قوائم اختيار الفئات.
+// نطابق بالاسم مباشرة بدل ما نعتمد على SYNONYM_MAP، لأن مطابقة المرادفات
+// تتغير مع الوقت وتكسر الترتيب بدون ما ننتبه.
+const FOOD_ALIASES = [
+    'food & drinks', 'food and drinks', 'food&drinks', 'food_drinks',
+    'food & dining', 'food', 'groceries',
+    'اكل وشرب', 'اكل و شرب', 'اكل ومشروبات', 'اكل و مشروبات',
+    'الطعام', 'طعام', 'طعام ومشروبات', 'المقاضي', 'مقاضي',
+];
+
+function normalizeCategoryName(name?: string | null): string {
+    return String(name ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[ً-ْ]/g, '')            // التشكيل
+        .replace(/[أإآ]/g, 'ا') // أ إ آ -> ا
+        .replace(/ة/g, 'ه')                // ة -> ه
+        .replace(/\s+/g, ' ');
+}
+
+export function isFoodCategory(name?: string | null): boolean {
+    const target = normalizeCategoryName(name);
+    if (!target) return false;
+    return FOOD_ALIASES.some((alias) => normalizeCategoryName(alias) === target);
+}
+
+/** يرجّع نسخة جديدة مرتبة وفئة الأكل أول وحدة، وبقية الترتيب كما هو. */
+export function sortFoodFirst<T extends { name?: string | null }>(list: T[]): T[] {
+    return [...list].sort((a, b) => Number(isFoodCategory(b.name)) - Number(isFoodCategory(a.name)));
+}
+
 export function translateCategory(name: string, locale: string): string {
     if (!name) return name;
     const key = name.trim().toLowerCase();
@@ -145,12 +186,17 @@ export function getCategoryColor(name: string, customColor?: string): string {
     return `hsl(${hue}, 70%, 50%)`;
 }
 
+// لازم تغطي كل الأيقونات المتاحة في صفحة الفئات، وإلا صفحات التقارير والعمليات
+// ما تلقى الأيقونة اللي اختارها المستخدم وترجع للأيقونة الافتراضية العامة.
 const iconMap: Record<string, typeof Home> = {
     home: Home, film: Film, heart: Heart, 'graduation-cap': GraduationCap,
     receipt: Receipt, 'shopping-bag': ShoppingBag, car: Car,
     'utensils-crossed': UtensilsCrossed, briefcase: Briefcase,
     banknote: Banknote, gift: Gift, gifts: Gift, 'trending-up': TrendingUp,
     'more-horizontal': MoreHorizontal,
+    laptop: Laptop, 'circle-dollar-sign': CircleDollarSign, plane: Plane,
+    'gamepad-2': Gamepad2, dumbbell: Dumbbell, 'paw-print': PawPrint,
+    baby: Baby, smartphone: Smartphone, wifi: Wifi, wrench: Wrench,
 };
 
 export function getCategoryIcon(catName: string, iconName?: string) {

@@ -39,16 +39,25 @@ class DashboardController extends Controller
             ->dateRange($prevFrom, $prevTo)
             ->sum('amount');
 
-        $allTimeIncome = Transaction::forUser($userId)
+        // الميزانية اليومية مربوطة بدورة الراتب (27 -> 26) وما تتأثر بفلتر
+        // الأسبوع/الشهر/السنة، فنحسب مجاميعها على نافذة الدورة لحالها.
+        $cycleStart = $this->getCycleStart(Carbon::now());
+        $cycleEnd = $this->getCycleEnd(Carbon::now());
+
+        $cycleIncome = Transaction::forUser($userId)
             ->income()
+            ->dateRange($cycleStart, $cycleEnd)
             ->sum('amount');
 
-        $allTimeExpenses = Transaction::forUser($userId)
+        $cycleExpenses = Transaction::forUser($userId)
             ->expense()
+            ->dateRange($cycleStart, $cycleEnd)
             ->sum('amount');
 
-        $periodNetBalance = $totalIncome - $totalExpenses;
-        $netBalance = $allTimeIncome - $allTimeExpenses;
+        // صافي الرصيد لازم يطابق البطاقتين المعروضتين فوقه (دخل الفترة ناقص
+        // مصروفها). قبل كذا كان يُحسب على كل الوقت فيطلع رقم ما يوافق الطرح.
+        $netBalance = $totalIncome - $totalExpenses;
+        $periodNetBalance = $netBalance;
         $savingsRate = (int) round(($periodNetBalance / max($totalIncome, 1)) * 100);
 
         $incomeTrend = $this->calculateTrend($totalIncome, $prevIncome);
@@ -78,10 +87,10 @@ class DashboardController extends Controller
         $expenseByCategory = Transaction::forUser($userId)
             ->expense()
             ->dateRange($from, $to)
-            ->with('category')
+            ->with(['category.budgets' => fn ($q) => $q->where('user_id', $userId)])
             ->get()
             ->groupBy(fn (Transaction $t) => $t->category?->name ?? 'أخرى')
-            ->map(function ($transactions, string $category) {
+            ->map(function ($transactions, string $category) use ($userId) {
                 $firstCat = $transactions->first()?->category;
 
                 return [
@@ -89,12 +98,13 @@ class DashboardController extends Controller
                     'category_id' => $firstCat?->id,
                     'amount' => (float) $transactions->sum('amount'),
                     'color' => $firstCat?->color ?? '#6b7280',
-                    'budget_limit' => $firstCat?->budget_limit ? (float) $firstCat->budget_limit : null,
+                    'budget_limit' => $firstCat?->budgetLimitFor($userId),
                 ];
             })
             ->values();
 
         $categories = Category::forUser($userId)
+            ->withBudgetFor($userId)
             ->ordered()
             ->get()
             ->map(fn (Category $c) => [
@@ -103,7 +113,7 @@ class DashboardController extends Controller
                 'type' => $c->type,
                 'color' => $c->color,
                 'icon' => $c->icon,
-                'budget_limit' => $c->budget_limit ? (float) $c->budget_limit : null,
+                'budget_limit' => $c->budgetLimitFor($userId),
             ]);
 
         return Inertia::render('Dashboard', [
@@ -115,12 +125,44 @@ class DashboardController extends Controller
             'expenseByCategory' => $expenseByCategory,
             'categories' => $categories,
             'period' => $period,
-            'remainingDays' => max(1, Carbon::now()->startOfDay()->diffInDays($to->copy()->startOfDay()) + 1),
+            'cycleEndsOn' => $cycleEnd->toDateString(),
+            'cycleNetBalance' => (float) ($cycleIncome - $cycleExpenses),
+            'remainingDays' => $this->getCycleRemainingDays(Carbon::now()),
             'trends' => [
                 'income' => $incomeTrend,
                 'expenses' => $expenseTrend,
             ],
         ]);
+    }
+
+    /**
+     * الراتب ينزل يوم 27، فالفلوس لازم تكفي لين 26 (آخر يوم قبل الراتب).
+     * الدورة تبدأ 27 وتنتهي 26 من الشهر اللي بعده، والأيام المتبقية تُحسب
+     * حتى نهاية الدورة الحالية لا حتى نهاية الشهر الميلادي.
+     */
+    private function getCycleStart(Carbon $now): Carbon
+    {
+        $today = $now->copy()->startOfDay();
+
+        return $today->day >= 27
+            ? $today->copy()->startOfMonth()->day(27)
+            : $today->copy()->startOfMonth()->subMonth()->day(27);
+    }
+
+    private function getCycleEnd(Carbon $now): Carbon
+    {
+        $today = $now->copy()->startOfDay();
+
+        return $today->day >= 27
+            ? $today->copy()->startOfMonth()->addMonth()->day(26)
+            : $today->copy()->startOfMonth()->day(26);
+    }
+
+    private function getCycleRemainingDays(Carbon $now): int
+    {
+        $today = $now->copy()->startOfDay();
+
+        return max(1, (int) $today->diffInDays($this->getCycleEnd($now)) + 1);
     }
 
     /**

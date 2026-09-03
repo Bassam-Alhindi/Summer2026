@@ -4,7 +4,7 @@
     import Receipt from 'lucide-svelte/icons/receipt';
     import Shapes from 'lucide-svelte/icons/shapes';
     import BarChart3 from 'lucide-svelte/icons/bar-chart-3';
-    import Sparkles from 'lucide-svelte/icons/sparkles';
+    import Bot from 'lucide-svelte/icons/bot';
     import { currentUrlState } from '@/lib/currentUrl.svelte';
     import { toUrl } from '@/lib/utils';
     import { dashboard, reports, aiAssistant } from '@/routes';
@@ -38,7 +38,7 @@
         {
             title: t('nav.ai'),
             href: aiAssistant(),
-            icon: Sparkles,
+            icon: Bot,
         },
     ]);
 </script>

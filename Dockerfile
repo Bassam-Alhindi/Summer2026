@@ -57,5 +57,11 @@ EXPOSE 10000
 
 USER www-data
 
-# Clear cache dynamically on container start and bind Railway PORT
-CMD ["sh", "-c", "php artisan config:clear && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}"]
+# `artisan serve` only forwards a whitelist of env vars to the PHP server
+# subprocess, so DB_*/SESSION_*/APP_KEY must be baked into the config cache
+# here (in a process that can still see them) or the app falls back to the
+# sqlite defaults in config/database.php.
+# --no-reload is required: without it artisan serve ignores PHP_CLI_SERVER_WORKERS
+# and silently falls back to a single worker, which lets one AI stream block
+# every other request.
+CMD ["sh", "-c", "php artisan config:cache && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-10000} --no-reload"]

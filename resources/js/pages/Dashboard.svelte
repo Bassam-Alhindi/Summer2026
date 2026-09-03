@@ -12,15 +12,20 @@
 
 <script lang="ts">
   import AppHead from '@/components/AppHead.svelte';
+  import { page } from '@inertiajs/svelte';
   import { router, Link } from '@inertiajs/svelte';
-  import { fade, scale } from 'svelte/transition';
+  import LogOut from 'lucide-svelte/icons/log-out';
+  import { logout } from '@/routes';
+  import { fade, scale, fly } from 'svelte/transition';
   import {
     Plus,
     ArrowUpRight,
     ArrowDownRight,
     ChevronLeft,
+    ChevronRight,
     ChevronUp,   
     ChevronDown,  
+    Calendar,
     Wallet,
     X,
     Receipt,
@@ -30,8 +35,9 @@
   import * as LucideIcons from 'lucide-svelte';
   import { t, getLocale, setLocale } from '@/lib/i18n.svelte';
   import type { TranslationKey } from '@/lib/translations';
-  import { resolveCategoryMeta } from '@/lib/categories';
-  import { localToday } from '@/lib/utils';
+  import { resolveCategoryMeta, sortFoodFirst } from '@/lib/categories';
+  import { startSpeechToText } from '@/lib/speech';
+  import { localToday, localDateString } from '@/lib/utils';
   import { toast } from 'svelte-sonner';
 
 
@@ -86,7 +92,9 @@
     categories = [],
     expenseByCategory = [],
     period = 'month',
-    remainingDays = 30
+    remainingDays = 30,
+    cycleEndsOn = '',
+    cycleNetBalance = 0
   }: {
     netBalance: number;
     totalIncome: number;
@@ -96,26 +104,28 @@
     expenseByCategory: ExpenseCategoryData[];
     period: string;
     remainingDays: number;
+    cycleEndsOn: string;
+    cycleNetBalance: number;
   } = $props();
 
-  let selectedPeriod = $state(period || 'month');
   let currentLang = $state(getLocale());
+  // الاسم يجي من قاعدة البيانات عبر auth.user المشترك في HandleInertiaRequests
+  const userName = $derived((page.props as any)?.auth?.user?.name ?? '');
+  const firstName = $derived(String(userName).trim().split(/\s+/)[0] ?? '');
+
   let isListening = $state(false);
 
-  $effect(() => {
-    if (period) {
-      selectedPeriod = period;
-    }
-  });
+  // اليوم اللي تنتهي فيه الدورة (26) عشان نوضح إن الميزانية محسوبة لين الراتب يوم 27
+  const cycleEndDay = $derived(cycleEndsOn ? Number(cycleEndsOn.slice(-2)) : 26);
+  const payDay = $derived(cycleEndDay + 1);
 
+  // مبني على دورة الراتب لحالها، فما يتغير لما تبدّل الأسبوع/الشهر/السنة
   let dailyBudget = $derived.by(() => {
-    const periodNetBalance = totalIncome - totalExpenses;
-
-    if (periodNetBalance <= 0 || remainingDays <= 0) {
+    if (cycleNetBalance <= 0 || remainingDays <= 0) {
       return 0;
     }
 
-    return periodNetBalance / remainingDays;
+    return cycleNetBalance / remainingDays;
   });
 
   function toggleLanguage() {
@@ -136,23 +146,15 @@
     return currentLang === 'en' ? (fallbackEn || fallbackAr) : fallbackAr;
   }
 
-  let periods = $derived([
-    { id: 'week', label: tr('period.week', 'هذا الأسبوع', 'This Week') },
-    { id: 'month', label: tr('period.month', 'هذا الشهر', 'This Month') },
-    { id: 'year', label: tr('period.year', 'هذه السنة', 'This Year') }
-  ]);
-
-  function changePeriod(pId: string) {
-    selectedPeriod = pId;
-    router.get(dashboard.url(), { period: pId }, { preserveState: true });
-  }
-
   let isDialogOpen = $state(false);
   let formAmount = $state('');
   let formType = $state<'income' | 'expense'>('expense');
   let formCategoryId = $state<number | null>(null);
   let formDescription = $state('');
   let formDate = $state(localToday());
+  let isDatePickerOpen = $state(false);
+  let pickerYear = $state(new Date().getFullYear());
+  let pickerMonth = $state(new Date().getMonth());
   let errorMessage = $state<string | null>(null);
   let isSubmitting = $state(false);
 
@@ -257,7 +259,9 @@
       for (const syn of synonyms) {
         const synAr = cleanArabicSentence(syn);
         const synEn = cleanEnglishText(syn);
-        if (cleanedAr === synAr || cleanedEn === synEn || cleanedAr.includes(synAr) || synAr.includes(cleanedAr)) {
+        // مطابقة تامة فقط: المطابقة الجزئية كانت تبلع فئات مخصصة مثل "راتب إضافي"
+        // داخل cat_salary فتختفي من القائمة بسبب إزالة التكرار.
+        if (cleanedAr === synAr || cleanedEn === synEn) {
           return `cat_${key}`;
         }
       }
@@ -276,8 +280,11 @@
         uniqueList.push(cat);
       }
     }
-    const targetDefaultKey = formType === 'expense' ? 'cat_food' : 'cat_salary';
-    const defaultIndex = uniqueList.findIndex((c) => getCanonicalCategoryKey(c.name) === targetDefaultKey);
+    // للمصروفات: الأكل أول وحدة دائماً. للدخل: نبقي الراتب أول وحدة.
+    if (formType === 'expense') {
+      return sortFoodFirst(uniqueList);
+    }
+    const defaultIndex = uniqueList.findIndex((c) => getCanonicalCategoryKey(c.name) === 'cat_salary');
     if (defaultIndex > 0) {
       const matched = uniqueList[defaultIndex];
       return [matched, ...uniqueList.filter((_, idx) => idx !== defaultIndex)];
@@ -297,6 +304,7 @@
     formType = 'expense';
     formDescription = '';
     formDate = localToday();
+    isDatePickerOpen = false;
     errorMessage = null;
     const targetDefaultKey = 'cat_food';
     const found = categories.find((c) => getCanonicalCategoryKey(c.name) === targetDefaultKey);
@@ -325,6 +333,15 @@
     }
   }
 
+  // نبضة مميزة عند حفظ معاملة جديدة بنجاح
+  function triggerHaptic() {
+    if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([40, 30, 40]);
+      } catch {}
+    }
+  }
+
   const ARABIC_TEXT_NUMBERS: Record<string, number> = {
     واحد: 1, اثنين: 2, ثلاثة: 3, اربعة: 4, خمسة: 5, ستة: 6, سبعة: 7, ثمانية: 8, تسعة: 9, عشرة: 10,
     عشرين: 20, ثلاثين: 30, اربعين: 40, خمسين: 50, ستين: 60, سبعين: 70, ثمانين: 80, تسعين: 90, مئة: 100, مائة: 100, مئتين: 200, الف: 1000
@@ -344,105 +361,64 @@
     return null;
   }
 
-  // عرف متغير عام برا الدالة عشان نحتفظ بنسخة التعرف النشطة ونقفلها لو كانت شغالة
-let activeRecognition: any = null;
+  // نستخدم نفس وحدة التفريغ الصوتي المشتركة مع صفحة المساعد،
+  // عشان سياسة الإشعارات تبقى واحدة: خطأ = توست، نجاح = صامت.
+  let speechHandle: { stop: () => void } | null = null;
 
-function startVoiceRecognition() {
-    if (typeof window === 'undefined') return;
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-        toast.error(tr('voice.not_supported', 'التعرف الصوتي غير مدعوم في هذا المتصفح', 'Voice recognition not supported'));
-        return;
-    }
-    
-    // إذا كان فيه جلسة صوتية شغالـة، نوقفها أول عشان ما يتداخلون ويطلعون إشعارات مكررة
-    if (activeRecognition) {
-        try {
-            activeRecognition.stop();
-        } catch (e) {}
+  function startVoiceRecognition() {
+    if (speechHandle) {
+      speechHandle.stop();
+      speechHandle = null;
+      isListening = false;
+      return;
     }
 
-    const recognition = new SpeechRecognition();
-    activeRecognition = recognition; // حفظ المرجع
-    
-    recognition.lang = currentLang === 'ar' ? 'ar-SA' : 'en-US';
-    recognition.interimResults = false;
-    let voiceErrorNotified = false;
-    
-    function notifyVoiceError() {
-        if (voiceErrorNotified) return;
-        voiceErrorNotified = true;
-        isListening = false;
-        // نضمن إن الإشعار يظهر مرة واحدة فقط بدون تكرار
-        toast.error(tr('voice.error', 'لم نتمكن من معالجة الصوت، حاول مرة أخرى', 'Could not process audio, try again'));
-    }
-    
-    recognition.onstart = () => {
+    speechHandle = startSpeechToText({
+      onStart: () => {
         isListening = true;
         triggerHapticFeedback();
-    };
-    
-    recognition.onend = () => {
+      },
+      onEnd: () => {
         isListening = false;
-        if (activeRecognition === recognition) {
-            activeRecognition = null;
-        }
-    };
-    
-    recognition.onerror = (event: any) => {
-        // نتجاهل خطأ 'aborted' لأنه طبيعي لو وقفنا الجلسة يدوياً
-        if (event && event.error === 'aborted') return;
-        notifyVoiceError();
-    };
-    
-    recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        if (!transcript) return;
-        
+        speechHandle = null;
+      },
+      onResult: (transcript) => {
         openAddDialog();
+
         const extractedAmount = parseAmountFromText(transcript);
         if (extractedAmount) {
-            formAmount = extractedAmount;
+          formAmount = extractedAmount;
         }
-        
+
         const wordsInTranscript = cleanArabicSentence(transcript).split(' ');
-        let matchedCategory = categories.find((cat) => {
-            const catCleanName = cleanArabicSentence(cat.name);
-            const canonicalKey = getCanonicalCategoryKey(cat.name).replace('cat_', '');
-            const synonyms = (SYNONYM_MAP[canonicalKey] || []).map((s) => cleanArabicSentence(s));
-            return wordsInTranscript.some((word) =>
-                word.length > 1 && (
-                    catCleanName.includes(word) ||
-                    synonyms.some((syn) => syn.includes(word) || word.includes(syn))
-                )
-            );
+        const matchedCategory = categories.find((cat) => {
+          const catCleanName = cleanArabicSentence(cat.name);
+          const canonicalKey = getCanonicalCategoryKey(cat.name).replace('cat_', '');
+          const synonyms = (SYNONYM_MAP[canonicalKey] || []).map((syn) => cleanArabicSentence(syn));
+          return wordsInTranscript.some((word) =>
+            word.length > 1 && (
+              catCleanName.includes(word) ||
+              synonyms.some((syn) => syn.includes(word) || word.includes(syn))
+            )
+          );
         });
-        
+
         if (matchedCategory) {
-            formCategoryId = matchedCategory.id;
-            const canonicalKey = getCanonicalCategoryKey(matchedCategory.name);
-            if (
-                matchedCategory.type === 'income' ||
-                canonicalKey.includes('salary') ||
-                canonicalKey.includes('freelance') ||
-                canonicalKey.includes('income')
-            ) {
-                formType = 'income';
-            } else {
-                formType = 'expense';
-            }
+          formCategoryId = matchedCategory.id;
+          const canonicalKey = getCanonicalCategoryKey(matchedCategory.name);
+          formType =
+            matchedCategory.type === 'income' ||
+            canonicalKey.includes('salary') ||
+            canonicalKey.includes('freelance') ||
+            canonicalKey.includes('income')
+              ? 'income'
+              : 'expense';
         }
-        
+
         triggerHapticFeedback();
-    };
-    
-    try {
-        recognition.start();
-    } catch {
-        notifyVoiceError();
-    }
-}
+      },
+    });
+  }
 
   function handleSubmit() {
     if (!formAmount || !formCategoryId) {
@@ -463,7 +439,7 @@ function startVoiceRecognition() {
       {
         preserveScroll: true,
         onSuccess: () => {
-          triggerHapticFeedback();
+          triggerHaptic();
           isDialogOpen = false;
           isSubmitting = false;
           // Toast is handled by backend flash session - no duplicate here
@@ -476,8 +452,88 @@ function startVoiceRecognition() {
     );
   }
 
+  const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+  const MONTHS_SHORT_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const MONTHS_LONG_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const WEEKDAYS_AR = ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'];
+  const WEEKDAYS_EN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  // 'YYYY-MM-DD' يُبنى بمكوّنات محلية: new Date('2026-08-28') يُفسَّر كـ UTC ويقفز يوماً للخلف
+  // في المناطق الزمنية السالبة.
+  function parseLocalDate(value: string): Date | null {
+    const parts = (value ?? '').split('-').map(Number);
+    if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
+    const [year, month, day] = parts;
+    const parsed = new Date(year, month - 1, day);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function daysBetweenToday(target: Date): number {
+    const now = new Date();
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const targetMidnight = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+    return Math.round((todayMidnight.getTime() - targetMidnight.getTime()) / 86400000);
+  }
+
+  // النص المختصر داخل زر التاريخ: اليوم / أمس / غداً / ٢٨ أغسطس
+  const dateTriggerLabel = $derived.by(() => {
+    const target = parseLocalDate(formDate);
+    if (!target) return formDate;
+    const isEn = currentLang === 'en';
+    const diffDays = daysBetweenToday(target);
+    if (diffDays === 0) return isEn ? 'Today' : 'اليوم';
+    if (diffDays === 1) return isEn ? 'Yesterday' : 'أمس';
+    if (diffDays === -1) return isEn ? 'Tomorrow' : 'غداً';
+    const month = isEn ? MONTHS_SHORT_EN[target.getMonth()] : MONTHS_AR[target.getMonth()];
+    return `${target.getDate()} ${month}`;
+  });
+
+  const pickerMonthLabel = $derived(
+    `${currentLang === 'en' ? MONTHS_LONG_EN[pickerMonth] : MONTHS_AR[pickerMonth]} ${pickerYear}`
+  );
+
+  const weekdayLabels = $derived(currentLang === 'en' ? WEEKDAYS_EN : WEEKDAYS_AR);
+
+  // خانات الشهر: فراغات قبل أول يوم ثم أيام الشهر
+  const calendarCells = $derived.by(() => {
+    const leading = new Date(pickerYear, pickerMonth, 1).getDay();
+    const daysInMonth = new Date(pickerYear, pickerMonth + 1, 0).getDate();
+    const cells: (number | null)[] = [];
+    for (let i = 0; i < leading; i++) cells.push(null);
+    for (let day = 1; day <= daysInMonth; day++) cells.push(day);
+    return cells;
+  });
+
+  function toggleDatePicker() {
+    if (isDatePickerOpen) {
+      isDatePickerOpen = false;
+      return;
+    }
+    const current = parseLocalDate(formDate) ?? new Date();
+    pickerYear = current.getFullYear();
+    pickerMonth = current.getMonth();
+    isDatePickerOpen = true;
+  }
+
+  function shiftPickerMonth(delta: number) {
+    const shifted = new Date(pickerYear, pickerMonth + delta, 1);
+    pickerYear = shifted.getFullYear();
+    pickerMonth = shifted.getMonth();
+  }
+
+  function selectPickerDay(day: number) {
+    formDate = localDateString(new Date(pickerYear, pickerMonth, day));
+    isDatePickerOpen = false;
+  }
+
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && isDialogOpen) {
+    if (event.key !== 'Escape') return;
+    // التقويم يُغلق أولاً حتى لا تُغلق النافذة كلها بضغطة واحدة
+    if (isDatePickerOpen) {
+      isDatePickerOpen = false;
+      return;
+    }
+    if (isDialogOpen) {
       isDialogOpen = false;
     }
   }
@@ -490,12 +546,30 @@ function startVoiceRecognition() {
 <AppHead title={tr('dashboard.title', 'محفظتي', 'My Wallet')} />
 
 <div class="flex flex-1 flex-col gap-5 p-4 pb-36 sm:p-6 max-w-lg mx-auto w-full">
+  <!-- ترحيب مصغّر: وميض على الاسم وهالة تتنفس -->
+  {#if firstName}
+    <div
+      dir="auto"
+      in:fly={{ y: -6, duration: 280 }}
+      class="relative inline-flex max-w-full items-center gap-1.5 self-start rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 backdrop-blur-xl"
+    >
+      <span aria-hidden="true" class="greeting-aura pointer-events-none absolute -inset-1.5 rounded-full bg-gradient-to-r from-cyan-400/25 via-sky-300/10 to-emerald-400/25 blur-lg"></span>
+
+      <span class="relative z-10 flex items-center gap-1.5 truncate text-[12px] leading-none tracking-tight">
+        <span class="shrink-0 font-semibold text-white/50">{tr('dashboard.welcome_back', 'أهلاً بك،', 'Welcome back,')}</span>
+        <bdi class="greeting-name inline-block truncate font-extrabold">{firstName}</bdi>
+        <span class="greeting-wave shrink-0 text-[11px] leading-none">👋</span>
+      </span>
+    </div>
+  {/if}
+
   <!-- الهيدر والعنوان -->
   <div class="flex items-center justify-between gap-2">
     <div>
       <h1 class="text-2xl font-black tracking-tight text-foreground">{tr('dashboard.title', 'محفظتي', 'My Wallet')}</h1>
       <p class="text-xs text-muted-foreground mt-0.5 font-medium">{tr('dashboard.subtitle', 'اعرف كل ريال فين راح، وتطمن على جيبك', 'Manage smartly and keep track of your budget')}</p>
     </div>
+    <div class="flex items-center gap-1.5 shrink-0">
     <button
       type="button"
       onclick={toggleLanguage}
@@ -509,20 +583,19 @@ function startVoiceRecognition() {
         <path d="M15.5 22l3-7 3 7M16.5 19.5h4" stroke-width="1.5" />
       </svg>
     </button>
-  </div>
 
-  <!-- الأزرار الزمنية -->
-  <div class="p-1 rounded-2xl bg-muted/50 border border-border/40 grid grid-cols-3 gap-1">
-    {#each periods as p}
-      {@const isActive = selectedPeriod === p.id}
-      <button
-        type="button"
-        onclick={() => changePeriod(p.id)}
-        class="py-2 rounded-xl text-xs font-bold transition-all duration-200 text-center {isActive ? 'bg-card text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'}"
-      >
-        {p.label}
-      </button>
-    {/each}
+    <!-- الشريط الجانبي مخفي على الجوال، فنحط تسجيل الخروج هنا عشان يكون بمتناول اليد -->
+    <Link
+      href={logout()}
+      as="button"
+      data-test="dashboard-logout-button"
+      aria-label={tr('nav.logout', 'تسجيل الخروج', 'Log out')}
+      title={tr('nav.logout', 'تسجيل الخروج', 'Log out')}
+      class="flex items-center justify-center size-8 rounded-xl bg-muted/20 hover:bg-rose-500/10 border border-border/30 backdrop-blur-xs text-muted-foreground hover:text-rose-400 transition-all active:scale-95 cursor-pointer shrink-0"
+    >
+      <LogOut class="size-3.5 {currentLang === 'ar' ? 'scale-x-[-1]' : ''}" />
+    </Link>
+    </div>
   </div>
 
   <!-- بطاقة الرصيد والمبالغ -->
@@ -545,14 +618,27 @@ function startVoiceRecognition() {
     <div class="h-px bg-white/10 w-full"></div>
 
     {#if dailyBudget > 0}
-      <div class="flex items-center justify-between px-1">
-        <div class="flex items-center gap-1.5">
-          <div class="size-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24]"></div>
-          <span class="text-[11px] font-semibold text-white/60">{tr('dashboard.daily_budget', 'الميزانية اليومية المقترحة', 'Suggested Daily Budget')}</span>
+      {@const budgetParts = formatNumber(dailyBudget).split('.')}
+      <div class="relative flex items-center justify-between gap-3 overflow-hidden rounded-2xl border border-amber-400/15 bg-amber-400/[0.05] px-3.5 py-3">
+        <div class="pointer-events-none absolute -top-10 -end-6 size-24 rounded-full bg-amber-400/10 blur-2xl"></div>
+
+        <div class="relative z-10 flex min-w-0 flex-col gap-1">
+          <div class="flex items-center gap-1.5">
+            <div class="size-1.5 shrink-0 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]"></div>
+            <span class="truncate text-[11px] font-bold text-amber-100/85">
+              {tr('budget.title', 'ميزانيتك لليوم', 'Your budget for today')}
+            </span>
+          </div>
+          <span class="ps-3 text-[10px] font-medium text-white/40 tabular-nums">
+            {currentLang === 'ar'
+              ? `معك لين يوم 27   `
+              : `With you until the 27th `}
+          </span>
         </div>
-        <div class="flex items-baseline gap-1">
-          <span class="text-sm font-black tabular-nums text-amber-400">{formatNumber(dailyBudget)}</span>
-          <span class="text-[11px] font-bold text-white/50">{tr('common.currency', '⃁', 'SAR')}</span>
+
+        <div class="relative z-10 flex shrink-0 items-baseline gap-1.5" dir="ltr">
+          <span class="text-lg font-black tabular-nums leading-none tracking-tight text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]">{budgetParts[0]}{#if budgetParts[1]}<span class="text-[11px] font-bold text-amber-300/50">.{budgetParts[1]}</span>{/if}</span>
+          <span class="text-sm font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
         </div>
       </div>
       <div class="h-px bg-white/10 w-full"></div>
@@ -642,7 +728,7 @@ function startVoiceRecognition() {
             </div>
             <div class="flex items-center gap-1 dir-ltr">
               <span class="text-sm font-bold tabular-nums {item.amount === 0 ? 'text-muted-foreground' : (isIncome ? 'text-emerald-500' : 'text-rose-500')}">
-                {item.amount === 0 ? '0' : (isIncome ? '+' : '') + formatNumber(Math.abs(item.amount))}
+                {item.amount === 0 ? '0' : (isIncome ? '+' : '-') + formatNumber(Math.abs(item.amount))}
               </span>
               <span class="text-sm font-bold text-white">{tr('common.currency', '⃁', 'SAR')}</span>
             </div>
@@ -655,13 +741,14 @@ function startVoiceRecognition() {
 
 <!-- شريط الإضافة الزجاجي والسفلي -->
 <div class="fixed bottom-16 inset-x-0 z-40 max-w-lg mx-auto px-4 flex items-center justify-center pointer-events-none">
-  <div class="flex items-center gap-2 p-1.5 rounded-full bg-[#121215]/80 border border-white/10 shadow-2xl backdrop-blur-xl pointer-events-auto">
+  <div class="dock relative flex items-center gap-2 p-1.5 rounded-full bg-[#121215]/65 border border-white/[0.08] shadow-[0_18px_50px_-16px_rgba(0,0,0,0.95)] pointer-events-auto">
+    <span aria-hidden="true" class="dock-aura pointer-events-none absolute -inset-2.5 rounded-full bg-primary/20 blur-xl"></span>
     <!-- زر الإضافة الصوتية -->
     <button
       type="button"
       onclick={startVoiceRecognition}
       title={tr('voice.title', 'إضافة صوتیة', 'Voice Add')}
-      class="relative size-11 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all cursor-pointer active:scale-95 shrink-0 {isListening ? 'border-rose-500 bg-rose-500/20 text-rose-400' : 'text-white/80 hover:text-white'}"
+      class="dock-mic relative z-10 size-11 rounded-full bg-white/5 hover:bg-white/[0.12] border border-white/10 flex items-center justify-center transition-all duration-300 cursor-pointer active:scale-95 shrink-0 {isListening ? 'border-rose-500 bg-rose-500/20 text-rose-400' : 'text-white/80 hover:text-white'}"
     >
       <Mic class="size-5 {isListening ? 'animate-pulse' : ''}" />
       {#if isListening}
@@ -672,13 +759,13 @@ function startVoiceRecognition() {
       {/if}
     </button>
 
-    <div class="h-5 w-px bg-white/10 my-auto"></div>
+    <div class="relative z-10 h-5 w-px bg-white/10 my-auto"></div>
 
     <!-- زر إضافة معاملة -->
     <button
       type="button"
       onclick={openAddDialog}
-      class="h-11 px-5 rounded-full bg-primary text-primary-foreground font-bold text-xs shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+      class="relative z-10 h-11 px-5 rounded-full bg-primary text-primary-foreground font-bold text-xs shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
     >
       <Plus class="size-4 stroke-[2.5]" />
       <span>{tr('dashboard.add_transaction', 'إضافة معاملة', 'Add Transaction')}</span>
@@ -699,52 +786,6 @@ function startVoiceRecognition() {
   </Link>
 </div>
 
-<!-- نافذة إضافة معاملة سريعة -->
-<!-- شريط الإضافة الزجاجي والسفلي -->
-<div class="fixed bottom-16 inset-x-0 z-40 max-w-lg mx-auto px-4 flex items-center justify-center pointer-events-none">
-  <div class="flex items-center gap-2 p-1.5 rounded-full bg-[#121215]/80 border border-white/10 shadow-2xl backdrop-blur-xl pointer-events-auto">
-    <!-- زر الإضافة الصوتية -->
-    <button
-      type="button"
-      onclick={startVoiceRecognition}
-      title={tr('voice.title', 'إضافة صوتية', 'Voice Add')}
-      class="relative size-11 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-all cursor-pointer active:scale-95 shrink-0 {isListening ? 'border-rose-500 bg-rose-500/20 text-rose-400' : 'text-white/80 hover:text-white'}"
-    >
-      <Mic class="size-5 {isListening ? 'animate-pulse' : ''}" />
-      {#if isListening}
-        <span class="absolute top-0.5 right-0.5 flex size-3">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full size-3 bg-rose-500"></span>
-        </span>
-      {/if}
-    </button>
-
-    <div class="h-5 w-px bg-white/10 my-auto"></div>
-
-    <!-- زر إضافة معاملة -->
-    <button
-      type="button"
-      onclick={openAddDialog}
-      class="h-11 px-5 rounded-full bg-primary text-primary-foreground font-bold text-xs shadow-lg hover:bg-primary/90 active:scale-95 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
-    >
-      <Plus class="size-4 stroke-[2.5]" />
-      <span>{tr('dashboard.add_transaction', 'إضافة معاملة', 'Add Transaction')}</span>
-    </button>
-  </div>
-</div>
-
-<!-- شريط التنقل السفلي -->
-<div class="fixed bottom-0 inset-x-0 z-40 bg-[#09090b]/90 backdrop-blur-xl border-t border-white/10 px-6 py-2.5 max-w-lg mx-auto flex items-center justify-around">
-  <Link href={dashboard()} class="relative flex flex-col items-center gap-1 text-primary transition-all">
-    <span class="absolute -top-2 size-1.5 rounded-full bg-primary shadow-[0_0_8px_#3b82f6]"></span>
-    <LayoutDashboard class="size-5" />
-    <span class="text-[10px] font-bold">{tr('nav.home', 'الرئيسية', 'Home')}</span>
-  </Link>
-  <Link href="/transactions" class="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-all">
-    <Receipt class="size-5" />
-    <span class="text-[10px] font-medium">{tr('nav.transactions', 'المعاملات', 'Transactions')}</span>
-  </Link>
-</div>
 
 <!-- نافذة إضافة معاملة سريعة -->
 {#if isDialogOpen}
@@ -832,7 +873,7 @@ function startVoiceRecognition() {
               required
               onfocus={() => (isAmountFocused = true)}
               onblur={() => (isAmountFocused = false)}
-              class="h-11 w-full rounded-xl border border-white/10 bg-[#1a1a1a] ps-3.5 pe-12 text-start font-mono text-base font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-all focus:ring-2 focus:ring-white/10"
+              class="h-11 w-full rounded-xl border border-white/10 bg-[#1a1a1a] ps-3.5 pe-12 text-start font-mono text-base font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-white/30 transition-all focus:ring-2 focus:ring-white/10 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
 
             <!-- أزرار (+50 / -50) -->
@@ -903,16 +944,119 @@ function startVoiceRecognition() {
           </div>
         </div>
 
-        <!-- الوصف (تم تعديله إلى text-base لمنع الزوم) -->
-        <div class="flex flex-col gap-1.5">
-          <label for="tx-desc" class="text-xs font-bold text-white/80">{tr('transaction.description_optional', 'الوصف (اختياري)', 'Description (Optional)')}</label>
-          <input
-            id="tx-desc"
-            type="text"
-            bind:value={formDescription}
-            placeholder={tr('transaction.description_placeholder', 'عن ماذا كانت هذه المعاملة؟', 'What is this for?')}
-            class="h-10 w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-3 text-base font-medium text-white placeholder:text-white/20 placeholder:text-xs focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all"
-          />
+        <!-- الوصف والتاريخ (text-base على حقل النص لمنع زوم iOS عند التركيز) -->
+        <div class="flex items-end gap-2">
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <label for="tx-desc" class="text-[11px] font-bold text-white/80">{tr('transaction.description_optional', 'الوصف (اختياري)', 'Description (Optional)')}</label>
+            <input
+              id="tx-desc"
+              type="text"
+              bind:value={formDescription}
+              placeholder={tr('transaction.description_placeholder', 'عن ماذا كانت هذه المعاملة؟', 'What is this for?')}
+              class="h-10 w-full rounded-xl border border-white/10 bg-[#1a1a1a] px-2.5 text-base font-medium text-white placeholder:text-white/20 placeholder:text-[11px] focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all"
+            />
+          </div>
+          <div class="relative flex w-28 shrink-0 flex-col gap-1">
+            <label for="tx-date" class="text-[11px] font-bold text-white/80">{tr('transaction.date', 'التاريخ', 'Date')}</label>
+            <button
+              id="tx-date"
+              type="button"
+              onclick={toggleDatePicker}
+              aria-haspopup="dialog"
+              aria-expanded={isDatePickerOpen}
+              class="flex h-10 w-full cursor-pointer items-center justify-between gap-1.5 rounded-xl border bg-[#1a1a1a] px-2.5 text-xs font-semibold text-white transition-all active:scale-[0.98] focus:outline-none focus:ring-1 focus:ring-white/20 {isDatePickerOpen ? 'border-white/30 ring-1 ring-white/20' : 'border-white/10 hover:border-white/25'}"
+            >
+              <span class="truncate">{dateTriggerLabel}</span>
+              <Calendar class="size-3.5 shrink-0 text-white/50" />
+            </button>
+
+            {#if isDatePickerOpen}
+              <!-- طبقة شفافة للإغلاق عند النقر خارج التقويم -->
+              <button
+                type="button"
+                tabindex="-1"
+                aria-label={tr('common.close', 'إغلاق', 'Close')}
+                class="fixed inset-0 z-40 cursor-default"
+                onclick={() => (isDatePickerOpen = false)}
+              ></button>
+
+              <!-- يفتح للأعلى ليبقى داخل حدود النافذة (النافذة overflow-hidden) -->
+              <div
+                in:scale={{ duration: 120, start: 0.95 }}
+                out:scale={{ duration: 100, start: 0.95 }}
+                class="absolute bottom-full end-0 z-50 mb-2 w-[228px] rounded-2xl border border-white/10 bg-[#1a1a1a] p-2.5 shadow-2xl shadow-black/70 [color-scheme:dark]"
+                role="dialog"
+                aria-label={tr('transaction.date', 'التاريخ', 'Date')}
+              >
+                <div class="mb-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onclick={() => shiftPickerMonth(-1)}
+                    aria-label={tr('common.previous', 'السابق', 'Previous')}
+                    class="grid size-6 cursor-pointer place-items-center rounded-lg text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    {#if currentLang === 'ar'}
+                      <ChevronRight class="size-3.5" />
+                    {:else}
+                      <ChevronLeft class="size-3.5" />
+                    {/if}
+                  </button>
+                  <span class="text-[11px] font-bold text-white/90">{pickerMonthLabel}</span>
+                  <button
+                    type="button"
+                    onclick={() => shiftPickerMonth(1)}
+                    aria-label={tr('common.next', 'التالي', 'Next')}
+                    class="grid size-6 cursor-pointer place-items-center rounded-lg text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    {#if currentLang === 'ar'}
+                      <ChevronLeft class="size-3.5" />
+                    {:else}
+                      <ChevronRight class="size-3.5" />
+                    {/if}
+                  </button>
+                </div>
+
+                <div class="mb-1 grid grid-cols-7 gap-0.5">
+                  {#each weekdayLabels as weekday, i (i)}
+                    <div class="grid h-6 place-items-center text-[9px] font-bold text-white/35">{weekday}</div>
+                  {/each}
+                </div>
+
+                <div class="grid grid-cols-7 gap-0.5">
+                  {#each calendarCells as day, i (i)}
+                    {#if day === null}
+                      <div class="h-7"></div>
+                    {:else}
+                      {@const iso = localDateString(new Date(pickerYear, pickerMonth, day))}
+                      {@const isSelected = iso === formDate}
+                      {@const isToday = iso === localToday()}
+                      <button
+                        type="button"
+                        onclick={() => selectPickerDay(day)}
+                        aria-current={isSelected ? 'date' : undefined}
+                        class="grid h-7 cursor-pointer place-items-center rounded-lg text-[11px] font-semibold tabular-nums transition-all active:scale-90 {isSelected ? 'text-black' : 'text-white/70 hover:bg-white/10 hover:text-white'}"
+                        style={isSelected
+                          ? 'background: var(--accent); color: #000;'
+                          : isToday
+                            ? 'box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); color: #fff;'
+                            : ''}
+                      >
+                        {day}
+                      </button>
+                    {/if}
+                  {/each}
+                </div>
+
+                <button
+                  type="button"
+                  onclick={() => { formDate = localToday(); isDatePickerOpen = false; }}
+                  class="mt-2 h-7 w-full cursor-pointer rounded-lg border border-white/10 text-[10px] font-bold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  {tr('transaction.today', 'اليوم', 'Today')}
+                </button>
+              </div>
+            {/if}
+          </div>
         </div>
 
         <!-- أزرار الإجراءات -->
@@ -938,6 +1082,123 @@ function startVoiceRecognition() {
 {/if}
 
 <style>
+  /* ---------- بادج الترحيب ---------- */
+
+  /* وميض ضوء يعبر حروف الاسم */
+  @keyframes greetingShimmer {
+    0% {
+      background-position: 180% 50%;
+    }
+    55%, 100% {
+      background-position: -80% 50%;
+    }
+  }
+
+  .greeting-name {
+    background-image: linear-gradient(
+      100deg,
+      #a5f3fc 0%,
+      #99f6e4 34%,
+      #ffffff 48%,
+      #a7f3d0 62%,
+      #a5f3fc 100%
+    );
+    background-size: 240% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    letter-spacing: -0.01em;
+    animation: greetingShimmer 2.4s ease-in-out infinite;
+  }
+
+  /* هالة تتنفس حول البادج */
+  @keyframes greetingAura {
+    0%, 100% {
+      opacity: 0.35;
+      transform: scale(0.97);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.04);
+    }
+  }
+
+  .greeting-aura {
+    animation: greetingAura 4.5s ease-in-out infinite;
+  }
+
+  .greeting-wave {
+    filter: saturate(0.85);
+    opacity: 0.85;
+    transform: translateY(-0.5px);
+  }
+
+  /* ---------- الشريط العائم السفلي ---------- */
+
+  .dock {
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+  }
+
+  /* حد ثابت مضاء من فوق - بدون وميض متحرك عشان يختلف عن بادج الاسم */
+  .dock::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 9999px;
+    padding: 1px;
+    background-image: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.28) 0%,
+      rgba(255, 255, 255, 0.08) 45%,
+      rgba(255, 255, 255, 0.03) 100%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* هالة هادئة جداً، أبطأ من نبض البادج عشان ما يتزامنون */
+  @keyframes dockAura {
+    0%, 100% {
+      opacity: 0.28;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .dock-aura {
+    animation: dockAura 7s ease-in-out infinite;
+  }
+
+  /* تفاعل عند المرور فقط - محايد بدون ألوان البادج */
+  .dock-mic:hover {
+    box-shadow: 0 0 16px -6px rgba(255, 255, 255, 0.45);
+    transform: translateY(-1px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .greeting-name,
+    .greeting-aura,
+    .dock-aura {
+      animation: none;
+    }
+    .greeting-name {
+      background-position: 50% 50%;
+    }
+    .greeting-aura,
+    .dock-aura {
+      opacity: 0.45;
+    }
+  }
+
   @keyframes glowPulseBorder {
     0%, 100% {
       box-shadow: 0 0 6px var(--glow-color), inset 0 0 3px var(--glow-color);

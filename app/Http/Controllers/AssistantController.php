@@ -15,15 +15,17 @@ class AssistantController extends Controller
 {
     public function stream(Request $request): StreamedResponse
     {
-        set_time_limit(300);
-        ini_set('max_execution_time', '300');
+        // أعلى بشوي من مهلة المزوّد (60ث) عشان نغطي عدة أدوات متسلسلة،
+        // بس أقل بكثير من السابق حتى ما يعلق العامل خمس دقائق.
+        set_time_limit(120);
+        ini_set('max_execution_time', '120');
         ignore_user_abort(false);
 
         $validated = $request->validate([
             'message' => 'required|string|max:2000',
             'history' => 'nullable|array|max:50',
             'history.*.role' => 'required|in:user,assistant',
-            'history.*.content' => 'required|string',
+            'history.*.content' => 'required|string|max:4000',
         ]);
 
         $userMessage = $validated['message'];
@@ -77,9 +79,11 @@ class AssistantController extends Controller
                     'trace' => $e->getTraceAsString(),
                 ]);
 
+                // التفاصيل تروح للّوق فقط. رسالة المزوّد ممكن تحتوي مسارات
+                // داخلية أو مفاتيح داخل الروابط، فما نرجّعها للمتصفح.
                 $this->sendEvent([
                     'type' => 'error',
-                    'message' => $e->getMessage() ?: 'An error occurred while processing your request. Please try again.',
+                    'message' => __('messages.assistant_failed'),
                 ]);
             }
         }, 200, [

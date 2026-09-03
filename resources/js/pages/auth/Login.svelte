@@ -1,7 +1,7 @@
 <script module lang="ts">
     export const layout = {
         title: 'Log in',
-        description: 'Welcome back! Please enter your details below.',
+        description: 'Welcome back! Please enter your details below',
     };
 </script>
 
@@ -19,7 +19,7 @@
     import { register } from '@/routes';
     import { store } from '@/routes/login';
     import { request } from '@/routes/password';
-    import { ArrowRight, AlertCircle } from 'lucide-svelte';
+    import { ArrowRight } from 'lucide-svelte';
 
     let {
         status = '',
@@ -66,13 +66,6 @@
         >
             {#snippet children({ errors, processing })}
                 
-                {#if Object.keys(errors).length > 0}
-                    <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs text-rose-300 backdrop-blur-md flex items-center gap-2.5">
-                        <AlertCircle class="size-4 shrink-0 text-rose-400" />
-                        <span>Please check your credentials and try again.</span>
-                    </div>
-                {/if}
-
                 <div class="grid gap-4">
                     <!-- Email -->
                     <div class="grid gap-2">

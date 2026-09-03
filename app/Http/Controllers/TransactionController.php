@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Lang;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -132,42 +133,22 @@ class TransactionController extends Controller
     }
 
     /**
-     * ترجمة اسم الفئة تلقائياً إلى العربية لإشعارات الميزانية
+     * اسم الفئة كما يظهر في الإشعارات بلغة الواجهة الحالية.
+     * الفئات التي أنشأها المستخدم ما لها ترجمة، فترجع كما هي.
      */
     private function translateCategoryName(string $name): string
     {
-        $map = [
-            'food & drinks' => 'طعام ومشروبات',
-            'food' => 'طعام ومشروبات',
-            'housing' => 'سكن',
-            'entertainment' => 'ترفيه',
-            'health' => 'صحة',
-            'education' => 'تعليم',
-            'bills' => 'فواتير',
-            'shopping' => 'تسوق',
-            'transportation' => 'مواصلات',
-            'transport' => 'مواصلات',
-            'salary' => 'الراتب',
-            'freelance' => 'عمل حر',
-            'investment' => 'استثمار',
-            'gift' => 'هدية',
-            'other' => 'أخرى',
-            'groceries' => 'مقاضي',
-            'grocery' => 'مقاضي',
-        ];
+        $key = 'categories.'.strtolower(trim($name));
 
-        $key = strtolower(trim($name));
-
-        return $map[$key] ?? $name;
+        return Lang::has($key) ? __($key) : $name;
     }
 
     private function checkBudgetLimit($user, Category $category, string $type, string $transactionDate, string $action = 'store'): void
     {
-        $isArabic = request()->cookie('locale', 'en') === 'ar';
         $successMessage = $action === 'update'
-            ? ($isArabic ? 'تم تعديل المعاملة بنجاح!' : 'Transaction updated successfully!')
-            : ($isArabic ? 'تمت إضافة المعاملة بنجاح!' : 'Transaction added successfully!');
-        $limit = (float) ($category->budget_limit ?? $category->budget ?? 0);
+            ? __('messages.transaction_updated')
+            : __('messages.transaction_created');
+        $limit = (float) ($category->budgetLimitFor($user->id) ?? 0);
 
         // 1. إذا لم تكن مصاريف أو لا يوجد حد مالي -> إشعار نجاح عادي
         if ($type !== 'expense' || $limit <= 0) {
@@ -188,25 +169,25 @@ class TransactionController extends Controller
             ->sum('amount');
 
         $percentage = round(($totalSpent / $limit) * 100);
-        $categoryName = $isArabic ? $this->translateCategoryName($category->name) : $category->name;
+        $categoryName = $this->translateCategoryName($category->name);
 
         // 2. إذا تجاوز الحد المالي -> عرض إشعار التجاوز ونسبة الاستهلاك فقط
         if ($totalSpent > $limit) {
-            $exceeded = number_format($totalSpent - $limit, 2);
-            $message = $isArabic
-                ? "⚠️ تنبيه الميزانية: وصلت نسبة استهلاك فئة ({$categoryName}) إلى {$percentage}% وتجاوزت الحد بـ {$exceeded} ⃁"
-                : "⚠️ Budget warning: the '{$categoryName}' category reached {$percentage}% of its limit and exceeded it by {$exceeded} SAR";
             session()->flash('toast', [
                 'type' => 'warning',
-                'message' => $message,
+                'message' => __('messages.budget_exceeded', [
+                    'category' => $categoryName,
+                    'percentage' => $percentage,
+                    'amount' => number_format($totalSpent - $limit, 2),
+                ]),
             ]);
         } elseif ($percentage >= 80) {
-            $message = $isArabic
-                ? "📊 تنبيه الميزانية: وصلت نسبة استهلاك فئة ({$categoryName}) إلى {$percentage}% من الحد المالي"
-                : "📊 Budget warning: the '{$categoryName}' category reached {$percentage}% of its monthly budget limit";
             session()->flash('toast', [
                 'type' => 'warning',
-                'message' => $message,
+                'message' => __('messages.budget_near_limit', [
+                    'category' => $categoryName,
+                    'percentage' => $percentage,
+                ]),
             ]);
         }
         // 4. معاملة عادية ضمن نطاق الأمان -> إشعار النجاح العادي

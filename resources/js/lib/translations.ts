@@ -23,6 +23,8 @@ export const translations: Record<Language, TranslationDictionary> = {
       save: "Save",
       cancel: "Cancel",
       close: "Close",
+      previous: "Previous",
+      next: "Next",
       delete: "Delete",
       edit: "Edit",
       add: "Add",
@@ -35,13 +37,19 @@ export const translations: Record<Language, TranslationDictionary> = {
     },
 
     // 2. Bottom Navigation Bar
+    // Daily budget card
+    budget: {
+      title: "Your budget for today"
+    },
+
     nav: {
       home: "Home",
       dashboard: "My Wallet",
       transactions: "Transactions",
       reports: "Reports",
       categories: "Categories",
-      ai: "AI"
+      ai: "AI",
+      logout: "Log out"
     },
 
     // 3. Dashboard Page
@@ -57,6 +65,7 @@ export const translations: Record<Language, TranslationDictionary> = {
       subtitle: "Manage smartly and keep track of your budget",
       net_balance: "Net Balance",
       daily_budget: "Suggested Daily Budget",
+      welcome_back: "Welcome back,",
       total_income: "Total Income",
       total_expenses: "Total Expenses",
       view_all: "View All",
@@ -87,11 +96,6 @@ export const translations: Record<Language, TranslationDictionary> = {
       deleteError: "An error occurred while deleting the transaction",
       emptyHint: "No recorded transactions match the selected filters.",
       deleteTitle: "Delete transaction"
-    },
-
-    pagination: {
-      previous: "Previous",
-      next: "Next"
     },
 
     // 5. Reports & Analytics Page
@@ -153,7 +157,10 @@ export const translations: Record<Language, TranslationDictionary> = {
       budgetHint: "You will be alerted when 80% is reached",
       save: "Save",
       cancel: "Cancel",
-      deleteCategory: "Delete Category"
+      deleteCategory: "Delete Category",
+      addedSuccessfully: "Category added successfully",
+      updatedSuccessfully: "Category updated successfully",
+      deletedSuccessfully: "Category deleted successfully"
     },
 
     // 7. Individual Category Names (Singular, Plural & Full Names)
@@ -192,6 +199,8 @@ export const translations: Record<Language, TranslationDictionary> = {
       income: "Income",
       amount: "Amount",
       category: "Category",
+      date: "Date",
+      today: "Today",
       description_optional: "Description (Optional)",
       description_placeholder: "What is this for?",
       error_required: "Please select amount and category"
@@ -208,6 +217,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     voice: {
       title: "Voice Add",
       error: "Could not process audio, try again",
+      no_speech: "No speech detected, please try again",
+      denied: "Microphone permission denied, enable it in your browser settings",
       not_supported: "Voice recognition not supported"
     },
 
@@ -260,14 +271,7 @@ export const translations: Record<Language, TranslationDictionary> = {
       featureReports: "Reports & Analytics",
       featureReportsDesc: "Clear visual insights into exactly where your money goes.",
       featurePrivacy: "Full Privacy & Secure Data",
-      featurePrivacyDesc: "Your data is encrypted, securely stored, and private to you.",
-      mockWelcome: "Welcome Ahmed",
-      mockNetBalance: "Net Balance",
-      mockDailyBudget: "Daily Budget",
-      mockTodaySpent: "Today's Spending",
-      mockAdd: "Add",
-      mockIncome: "Income",
-      mockExpense: "Expense"
+      featurePrivacyDesc: "Your data is encrypted, securely stored, and private to you."
     }
   },
 
@@ -287,6 +291,8 @@ export const translations: Record<Language, TranslationDictionary> = {
       save: "حفظ",
       cancel: "إلغاء",
       close: "إغلاق",
+      previous: "السابق",
+      next: "التالي",
       delete: "حذف",
       edit: "تعديل",
       add: "إضافة",
@@ -299,13 +305,19 @@ export const translations: Record<Language, TranslationDictionary> = {
     },
 
     // 2. Bottom Navigation Bar
+    // كرت الميزانية اليومية
+    budget: {
+      title: "ميزانيتك لليوم"
+    },
+
     nav: {
       home: "الرئيسية",
       dashboard: "الرئيسية",
       transactions: "المعاملات",
       reports: "التقارير",
       categories: "الفئات",
-      ai: "المساعد"
+      ai: "المساعد",
+      logout: "تسجيل الخروج"
     },
 
     // 3. Dashboard Page
@@ -318,9 +330,10 @@ export const translations: Record<Language, TranslationDictionary> = {
       recentTransactions: "أحدث المعاملات",
       viewAll: "عرض الكل",
       quickAdd: "إضافة سريعة",
-      subtitle: "إدارة ذكية وتتبع لميزانيتك بكل سهولة",
+      subtitle: "أموالك. رؤيتك. مستقبلك.",
       net_balance: "صافي الرصيد",
-      daily_budget: "الميزانية اليومية المقترحة",
+      daily_budget: "ميزانيتك لليوم عشان تقضي الشهر مرتاح",
+      welcome_back: "أهلاً بك،",
       total_income: "إجمالي الدخل",
       total_expenses: "إجمالي المصاريف",
       view_all: "عرض الكل",
@@ -332,7 +345,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     // 4. Transactions Page & Actions
     transactions: {
       title: "المعاملات",
-      subtitle: "تتبع مصاريفك ودخلك بدقة",
+      subtitle: "كل حركة مالية في متناولك ",
       all: "الكل",
       expense: "المصروفات",
       income: "الدخل",
@@ -351,11 +364,6 @@ export const translations: Record<Language, TranslationDictionary> = {
       deleteError: "حدث خطأ أثناء حذف المعاملة",
       emptyHint: "لم تقم بتسجيل أي معاملات تطابق الخيارات المختارة.",
       deleteTitle: "حذف المعاملة"
-    },
-
-    pagination: {
-      previous: "السابق",
-      next: "التالي"
     },
 
     // 5. Reports & Analytics Page
@@ -408,7 +416,7 @@ export const translations: Record<Language, TranslationDictionary> = {
       type: "النوع",
       icon: "الأيقونة",
       color: "اللون",
-      subtitle: "أعطِ كل ريال هويته التي يستحقها",
+      subtitle: "خل كل ريال ينفق في مكانه, لأن القيمة تبدأ من حسن الاختيار",
       deleteConfirm: "هل أنت متأكد من حذف هذه الفئة؟",
       systemDefaultHint: "فئة افتراضية بالنظام",
       categoryType: "نوع الفئة",
@@ -417,7 +425,10 @@ export const translations: Record<Language, TranslationDictionary> = {
       budgetHint: "سيتم تنبيهك عند تجاوز 80%",
       save: "حفظ",
       cancel: "إلغاء",
-      deleteCategory: "حذف الفئة"
+      deleteCategory: "حذف الفئة",
+      addedSuccessfully: "تم إضافة الفئة بنجاح",
+      updatedSuccessfully: "تم تعديل الفئة بنجاح",
+      deletedSuccessfully: "تم حذف الفئة بنجاح"
     },
 
     // 7. Individual Category Names (Singular, Plural & Full Names)
@@ -456,6 +467,8 @@ export const translations: Record<Language, TranslationDictionary> = {
       income: "دخل",
       amount: "المبلغ",
       category: "الفئة",
+      date: "التاريخ",
+      today: "اليوم",
       description_optional: "الوصف (اختياري)",
       description_placeholder: "عن ماذا كانت هذه المعاملة؟",
       error_required: "يرجى تحديد المبلغ والفئة أولاً"
@@ -472,6 +485,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     voice: {
       title: "إضافة صوتية",
       error: "لم نتمكن من معالجة الصوت، حاول مرة أخرى",
+      no_speech: "لم يتم التقاط الصوت، حاول مرة أخرى",
+      denied: "تم رفض إذن الميكروفون، فعّله من إعدادات المتصفح",
       not_supported: "التعرف الصوتي غير مدعوم في هذا المتصفح"
     },
 
@@ -524,14 +539,7 @@ export const translations: Record<Language, TranslationDictionary> = {
       featureReports: "تقارير وتحليلات",
       featureReportsDesc: "رؤى بصرية واضحة تُظهر لك أين تذهب أموالك بالضبط.",
       featurePrivacy: "أمان وخصوصية تامة",
-      featurePrivacyDesc: "بياناتك مشفّرة ومحفوظة بأمان ولا يطّلع عليها أحد.",
-      mockWelcome: "مرحباً أحمد",
-      mockNetBalance: "صافي الرصيد",
-      mockDailyBudget: "الميزانية اليومية",
-      mockTodaySpent: "مصروفات اليوم",
-      mockAdd: "إضافة",
-      mockIncome: "دخل",
-      mockExpense: "مصروف"
+      featurePrivacyDesc: "بياناتك مشفّرة ومحفوظة بأمان ولا يطّلع عليها أحد."
     }
   }
 };

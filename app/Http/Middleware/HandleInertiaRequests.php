@@ -2,8 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\View;
 use Inertia\Middleware;
+use Symfony\Component\HttpFoundation\Response;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -15,6 +18,25 @@ class HandleInertiaRequests extends Middleware
      * @var string
      */
     protected $rootView = 'app';
+
+    /**
+     * Share the layout direction with the root Blade template.
+     *
+     * The `locale` Inertia prop is not visible to the root view, so the
+     * html tag needs its own View::share (same pattern as HandleAppearance).
+     * Arabic/RTL is the default until the visitor explicitly picks English.
+     *
+     * @param  Closure(Request): Response  $next
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        $isEnglish = $request->cookie('locale', 'ar') === 'en';
+
+        View::share('locale', $isEnglish ? 'ltr' : 'rtl');
+        View::share('htmlLang', $isEnglish ? 'en' : 'ar');
+
+        return parent::handle($request, $next);
+    }
 
     /**
      * Determines the current asset version.
@@ -42,7 +64,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-            'locale' => $request->cookie('locale', 'en') === 'ar' ? 'rtl' : 'ltr',
+            'locale' => $request->cookie('locale', 'ar') === 'en' ? 'ltr' : 'rtl',
             'flash' => [
                 'toast' => $request->session()->get('toast'),
             ],
