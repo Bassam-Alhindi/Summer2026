@@ -6,6 +6,7 @@ use App\Ai\Agents\FinanceAssistant;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Laravel\Ai\Attributes\Provider;
 use Laravel\Ai\Streaming\Events\TextDelta;
 use Laravel\Ai\Streaming\Events\ToolCall;
 use Laravel\Ai\Streaming\Events\ToolResult;
@@ -34,9 +35,26 @@ class AssistantController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        return new StreamedResponse(function () use ($userMessage, $history, $user) {
+        // مفتاح المزوّد الناقص خطأ إعداد، مو خلل مؤقت، وإعادة المحاولة ما بتفيد.
+        // بدون هالفحص يطلع 403 من جوقل ويوصل للمستخدم كـ"حاول مرة أخرى" للأبد.
+        $unconfiguredProvider = $this->providerMissingKey();
+
+        return new StreamedResponse(function () use ($userMessage, $history, $user, $unconfiguredProvider) {
             try {
                 $this->sendHeartbeat();
+
+                if ($unconfiguredProvider !== null) {
+                    Log::warning('Assistant is not configured: the provider API key is empty.', [
+                        'provider' => $unconfiguredProvider,
+                    ]);
+
+                    $this->sendEvent([
+                        'type' => 'error',
+                        'message' => __('messages.assistant_not_configured'),
+                    ]);
+
+                    return;
+                }
 
                 $agent = FinanceAssistant::make(user: $user, history: $history);
                 $stream = $agent->stream($userMessage);
@@ -92,6 +110,21 @@ class AssistantController extends Controller
             'Connection' => 'keep-alive',
             'X-Accel-Buffering' => 'no',
         ]);
+    }
+
+    /**
+     * اسم المزوّد إذا كان مفتاحه ناقص، وإلا null. المزوّد يُقرأ من خاصية
+     * الـ Provider على الوكيل عشان يضل صحيح إذا تغير المزوّد مستقبلًا.
+     */
+    private function providerMissingKey(): ?string
+    {
+        $attributes = (new \ReflectionClass(FinanceAssistant::class))->getAttributes(Provider::class);
+
+        $provider = $attributes === []
+            ? config('ai.default')
+            : $attributes[0]->newInstance()->value;
+
+        return blank(config("ai.providers.{$provider}.key")) ? $provider : null;
     }
 
     private function sendEvent(array $data): void

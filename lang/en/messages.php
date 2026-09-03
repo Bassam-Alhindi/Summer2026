@@ -23,5 +23,6 @@ return [
     'password_updated' => 'Password updated.',
 
     'assistant_failed' => 'Something went wrong while processing your request. Please try again.',
+    'assistant_not_configured' => 'The AI assistant is not set up yet. An AI API key needs to be added before it can answer.',
     'current_password_mismatch' => 'The provided password does not match your current password.',
 ];
