@@ -26,7 +26,7 @@ use Laravel\Ai\Promptable;
 use Stringable;
 
 #[Provider('gemini')]
-#[Model('gemini-flash-lite-latest')]
+#[Model('gemini-3.5-flash-lite')]
 #[MaxSteps(10)]
 #[Temperature(0.2)]
 #[Timeout(300)]
