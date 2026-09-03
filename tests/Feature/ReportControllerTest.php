@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class ReportControllerTest extends TestCase
@@ -167,29 +168,39 @@ class ReportControllerTest extends TestCase
         );
     }
 
-    public function test_reports_default_to_current_month(): void
+    public function test_reports_default_to_current_salary_cycle(): void
     {
+        // Frozen mid-cycle so the expected 27 -> 26 window is unambiguous.
+        Carbon::setTestNow(Carbon::parse('2026-09-03 12:00:00'));
+
         $user = User::factory()->create();
         $category = Category::factory()->forUser($user)->expense()->create(['name' => 'Food']);
 
-        $currentMonth = now()->format('Y-m');
-
+        // First day of the cycle.
+        Transaction::factory()->forUser($user)->forCategory($category)->expense()->create([
+            'amount' => 50,
+            'transaction_date' => '2026-08-27',
+        ]);
+        // Mid cycle.
         Transaction::factory()->forUser($user)->forCategory($category)->expense()->create([
             'amount' => 100,
-            'transaction_date' => now()->format('Y-m-d'),
+            'transaction_date' => '2026-09-01',
         ]);
+        // The day before the cycle opens belongs to the previous cycle.
         Transaction::factory()->forUser($user)->forCategory($category)->expense()->create([
             'amount' => 500,
-            'transaction_date' => now()->copy()->subMonths(2)->format('Y-m-d'),
+            'transaction_date' => '2026-08-26',
         ]);
 
         $response = $this->actingAs($user)->get(route('reports'));
 
         $response->assertInertia(
             fn ($page) => $page
-                ->where('totalExpenses', 100)
-                ->where('dateRange.from', now()->startOfMonth()->format('Y-m-d'))
-                ->where('dateRange.to', now()->endOfMonth()->format('Y-m-d'))
+                ->where('totalExpenses', 150)
+                ->where('dateRange.from', '2026-08-27')
+                ->where('dateRange.to', '2026-09-26')
         );
+
+        Carbon::setTestNow();
     }
 }

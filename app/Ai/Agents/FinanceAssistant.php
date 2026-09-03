@@ -9,6 +9,7 @@ use App\Ai\Tools\UpdateTransactions;
 use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Support\SalaryCycle;
 use Illuminate\Support\Carbon;
 use Laravel\Ai\Attributes\MaxSteps;
 use Laravel\Ai\Attributes\Model;
@@ -69,8 +70,9 @@ class FinanceAssistant implements Agent, Conversational, HasProviderOptions, Has
             })
             ->implode("\n");
 
-        $monthStart = Carbon::now()->startOfMonth();
-        $monthEnd = Carbon::now()->endOfMonth();
+        // "الشهر" للمساعد هو دورة الراتب (27 -> 26)، عشان الأرقام اللي
+        // يقولها تطابق اللي يشوفه المستخدم في لوحة التحكم.
+        [$monthStart, $monthEnd] = SalaryCycle::currentRange();
 
         $monthIncome = $this->money(Transaction::forUser($userId)->income()->dateRange($monthStart, $monthEnd)->sum('amount'));
         $monthExpenses = $this->money(Transaction::forUser($userId)->expense()->dateRange($monthStart, $monthEnd)->sum('amount'));

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Transaction;
+use App\Support\SalaryCycle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -41,8 +42,7 @@ class DashboardController extends Controller
 
         // الميزانية اليومية مربوطة بدورة الراتب (27 -> 26) وما تتأثر بفلتر
         // الأسبوع/الشهر/السنة، فنحسب مجاميعها على نافذة الدورة لحالها.
-        $cycleStart = $this->getCycleStart(Carbon::now());
-        $cycleEnd = $this->getCycleEnd(Carbon::now());
+        [$cycleStart, $cycleEnd] = SalaryCycle::currentRange();
 
         $cycleIncome = Transaction::forUser($userId)
             ->income()
@@ -139,7 +139,7 @@ class DashboardController extends Controller
             'period' => $period,
             'cycleEndsOn' => $cycleEnd->toDateString(),
             'cycleNetBalance' => (float) ($cycleIncome - $cycleExpenses),
-            'remainingDays' => $this->getCycleRemainingDays(Carbon::now()),
+            'remainingDays' => SalaryCycle::remainingDays(),
             'trends' => [
                 'income' => $incomeTrend,
                 'expenses' => $expenseTrend,
@@ -148,36 +148,9 @@ class DashboardController extends Controller
     }
 
     /**
-     * الراتب ينزل يوم 27، فالفلوس لازم تكفي لين 26 (آخر يوم قبل الراتب).
-     * الدورة تبدأ 27 وتنتهي 26 من الشهر اللي بعده، والأيام المتبقية تُحسب
-     * حتى نهاية الدورة الحالية لا حتى نهاية الشهر الميلادي.
-     */
-    private function getCycleStart(Carbon $now): Carbon
-    {
-        $today = $now->copy()->startOfDay();
-
-        return $today->day >= 27
-            ? $today->copy()->startOfMonth()->day(27)
-            : $today->copy()->startOfMonth()->subMonth()->day(27);
-    }
-
-    private function getCycleEnd(Carbon $now): Carbon
-    {
-        $today = $now->copy()->startOfDay();
-
-        return $today->day >= 27
-            ? $today->copy()->startOfMonth()->addMonth()->day(26)
-            : $today->copy()->startOfMonth()->day(26);
-    }
-
-    private function getCycleRemainingDays(Carbon $now): int
-    {
-        $today = $now->copy()->startOfDay();
-
-        return max(1, (int) $today->diffInDays($this->getCycleEnd($now)) + 1);
-    }
-
-    /**
+     * فلتر "الشهر" يمشي على دورة الراتب (27 -> 26) مو على الشهر الميلادي،
+     * عشان معاملة يوم 28 تدخل في الدورة الحالية. الأسبوع والسنة يبقون تقويميين.
+     *
      * @return array{0: Carbon, 1: Carbon}
      */
     private function getPeriodRange(string $period): array
@@ -187,7 +160,7 @@ class DashboardController extends Controller
         return match ($period) {
             'week' => [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()],
             'year' => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
-            default => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
+            default => SalaryCycle::currentRange($now),
         };
     }
 
@@ -201,7 +174,7 @@ class DashboardController extends Controller
         return match ($period) {
             'week' => [$now->copy()->subWeek()->startOfWeek(), $now->copy()->subWeek()->endOfWeek()],
             'year' => [$now->copy()->subYear()->startOfYear(), $now->copy()->subYear()->endOfYear()],
-            default => [$now->copy()->subMonth()->startOfMonth(), $now->copy()->subMonth()->endOfMonth()],
+            default => SalaryCycle::previousRange($now),
         };
     }
 

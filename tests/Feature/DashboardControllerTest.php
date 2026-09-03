@@ -7,6 +7,7 @@ use App\Models\CategoryBudget;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class DashboardControllerTest extends TestCase
@@ -282,6 +283,87 @@ class DashboardControllerTest extends TestCase
                 "netBalance must be the all-time total for period [{$period}]",
             );
         }
+    }
+
+    public function test_monthly_totals_follow_the_27th_salary_cycle(): void
+    {
+        // Today is the 28th, so the live cycle is 27 Sep -> 26 Oct.
+        Carbon::setTestNow(Carbon::parse('2026-09-28 09:00:00'));
+
+        $user = User::factory()->create();
+        $incomeCategory = Category::factory()->forUser($user)->income()->create();
+        $expenseCategory = Category::factory()->forUser($user)->expense()->create();
+
+        // Salary on the 27th opens the cycle.
+        Transaction::factory()->forUser($user)->forCategory($incomeCategory)->income()->create([
+            'amount' => 9000,
+            'transaction_date' => '2026-09-27',
+        ]);
+        // A spend on the 28th must land in the CURRENT cycle, not next month's.
+        Transaction::factory()->forUser($user)->forCategory($expenseCategory)->expense()->create([
+            'amount' => 300,
+            'transaction_date' => '2026-09-28',
+        ]);
+        // Early next calendar month is still the same cycle.
+        Transaction::factory()->forUser($user)->forCategory($expenseCategory)->expense()->create([
+            'amount' => 200,
+            'transaction_date' => '2026-10-05',
+        ]);
+        // The 26th is the last day of the PREVIOUS cycle, so it must be excluded.
+        Transaction::factory()->forUser($user)->forCategory($expenseCategory)->expense()->create([
+            'amount' => 777,
+            'transaction_date' => '2026-09-26',
+        ]);
+        // The 27th of next month opens the NEXT cycle, so it must be excluded too.
+        Transaction::factory()->forUser($user)->forCategory($expenseCategory)->expense()->create([
+            'amount' => 999,
+            'transaction_date' => '2026-10-27',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard', ['period' => 'month']));
+
+        $response->assertInertia(
+            fn ($page) => $page
+                ->where('totalIncome', 9000)
+                ->where('totalExpenses', 500)
+                ->where('cycleEndsOn', '2026-10-26')
+        );
+
+        Carbon::setTestNow();
+    }
+
+    public function test_monthly_cycle_before_the_27th_looks_back_to_previous_month(): void
+    {
+        // Today is the 3rd, so the live cycle is 27 Aug -> 26 Sep.
+        Carbon::setTestNow(Carbon::parse('2026-09-03 09:00:00'));
+
+        $user = User::factory()->create();
+        $expenseCategory = Category::factory()->forUser($user)->expense()->create();
+
+        // Inside the cycle even though it is in the previous calendar month.
+        Transaction::factory()->forUser($user)->forCategory($expenseCategory)->expense()->create([
+            'amount' => 400,
+            'transaction_date' => '2026-08-28',
+        ]);
+        Transaction::factory()->forUser($user)->forCategory($expenseCategory)->expense()->create([
+            'amount' => 100,
+            'transaction_date' => '2026-09-02',
+        ]);
+        // Before the cycle opened.
+        Transaction::factory()->forUser($user)->forCategory($expenseCategory)->expense()->create([
+            'amount' => 900,
+            'transaction_date' => '2026-08-26',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard', ['period' => 'month']));
+
+        $response->assertInertia(
+            fn ($page) => $page
+                ->where('totalExpenses', 500)
+                ->where('cycleEndsOn', '2026-09-26')
+        );
+
+        Carbon::setTestNow();
     }
 
     public function test_dashboard_returns_remaining_days(): void

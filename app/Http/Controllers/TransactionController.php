@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Transaction;
+use App\Support\SalaryCycle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Lang;
@@ -162,10 +163,12 @@ class TransactionController extends Controller
 
         $date = Carbon::parse($transactionDate);
 
+        // حد الميزانية شهري، والشهر عندنا = دورة الراتب (27 -> 26)، فنجمع
+        // مصروف الدورة اللي تقع فيها المعاملة لا مصروف الشهر الميلادي.
         $totalSpent = (float) Transaction::forUser($user->id)
             ->forCategory($category->id)
             ->where('type', 'expense')
-            ->whereBetween('transaction_date', [$date->copy()->startOfMonth(), $date->copy()->endOfMonth()])
+            ->whereBetween('transaction_date', [SalaryCycle::startFor($date), SalaryCycle::endFor($date)])
             ->sum('amount');
 
         $percentage = round(($totalSpent / $limit) * 100);

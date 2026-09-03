@@ -200,8 +200,14 @@
         } else if (diffDays === 1) {
             return t('transactions.yesterday');
         } else {
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            return `${target.getDate()} ${monthNames[target.getMonth()]}`;
+            // أسماء الشهور تتبع لغة الواجهة، مع تثبيت التقويم الميلادي
+            // والأرقام اللاتينية عشان تطابق بقية الأرقام في التطبيق.
+            const dateLocale = getLocale() === 'ar' ? 'ar-u-ca-gregory-nu-latn' : 'en-US';
+
+            return new Intl.DateTimeFormat(dateLocale, {
+                day: 'numeric',
+                month: 'short',
+            }).format(target);
         }
     }
 
@@ -309,7 +315,7 @@
             {#if isCategoryDropdownOpen}
                 <button
                     type="button"
-                    aria-label="Close"
+                    aria-label={t('common.close')}
                     transition:fade={{ duration: 100 }}
                     onclick={() => (isCategoryDropdownOpen = false)}
                     class="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
@@ -333,7 +339,7 @@
                             <div class="size-6 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0 border border-border/40">
                                 <Filter class="size-3.5" />
                             </div>
-                            <span>{t('transactions.selectCategory')}</span>
+                            <span>{t('transactions.allCategories')}</span>
                         </div>
                         {#if categoryFilter === 'all'}
                             <Check class="size-4 text-primary" />
@@ -462,7 +468,7 @@
                                     )}
                                 >
                                     <span>{formatAmount(tx)}</span>
-                                    <span class="text-[11px] font-semibold inline-block" style="filter: brightness(0) invert(1);">⃁</span>
+                                    <span class="text-[11px] font-semibold">{t('common.currency')}</span>
                                 </div>
                                 <!-- زر الحذف فقط -->
                                 <div
@@ -517,7 +523,7 @@
                     <ChevronLeft class="size-4 rtl:rotate-180" />
                 </Button>
 
-                {#each pageLinks as link}
+                {#each pageLinks as link, i (link.url ?? `gap-${i}`)}
                     {#if link.url}
                         <Button
                             variant={link.active ? 'default' : 'outline'}

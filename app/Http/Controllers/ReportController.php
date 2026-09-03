@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Transaction;
+use App\Support\SalaryCycle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -12,13 +13,17 @@ class ReportController extends Controller
 {
     public function index(Request $request): Response
     {
+        // بدون فلتر صريح، التقرير يغطي دورة الراتب الحالية (27 -> 26)
+        // مو الشهر الميلادي، عشان يطابق أرقام لوحة التحكم.
+        [$cycleFrom, $cycleTo] = SalaryCycle::currentRange();
+
         $from = $request->filled('from')
             ? Carbon::parse($request->input('from'))->startOfDay()
-            : Carbon::now()->startOfMonth()->startOfDay();
+            : $cycleFrom;
 
         $to = $request->filled('to')
             ? Carbon::parse($request->input('to'))->endOfDay()
-            : Carbon::now()->endOfMonth()->endOfDay();
+            : $cycleTo;
 
         $transactions = Transaction::forUser($request->user()->id)
             ->with(['category.budgets' => fn ($q) => $q->where('user_id', $request->user()->id)])
